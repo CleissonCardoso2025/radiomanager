@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Bell, ChevronDown, Menu, Search, User, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +28,7 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
     { name: 'Dashboard', path: '/', isActive: location.pathname === '/' },
     { name: 'Programas e Testemunhais', path: '/gerenciamento', isActive: location.pathname === '/gerenciamento' },
     { name: 'Agenda', path: '/agenda', isActive: location.pathname === '/agenda' },
-    { name: 'Relatórios', path: '#', isActive: false },
+    { name: 'Relatórios', path: '/relatorios', isActive: location.pathname === '/relatorios' },
   ];
 
   const userMenuItems = [
