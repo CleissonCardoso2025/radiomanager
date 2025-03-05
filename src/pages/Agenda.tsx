@@ -1,11 +1,9 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
 import { Check, Clock, Search, Bell, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -21,7 +19,6 @@ interface Testemunhal {
 }
 
 const Agenda: React.FC = () => {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [searchText, setSearchText] = useState('');
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
 
@@ -119,17 +116,7 @@ const Agenda: React.FC = () => {
                 <p className="text-muted-foreground">Locutor Principal</p>
               </div>
             </div>
-            <div className="flex items-center space-x-6">
-              <div className="relative">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  className="rounded-md border shadow-sm"
-                  locale={ptBR}
-                />
-              </div>
-            </div>
+            
           </div>
         </div>
       </div>
