@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Bell, ChevronDown, Menu, Search, User, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +14,7 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { Link, useLocation } from 'react-router-dom';
 
 interface HeaderProps {
   notificationCount: number;
@@ -22,12 +22,12 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const location = useLocation();
 
   const navItems = [
-    { name: 'Dashboard', isActive: true },
-    { name: 'Programas', isActive: false },
-    { name: 'Testemunhais', isActive: false },
-    { name: 'Relatórios', isActive: false },
+    { name: 'Dashboard', path: '/', isActive: location.pathname === '/' },
+    { name: 'Programas e Testemunhais', path: '/gerenciamento', isActive: location.pathname === '/gerenciamento' },
+    { name: 'Relatórios', path: '#', isActive: false },
   ];
 
   const userMenuItems = [
@@ -41,21 +41,23 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
       <div className="container px-6 h-16 mx-auto flex items-center justify-between">
         <div className="flex items-center gap-10">
           <div className="flex items-center">
-            <h1 className="text-2xl font-medium text-primary tracking-tight">
-              RadioManager
-            </h1>
+            <Link to="/">
+              <h1 className="text-2xl font-medium text-primary tracking-tight">
+                RadioManager
+              </h1>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => (
-              <a
+              <Link
                 key={item.name}
-                href="#"
+                to={item.path}
                 className={`nav-item ${item.isActive ? 'nav-item-active' : ''}`}
               >
                 {item.name}
-              </a>
+              </Link>
             ))}
           </nav>
         </div>
@@ -164,9 +166,9 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
               <SheetContent side="right" className="p-0">
                 <div className="pt-16 px-6 flex flex-col gap-3">
                   {navItems.map((item) => (
-                    <a
+                    <Link
                       key={item.name}
-                      href="#"
+                      to={item.path}
                       className={`p-4 rounded-lg flex items-center ${
                         item.isActive
                           ? 'bg-primary text-white'
@@ -174,7 +176,7 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
                       }`}
                     >
                       {item.name}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               </SheetContent>
