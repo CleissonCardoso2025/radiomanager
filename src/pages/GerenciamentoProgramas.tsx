@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,14 +38,10 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from '@/components/ui/alert-dialog';
-import { 
-  Checkbox, 
-  CheckboxIndicator
-} from '@/components/ui/checkbox';
+import { Checkbox } from '@/components/ui/checkbox';
 import { BadgeCheck, Clock, Pencil, Plus, Trash2, User } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Interfaces para tipagem
 interface Programa {
   id: string;
   nome: string;
@@ -73,7 +68,6 @@ const GerenciamentoProgramas: React.FC = () => {
   const [modalType, setModalType] = useState<'programa' | 'testemunhal'>('programa');
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  // Exemplo de dados
   const [programas, setProgramas] = useState<Programa[]>([
     {
       id: '1',
@@ -110,7 +104,6 @@ const GerenciamentoProgramas: React.FC = () => {
     },
   ]);
 
-  // Estados para o formulário
   const [formData, setFormData] = useState<any>({
     nome: '',
     horario: '',
@@ -166,10 +159,8 @@ const GerenciamentoProgramas: React.FC = () => {
   const confirmDelete = () => {
     if (selectedItem) {
       if ('nome' in selectedItem) {
-        // É um programa
         setProgramas(prev => prev.filter(p => p.id !== selectedItem.id));
       } else {
-        // É um testemunhal
         setTestemunhais(prev => prev.filter(t => t.id !== selectedItem.id));
       }
       toast.success('Item excluído com sucesso!');
@@ -200,10 +191,8 @@ const GerenciamentoProgramas: React.FC = () => {
       };
 
       if (selectedItem) {
-        // Editar existente
         setProgramas(prev => prev.map(p => p.id === newPrograma.id ? newPrograma : p));
       } else {
-        // Adicionar novo
         setProgramas(prev => [...prev, newPrograma]);
       }
     } else {
@@ -217,10 +206,8 @@ const GerenciamentoProgramas: React.FC = () => {
       };
 
       if (selectedItem) {
-        // Editar existente
         setTestemunhais(prev => prev.map(t => t.id === newTestemunhal.id ? newTestemunhal : t));
       } else {
-        // Adicionar novo
         setTestemunhais(prev => [...prev, newTestemunhal]);
       }
     }
@@ -349,7 +336,6 @@ const GerenciamentoProgramas: React.FC = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Modal para adicionar/editar */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
@@ -394,9 +380,7 @@ const GerenciamentoProgramas: React.FC = () => {
                           id={`dia-${idx}`}
                           checked={formData.dias.includes(idx)}
                           onCheckedChange={() => handleCheckboxChange(idx)}
-                        >
-                          <CheckboxIndicator />
-                        </Checkbox>
+                        />
                         <label htmlFor={`dia-${idx}`} className="text-sm font-medium">
                           {dia}
                         </label>
@@ -501,7 +485,6 @@ const GerenciamentoProgramas: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Dialog de confirmação para excluir */}
         <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
