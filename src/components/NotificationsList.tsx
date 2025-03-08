@@ -10,7 +10,7 @@ interface NotificationItem {
   title: string;
   program: string;
   time: string;
-  status: 'pending' | 'success';
+  status: string;
 }
 
 interface NotificationsListProps {
@@ -47,12 +47,12 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
                 variant="outline"
                 className={cn(
                   "ml-2 transition-colors",
-                  item.status === 'pending' 
+                  item.status === 'pendente' || item.status === 'pending'
                     ? 'bg-yellow-100 text-yellow-800 border-yellow-200' 
                     : 'bg-green-100 text-green-800 border-green-200'
                 )}
               >
-                {item.status === 'pending' ? 'Pendente' : 'Concluído'}
+                {item.status === 'pendente' || item.status === 'pending' ? 'Pendente' : 'Concluído'}
               </Badge>
             </div>
           ))}
