@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -91,6 +92,7 @@ const GerenciamentoProgramas: React.FC = () => {
     leituras: 1,
     intervalo: 30,
     programa_id: '',
+    distribuir_automaticamente: true,
   });
 
   const { data: programas = [] } = useQuery<Programa[]>({
@@ -130,6 +132,62 @@ const GerenciamentoProgramas: React.FC = () => {
       return data || [];
     },
   });
+
+  // Função para converter horário no formato HH:MM para minutos desde meia-noite
+  const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  // Função para converter minutos desde meia-noite para HH:MM
+  const minutesToTime = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  };
+
+  // Função para gerar horários distribuídos para as leituras
+  const generateDistributedTimes = (
+    startTime: string,
+    endTime: string,
+    count: number
+  ): string[] => {
+    // Converter horários para minutos
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+    
+    // Calcular duração total do programa em minutos
+    const duration = endMinutes - startMinutes;
+    
+    if (duration <= 0 || count <= 0) return [];
+    
+    // Distribuir leituras uniformemente
+    const times: string[] = [];
+    
+    if (count === 1) {
+      // Se tiver apenas uma leitura, colocar no meio do programa
+      const middleTime = Math.floor(startMinutes + duration / 2);
+      times.push(minutesToTime(middleTime));
+    } else {
+      // Calcular intervalo entre leituras
+      const interval = duration / (count + 1);
+      
+      // Gerar os horários distribuídos
+      for (let i = 1; i <= count; i++) {
+        // Adicionar uma variação aleatória de até 5 minutos para cada horário
+        const baseTime = Math.floor(startMinutes + interval * i);
+        const variation = Math.floor(Math.random() * 11) - 5; // -5 a +5 minutos
+        const adjustedTime = Math.max(startMinutes, Math.min(endMinutes, baseTime + variation));
+        
+        times.push(minutesToTime(adjustedTime));
+      }
+      
+      // Ordenar os horários
+      times.sort();
+    }
+    
+    return times;
+  };
 
   const programaMutation = useMutation({
     mutationFn: async (programa: any) => {
@@ -183,13 +241,31 @@ const GerenciamentoProgramas: React.FC = () => {
 
   const testemunhalMutation = useMutation({
     mutationFn: async (testemunhal: any) => {
+      // Buscar programa selecionado
+      const programa = programas.find(p => p.id === testemunhal.programa_id);
+      
+      // Verificar se deve gerar horários aleatórios ou usar o horário específico
+      let horarios: string[] = [];
+      
+      if (testemunhal.distribuir_automaticamente && programa) {
+        horarios = generateDistributedTimes(
+          programa.horario_inicio,
+          programa.horario_fim,
+          testemunhal.leituras
+        );
+      } else {
+        // Usar o horário fornecido manualmente
+        horarios = [testemunhal.horario_agendado];
+      }
+      
       if (selectedItem) {
+        // Atualizar um testemunhal existente
         const { data, error } = await supabase
           .from('testemunhais')
           .update({
             patrocinador: testemunhal.patrocinador,
             texto: testemunhal.texto,
-            horario_agendado: testemunhal.horario_agendado,
+            horario_agendado: horarios[0] || testemunhal.horario_agendado,
             programa_id: testemunhal.programa_id,
             leituras: testemunhal.leituras,
             updated_at: new Date().toISOString(),
@@ -200,20 +276,41 @@ const GerenciamentoProgramas: React.FC = () => {
         if (error) throw error;
         return data;
       } else {
-        const { data, error } = await supabase
-          .from('testemunhais')
-          .insert({
+        // Para novos testemunhais, criar múltiplas entradas se houver múltiplas leituras e distribuição automática
+        if (testemunhal.distribuir_automaticamente && testemunhal.leituras > 1) {
+          const inserts = horarios.map(horario => ({
             patrocinador: testemunhal.patrocinador,
             texto: testemunhal.texto,
-            horario_agendado: testemunhal.horario_agendado,
+            horario_agendado: horario,
             programa_id: testemunhal.programa_id,
-            leituras: testemunhal.leituras,
+            leituras: 1, // cada inserção representa uma leitura
             status: 'pendente',
-          })
-          .select();
+          }));
           
-        if (error) throw error;
-        return data;
+          const { data, error } = await supabase
+            .from('testemunhais')
+            .insert(inserts)
+            .select();
+            
+          if (error) throw error;
+          return data;
+        } else {
+          // Inserir um único testemunhal com o número total de leituras
+          const { data, error } = await supabase
+            .from('testemunhais')
+            .insert({
+              patrocinador: testemunhal.patrocinador,
+              texto: testemunhal.texto,
+              horario_agendado: horarios[0] || testemunhal.horario_agendado,
+              programa_id: testemunhal.programa_id,
+              leituras: testemunhal.leituras,
+              status: 'pendente',
+            })
+            .select();
+            
+          if (error) throw error;
+          return data;
+        }
       }
     },
     onSuccess: () => {
@@ -275,6 +372,7 @@ const GerenciamentoProgramas: React.FC = () => {
       horario_agendado: '',
       programa_id: '',
       leituras: 1,
+      distribuir_automaticamente: true,
     });
     setIsModalOpen(true);
   };
@@ -300,6 +398,7 @@ const GerenciamentoProgramas: React.FC = () => {
         horario_agendado: testemunhal.horario_agendado,
         programa_id: testemunhal.programa_id,
         leituras: testemunhal.leituras || 1,
+        distribuir_automaticamente: false,
       });
     }
     
@@ -336,12 +435,21 @@ const GerenciamentoProgramas: React.FC = () => {
       }
       programaMutation.mutate(formData);
     } else {
-      if (!formData.patrocinador || !formData.texto || !formData.horario_agendado || !formData.programa_id) {
+      if (!formData.patrocinador || !formData.texto || !formData.programa_id) {
         toast.error('Preencha todos os campos obrigatórios', {
-          description: 'Patrocinador, texto, horário e programa são obrigatórios.',
+          description: 'Patrocinador, texto e programa são obrigatórios.',
         });
         return;
       }
+      
+      // Se a distribuição automática estiver ativada, o horário agendado não é obrigatório
+      if (!formData.distribuir_automaticamente && !formData.horario_agendado) {
+        toast.error('Preencha o horário agendado ou utilize a distribuição automática', {
+          description: 'É necessário definir um horário ou ativar a distribuição automática.',
+        });
+        return;
+      }
+      
       testemunhalMutation.mutate(formData);
     }
   };
@@ -349,6 +457,18 @@ const GerenciamentoProgramas: React.FC = () => {
   const notificationCount = Array.isArray(testemunhais) 
     ? testemunhais.filter(t => t.status === 'pendente' || t.status === 'atrasado').length 
     : 0;
+
+  // Função para verificar se o horário de um testemunhal está dentro do horário do programa
+  const isTimeWithinProgram = (programaId: string, horario: string): boolean => {
+    const programa = programas.find(p => p.id === programaId);
+    if (!programa) return false;
+    
+    const horarioMinutes = timeToMinutes(horario);
+    const inicioMinutes = timeToMinutes(programa.horario_inicio);
+    const fimMinutes = timeToMinutes(programa.horario_fim);
+    
+    return horarioMinutes >= inicioMinutes && horarioMinutes <= fimMinutes;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -454,7 +574,15 @@ const GerenciamentoProgramas: React.FC = () => {
                             {testemunhal.texto}
                           </TableCell>
                           <TableCell>{testemunhal.patrocinador}</TableCell>
-                          <TableCell>{testemunhal.horario_agendado.slice(0, 5)}</TableCell>
+                          <TableCell className={
+                            isTimeWithinProgram(testemunhal.programa_id, testemunhal.horario_agendado)
+                            ? '' : 'text-red-600'
+                          }>
+                            {testemunhal.horario_agendado.slice(0, 5)}
+                            {!isTimeWithinProgram(testemunhal.programa_id, testemunhal.horario_agendado) && (
+                              <span className="text-xs ml-1 text-red-600">(Fora do horário)</span>
+                            )}
+                          </TableCell>
                           <TableCell>{testemunhal.programas?.nome || ''}</TableCell>
                           <TableCell>
                             <div className="flex items-center">
@@ -602,18 +730,6 @@ const GerenciamentoProgramas: React.FC = () => {
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="horario_agendado" className="text-right">
-                    Horário
-                  </Label>
-                  <Input
-                    id="horario_agendado"
-                    type="time"
-                    value={formData.horario_agendado}
-                    onChange={(e) => handleFormChange('horario_agendado', e.target.value)}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="programa_id" className="text-right">
                     Programa
                   </Label>
@@ -649,6 +765,38 @@ const GerenciamentoProgramas: React.FC = () => {
                     <span className="ml-2 text-gray-500">vezes durante o programa</span>
                   </div>
                 </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">
+                    Distribuição
+                  </Label>
+                  <div className="col-span-3 flex items-center space-x-2">
+                    <Checkbox 
+                      id="distribuir_automaticamente" 
+                      checked={formData.distribuir_automaticamente} 
+                      onCheckedChange={(checked) => handleFormChange('distribuir_automaticamente', !!checked)}
+                    />
+                    <label
+                      htmlFor="distribuir_automaticamente"
+                      className="text-sm font-medium leading-none"
+                    >
+                      Distribuir leituras automaticamente no horário do programa
+                    </label>
+                  </div>
+                </div>
+                {!formData.distribuir_automaticamente && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="horario_agendado" className="text-right">
+                      Horário
+                    </Label>
+                    <Input
+                      id="horario_agendado"
+                      type="time"
+                      value={formData.horario_agendado}
+                      onChange={(e) => handleFormChange('horario_agendado', e.target.value)}
+                      className="col-span-3"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
