@@ -40,7 +40,7 @@ import {
   AlertDialogTitle 
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { BadgeCheck, Clock, Pencil, Plus, Trash2, User } from 'lucide-react';
+import { BadgeCheck, Calendar, CalendarDays, Clock, Pencil, Plus, Repeat, Trash2, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -120,6 +120,7 @@ const GerenciamentoProgramas: React.FC = () => {
             horario_inicio: programa.horario_inicio,
             horario_fim: programa.horario_fim,
             apresentador: programa.apresentador,
+            dias: programa.dias,
             updated_at: new Date().toISOString(),
           })
           .eq('id', selectedItem.id)
@@ -136,6 +137,7 @@ const GerenciamentoProgramas: React.FC = () => {
             horario_inicio: programa.horario_inicio,
             horario_fim: programa.horario_fim,
             apresentador: programa.apresentador,
+            dias: programa.dias,
           })
           .select();
           
@@ -171,6 +173,7 @@ const GerenciamentoProgramas: React.FC = () => {
             texto: testemunhal.texto,
             horario_agendado: testemunhal.horario_agendado,
             programa_id: testemunhal.programa_id,
+            leituras: testemunhal.leituras,
             updated_at: new Date().toISOString(),
           })
           .eq('id', selectedItem.id)
@@ -187,6 +190,7 @@ const GerenciamentoProgramas: React.FC = () => {
             texto: testemunhal.texto,
             horario_agendado: testemunhal.horario_agendado,
             programa_id: testemunhal.programa_id,
+            leituras: testemunhal.leituras,
             status: 'pendente',
           })
           .select();
@@ -254,6 +258,7 @@ const GerenciamentoProgramas: React.FC = () => {
       patrocinador: '',
       horario_agendado: '',
       programa_id: '',
+      leituras: 1,
     });
     setIsModalOpen(true);
   };
@@ -268,6 +273,7 @@ const GerenciamentoProgramas: React.FC = () => {
         horario_inicio: item.horario_inicio,
         horario_fim: item.horario_fim,
         apresentador: item.apresentador,
+        dias: item.dias || [],
       });
     } else {
       setFormData({
@@ -275,6 +281,7 @@ const GerenciamentoProgramas: React.FC = () => {
         patrocinador: item.patrocinador,
         horario_agendado: item.horario_agendado,
         programa_id: item.programa_id,
+        leituras: item.leituras || 1,
       });
     }
     
@@ -290,10 +297,33 @@ const GerenciamentoProgramas: React.FC = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleDayToggle = (day: string) => {
+    setFormData(prev => {
+      const currentDays = prev.dias || [];
+      if (currentDays.includes(day)) {
+        return { ...prev, dias: currentDays.filter((d: string) => d !== day) };
+      } else {
+        return { ...prev, dias: [...currentDays, day] };
+      }
+    });
+  };
+
   const handleSave = () => {
     if (modalType === 'programa') {
+      if (!formData.nome || !formData.horario_inicio || !formData.horario_fim || formData.dias.length === 0) {
+        toast.error('Preencha todos os campos obrigatórios', {
+          description: 'Nome, horário de início, horário de fim e dias da semana são obrigatórios.',
+        });
+        return;
+      }
       programaMutation.mutate(formData);
     } else {
+      if (!formData.patrocinador || !formData.texto || !formData.horario_agendado || !formData.programa_id) {
+        toast.error('Preencha todos os campos obrigatórios', {
+          description: 'Patrocinador, texto, horário e programa são obrigatórios.',
+        });
+        return;
+      }
       testemunhalMutation.mutate(formData);
     }
   };
@@ -360,6 +390,18 @@ const GerenciamentoProgramas: React.FC = () => {
                         <User className="h-4 w-4 mr-2" />
                         <span>{programa.apresentador}</span>
                       </div>
+                      {programa.dias && programa.dias.length > 0 && (
+                        <div className="flex items-start text-gray-600">
+                          <CalendarDays className="h-4 w-4 mr-2 mt-0.5" />
+                          <span className="flex flex-wrap gap-1">
+                            {programa.dias.map((dia: string) => (
+                              <span key={dia} className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                                {dia}
+                              </span>
+                            ))}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -378,6 +420,7 @@ const GerenciamentoProgramas: React.FC = () => {
                         <TableHead>Patrocinador</TableHead>
                         <TableHead>Horário</TableHead>
                         <TableHead>Programa</TableHead>
+                        <TableHead>Leituras</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
@@ -391,6 +434,12 @@ const GerenciamentoProgramas: React.FC = () => {
                           <TableCell>{testemunhal.patrocinador}</TableCell>
                           <TableCell>{testemunhal.horario_agendado.slice(0, 5)}</TableCell>
                           <TableCell>{testemunhal.programas?.nome || ''}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <Repeat className="h-4 w-4 mr-1 text-gray-500" />
+                              <span>{testemunhal.leituras || 1}x</span>
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs ${
                               testemunhal.status === 'lido' 
@@ -482,6 +531,28 @@ const GerenciamentoProgramas: React.FC = () => {
                     className="col-span-3"
                   />
                 </div>
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">
+                    Dias da Semana
+                  </Label>
+                  <div className="col-span-3 flex flex-wrap gap-2">
+                    {diasSemana.map((dia) => (
+                      <div key={dia} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`dia-${dia}`} 
+                          checked={formData.dias?.includes(dia)} 
+                          onCheckedChange={() => handleDayToggle(dia)}
+                        />
+                        <label
+                          htmlFor={`dia-${dia}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {dia}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="grid gap-4 py-4">
@@ -539,6 +610,22 @@ const GerenciamentoProgramas: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="leituras" className="text-right">
+                    Qtd. Leituras
+                  </Label>
+                  <div className="col-span-3 flex items-center">
+                    <Input
+                      id="leituras"
+                      type="number"
+                      min="1"
+                      value={formData.leituras}
+                      onChange={(e) => handleFormChange('leituras', parseInt(e.target.value) || 1)}
+                      className="w-24"
+                    />
+                    <span className="ml-2 text-gray-500">vezes durante o programa</span>
+                  </div>
                 </div>
               </div>
             )}
