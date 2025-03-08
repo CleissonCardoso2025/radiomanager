@@ -53,7 +53,7 @@ interface Programa {
   status: string;
   created_at: string;
   updated_at: string;
-  dias?: string[];
+  dias: string[];
 }
 
 interface Testemunhal {
@@ -67,7 +67,7 @@ interface Testemunhal {
   created_at: string;
   updated_at: string;
   programas: { nome: string };
-  leituras?: number;
+  leituras: number;
 }
 
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
@@ -108,13 +108,7 @@ const GerenciamentoProgramas: React.FC = () => {
         return [];
       }
       
-      return (data || []).map(item => {
-        const itemWithAny = item as any;
-        return {
-          ...item,
-          dias: Array.isArray(itemWithAny.dias) ? itemWithAny.dias : [],
-        };
-      });
+      return data || [];
     },
   });
 
@@ -133,13 +127,7 @@ const GerenciamentoProgramas: React.FC = () => {
         return [];
       }
       
-      return (data || []).map(item => {
-        const itemWithAny = item as any;
-        return {
-          ...item,
-          leituras: typeof itemWithAny.leituras === 'number' ? itemWithAny.leituras : 1,
-        };
-      });
+      return data || [];
     },
   });
 

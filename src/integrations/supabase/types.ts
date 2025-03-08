@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           apresentador: string
           created_at: string | null
+          dias: string[] | null
           horario_fim: string
           horario_inicio: string
           id: string
@@ -23,6 +24,7 @@ export type Database = {
         Insert: {
           apresentador: string
           created_at?: string | null
+          dias?: string[] | null
           horario_fim: string
           horario_inicio: string
           id?: string
@@ -33,6 +35,7 @@ export type Database = {
         Update: {
           apresentador?: string
           created_at?: string | null
+          dias?: string[] | null
           horario_fim?: string
           horario_inicio?: string
           id?: string
@@ -47,6 +50,7 @@ export type Database = {
           created_at: string | null
           horario_agendado: string
           id: string
+          leituras: number | null
           patrocinador: string
           programa_id: string | null
           status: string | null
@@ -58,6 +62,7 @@ export type Database = {
           created_at?: string | null
           horario_agendado: string
           id?: string
+          leituras?: number | null
           patrocinador: string
           programa_id?: string | null
           status?: string | null
@@ -69,6 +74,7 @@ export type Database = {
           created_at?: string | null
           horario_agendado?: string
           id?: string
+          leituras?: number | null
           patrocinador?: string
           programa_id?: string | null
           status?: string | null
