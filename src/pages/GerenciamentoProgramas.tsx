@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -108,7 +109,11 @@ const GerenciamentoProgramas: React.FC = () => {
         return [];
       }
       
-      return data || [];
+      // Transform the data to include 'dias' property if missing
+      return (data || []).map(item => ({
+        ...item,
+        dias: item.dias || []
+      })) as Programa[];
     },
   });
 
@@ -127,7 +132,11 @@ const GerenciamentoProgramas: React.FC = () => {
         return [];
       }
       
-      return data || [];
+      // Transform the data to include 'leituras' property if missing
+      return (data || []).map(item => ({
+        ...item,
+        leituras: item.leituras || 1
+      })) as Testemunhal[];
     },
   });
 
@@ -246,7 +255,7 @@ const GerenciamentoProgramas: React.FC = () => {
       return null;
     },
     onSuccess: () => {
-      if ('nome' in selectedItem) {
+      if (selectedItem && 'nome' in selectedItem) {
         queryClient.invalidateQueries({ queryKey: ['programas-gerenciamento'] });
       } else {
         queryClient.invalidateQueries({ queryKey: ['testemunhais-gerenciamento'] });
@@ -346,9 +355,14 @@ const GerenciamentoProgramas: React.FC = () => {
     }
   };
 
+  // Safely calculate the notification count
+  const notificationCount = Array.isArray(testemunhais) 
+    ? testemunhais.filter(t => t.status === 'pendente' || t.status === 'atrasado').length 
+    : 0;
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header notificationCount={testemunhais.filter(t => t.status === 'pendente' || t.status === 'atrasado').length} />
+      <Header notificationCount={notificationCount} />
 
       <main className="container px-4 sm:px-6 pt-6 pb-16 mx-auto max-w-7xl">
         <div className="flex justify-between items-center mb-8">
@@ -383,7 +397,7 @@ const GerenciamentoProgramas: React.FC = () => {
 
           <TabsContent value="programas" className="mt-0">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {programas.map((programa) => (
+              {Array.isArray(programas) && programas.map((programa) => (
                 <Card key={programa.id} className="opacity-0 animate-[fadeIn_0.4s_ease-out_forwards]">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
@@ -444,7 +458,7 @@ const GerenciamentoProgramas: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {testemunhais.map((testemunhal) => (
+                      {Array.isArray(testemunhais) && testemunhais.map((testemunhal) => (
                         <TableRow key={testemunhal.id}>
                           <TableCell className="font-medium max-w-xs truncate">
                             {testemunhal.texto}
@@ -621,7 +635,7 @@ const GerenciamentoProgramas: React.FC = () => {
                       <SelectValue placeholder="Selecione um programa" />
                     </SelectTrigger>
                     <SelectContent>
-                      {programas.map((programa) => (
+                      {Array.isArray(programas) && programas.map((programa) => (
                         <SelectItem key={programa.id} value={programa.id}>
                           {programa.nome}
                         </SelectItem>
@@ -692,3 +706,4 @@ const GerenciamentoProgramas: React.FC = () => {
 };
 
 export default GerenciamentoProgramas;
+
