@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,7 +53,7 @@ interface Programa {
   status: string;
   created_at: string;
   updated_at: string;
-  dias: string[];
+  dias?: string[];
 }
 
 interface Testemunhal {
@@ -68,7 +67,7 @@ interface Testemunhal {
   created_at: string;
   updated_at: string;
   programas: { nome: string };
-  leituras: number;
+  leituras?: number;
 }
 
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
@@ -109,11 +108,10 @@ const GerenciamentoProgramas: React.FC = () => {
         return [];
       }
       
-      // Transform the data to include 'dias' property if missing
       return (data || []).map(item => ({
         ...item,
-        dias: item.dias || []
-      })) as Programa[];
+        dias: Array.isArray(item.dias) ? item.dias : [],
+      }));
     },
   });
 
@@ -132,11 +130,10 @@ const GerenciamentoProgramas: React.FC = () => {
         return [];
       }
       
-      // Transform the data to include 'leituras' property if missing
       return (data || []).map(item => ({
         ...item,
-        leituras: item.leituras || 1
-      })) as Testemunhal[];
+        leituras: typeof item.leituras === 'number' ? item.leituras : 1,
+      }));
     },
   });
 
@@ -355,7 +352,6 @@ const GerenciamentoProgramas: React.FC = () => {
     }
   };
 
-  // Safely calculate the notification count
   const notificationCount = Array.isArray(testemunhais) 
     ? testemunhais.filter(t => t.status === 'pendente' || t.status === 'atrasado').length 
     : 0;
@@ -388,7 +384,7 @@ const GerenciamentoProgramas: React.FC = () => {
             <Button 
               className="gap-2 px-4" 
               onClick={() => handleAdd(activeTab === 'programas' ? 'programa' : 'testemunhal')}
-              disabled={programaMutation.isPending || testemunhalMutation.isPending}
+              disabled={programaMutation?.isPending || testemunhalMutation?.isPending}
             >
               <Plus size={18} />
               <span>Adicionar Novo</span>
@@ -706,4 +702,3 @@ const GerenciamentoProgramas: React.FC = () => {
 };
 
 export default GerenciamentoProgramas;
-
