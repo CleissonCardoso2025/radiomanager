@@ -9,7 +9,83 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      programas: {
+        Row: {
+          apresentador: string
+          created_at: string | null
+          horario_fim: string
+          horario_inicio: string
+          id: string
+          nome: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          apresentador: string
+          created_at?: string | null
+          horario_fim: string
+          horario_inicio: string
+          id?: string
+          nome: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          apresentador?: string
+          created_at?: string | null
+          horario_fim?: string
+          horario_inicio?: string
+          id?: string
+          nome?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      testemunhais: {
+        Row: {
+          created_at: string | null
+          horario_agendado: string
+          id: string
+          patrocinador: string
+          programa_id: string | null
+          status: string | null
+          texto: string
+          timestamp_leitura: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          horario_agendado: string
+          id?: string
+          patrocinador: string
+          programa_id?: string | null
+          status?: string | null
+          texto: string
+          timestamp_leitura?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          horario_agendado?: string
+          id?: string
+          patrocinador?: string
+          programa_id?: string | null
+          status?: string | null
+          texto?: string
+          timestamp_leitura?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testemunhais_programa_id_fkey"
+            columns: ["programa_id"]
+            isOneToOne: false
+            referencedRelation: "programas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

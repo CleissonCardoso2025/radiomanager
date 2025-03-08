@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Badge } from '@/components/ui/badge';
@@ -8,58 +9,58 @@ import { Check, Clock, Search, Bell, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-interface Testemunhal {
-  id: number;
-  patrocinador: string;
-  texto: string;
-  horarioAgendado: string;
-  status: 'pendente' | 'lido' | 'atrasado';
-  timestampLeitura?: string;
-}
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const Agenda: React.FC = () => {
   const [searchText, setSearchText] = useState('');
-  const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+  
+  // Fetch testemunhais data from Supabase
+  const { data: testemunhais = [], isLoading } = useQuery({
+    queryKey: ['testemunhais-agenda'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('testemunhais')
+        .select('*, programas(nome)')
+        .order('horario_agendado', { ascending: true });
+      
+      if (error) {
+        toast.error('Erro ao carregar testemunhais', {
+          description: error.message,
+        });
+        return [];
+      }
+      
+      return data;
+    }
+  });
 
-  const testemunhais: Testemunhal[] = [
-    {
-      id: 1,
-      patrocinador: 'Supermercados Extra',
-      texto: 'Venha aproveitar as ofertas incríveis do Supermercados Extra! Nesta quarta-feira, todas as frutas e verduras com 30% de desconto. Não perca essa oportunidade única de economia.',
-      horarioAgendado: '09:00',
-      status: 'atrasado',
+  // Mutation to mark a testemunhal as read
+  const markAsReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from('testemunhais')
+        .update({ 
+          status: 'lido',
+          timestamp_leitura: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select();
+        
+      if (error) throw error;
+      return data;
     },
-    {
-      id: 2,
-      patrocinador: 'Farmácia São Paulo',
-      texto: 'A Farmácia São Paulo está com uma promoção especial em todos os produtos de higiene pessoal. Aproveite descontos de até 50% em marcas selecionadas.',
-      horarioAgendado: '10:30',
-      status: 'pendente',
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['testemunhais-agenda'] });
+      toast.success('Testemunhal marcado como lido');
     },
-    {
-      id: 3,
-      patrocinador: 'Banco Santander',
-      texto: 'O Banco Santander oferece as melhores taxas para financiamento imobiliário. Realize o sonho da casa própria com condições especiais e até 35 anos para pagar.',
-      horarioAgendado: '11:15',
-      status: 'lido',
-      timestampLeitura: '11:16',
-    },
-    {
-      id: 4,
-      patrocinador: 'Lojas Americanas',
-      texto: 'Chegou a Mega Liquidação das Lojas Americanas! Produtos com até 70% de desconto em todas as seções. Venha conferir as ofertas imperdíveis.',
-      horarioAgendado: '14:00',
-      status: 'pendente',
-    },
-    {
-      id: 5,
-      patrocinador: 'Academia SmartFit',
-      texto: 'Comece 2025 com o pé direito! Matricule-se na SmartFit com zero taxa de matrícula e ganhe 30 dias grátis. Promoção válida até o final do mês.',
-      horarioAgendado: '15:30',
-      status: 'pendente',
-    },
-  ];
+    onError: (error) => {
+      toast.error('Erro ao marcar testemunhal como lido', {
+        description: error.message,
+      });
+    }
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -87,8 +88,8 @@ const Agenda: React.FC = () => {
     }
   };
 
-  const handleMarkAsRead = (id: number) => {
-    toast.success('Testemunhal marcado como lido');
+  const handleMarkAsRead = (id: string) => {
+    markAsReadMutation.mutate(id);
   };
 
   const filteredTestemunhais = testemunhais.filter(t => 
@@ -116,7 +117,6 @@ const Agenda: React.FC = () => {
                 <p className="text-muted-foreground">Locutor Principal</p>
               </div>
             </div>
-            
           </div>
         </div>
       </div>
@@ -176,50 +176,63 @@ const Agenda: React.FC = () => {
 
       {/* Lista de Testemunhais */}
       <div className="container px-6 pb-8 flex-1">
-        <div className="space-y-4">
-          {filteredTestemunhais.map((testemunhal) => (
-            <Card 
-              key={testemunhal.id}
-              className="hover:shadow-md transition-shadow"
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-4 mb-3">
-                      <Badge variant="outline" className={getStatusColor(testemunhal.status)}>
-                        {getStatusText(testemunhal.status)}
-                      </Badge>
-                      <span className="text-muted-foreground flex items-center">
-                        <Clock className="mr-1 h-4 w-4" />
-                        {testemunhal.horarioAgendado}
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">{testemunhal.patrocinador}</h3>
-                    <div className="text-muted-foreground">
-                      {testemunhal.texto}
-                    </div>
-                    {testemunhal.timestampLeitura && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        Lido às {testemunhal.timestampLeitura}
+        {isLoading ? (
+          <div className="flex justify-center items-center py-20">
+            <p className="text-muted-foreground">Carregando testemunhais...</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredTestemunhais.length === 0 ? (
+              <div className="text-center py-10">
+                <p className="text-muted-foreground">Nenhum testemunhal encontrado</p>
+              </div>
+            ) : (
+              filteredTestemunhais.map((testemunhal) => (
+                <Card 
+                  key={testemunhal.id}
+                  className="hover:shadow-md transition-shadow"
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4 mb-3">
+                          <Badge variant="outline" className={getStatusColor(testemunhal.status)}>
+                            {getStatusText(testemunhal.status)}
+                          </Badge>
+                          <span className="text-muted-foreground flex items-center">
+                            <Clock className="mr-1 h-4 w-4" />
+                            {testemunhal.horario_agendado.slice(0, 5)}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2">{testemunhal.patrocinador}</h3>
+                        <div className="text-muted-foreground">
+                          {testemunhal.texto}
+                        </div>
+                        {testemunhal.timestamp_leitura && (
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            Lido às {new Date(testemunhal.timestamp_leitura).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="ml-4">
-                    {testemunhal.status !== 'lido' && (
-                      <Button
-                        className="gap-2"
-                        onClick={() => handleMarkAsRead(testemunhal.id)}
-                      >
-                        <Check className="h-4 w-4" />
-                        Marcar como Lido
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                      <div className="ml-4">
+                        {testemunhal.status !== 'lido' && (
+                          <Button
+                            className="gap-2"
+                            onClick={() => handleMarkAsRead(testemunhal.id)}
+                            disabled={markAsReadMutation.isPending}
+                          >
+                            <Check className="h-4 w-4" />
+                            {markAsReadMutation.isPending ? 'Processando...' : 'Marcar como Lido'}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Rodapé */}

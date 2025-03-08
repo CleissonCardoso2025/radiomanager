@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,23 +42,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { BadgeCheck, Clock, Pencil, Plus, Trash2, User } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface Programa {
-  id: string;
-  nome: string;
-  horario: string;
-  dias: number[];
-  apresentadores: string;
-}
-
-interface Testemunhal {
-  id: string;
-  texto: string;
-  patrocinador: string;
-  leituras: number;
-  intervalo: number;
-  programa: string;
-}
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
@@ -67,53 +53,192 @@ const GerenciamentoProgramas: React.FC = () => {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [modalType, setModalType] = useState<'programa' | 'testemunhal'>('programa');
   const [selectedItem, setSelectedItem] = useState<any>(null);
-
-  const [programas, setProgramas] = useState<Programa[]>([
-    {
-      id: '1',
-      nome: 'Manhã Especial',
-      horario: '08:00',
-      dias: [0, 1, 2, 3, 4],
-      apresentadores: 'Ricardo Santos, Maria Oliveira',
-    },
-    {
-      id: '2',
-      nome: 'Tarde Musical',
-      horario: '14:00',
-      dias: [0, 2, 4],
-      apresentadores: 'João Silva',
-    },
-  ]);
-
-  const [testemunhais, setTestemunhais] = useState<Testemunhal[]>([
-    {
-      id: '1',
-      texto: 'Supermercado Bom Preço - As melhores ofertas da cidade!',
-      patrocinador: 'Supermercado Bom Preço',
-      leituras: 3,
-      intervalo: 30,
-      programa: 'Manhã Especial',
-    },
-    {
-      id: '2',
-      texto: 'Farmácia Saúde Total - Cuidando de você e sua família',
-      patrocinador: 'Farmácia Saúde Total',
-      leituras: 4,
-      intervalo: 45,
-      programa: 'Tarde Musical',
-    },
-  ]);
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<any>({
     nome: '',
-    horario: '',
+    horario_inicio: '',
+    horario_fim: '',
     dias: [],
-    apresentadores: '',
+    apresentador: '',
     texto: '',
     patrocinador: '',
     leituras: 1,
     intervalo: 30,
-    programa: '',
+    programa_id: '',
+  });
+
+  // Fetch programas from Supabase
+  const { data: programas = [] } = useQuery({
+    queryKey: ['programas-gerenciamento'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('programas')
+        .select('*')
+        .order('nome');
+      
+      if (error) {
+        toast.error('Erro ao carregar programas', {
+          description: error.message,
+        });
+        return [];
+      }
+      
+      return data;
+    },
+  });
+
+  // Fetch testemunhais from Supabase
+  const { data: testemunhais = [] } = useQuery({
+    queryKey: ['testemunhais-gerenciamento'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('testemunhais')
+        .select('*, programas(nome)')
+        .order('patrocinador');
+      
+      if (error) {
+        toast.error('Erro ao carregar testemunhais', {
+          description: error.message,
+        });
+        return [];
+      }
+      
+      return data;
+    },
+  });
+
+  // Mutation to add/update programa
+  const programaMutation = useMutation({
+    mutationFn: async (programa: any) => {
+      if (selectedItem) {
+        // Update
+        const { data, error } = await supabase
+          .from('programas')
+          .update({
+            nome: programa.nome,
+            horario_inicio: programa.horario_inicio,
+            horario_fim: programa.horario_fim,
+            apresentador: programa.apresentador,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', selectedItem.id)
+          .select();
+          
+        if (error) throw error;
+        return data;
+      } else {
+        // Insert
+        const { data, error } = await supabase
+          .from('programas')
+          .insert({
+            nome: programa.nome,
+            horario_inicio: programa.horario_inicio,
+            horario_fim: programa.horario_fim,
+            apresentador: programa.apresentador,
+          })
+          .select();
+          
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['programas-gerenciamento'] });
+      toast.success(
+        selectedItem 
+          ? 'Programa atualizado com sucesso!' 
+          : 'Programa adicionado com sucesso!'
+      );
+      setIsModalOpen(false);
+    },
+    onError: (error) => {
+      toast.error('Erro ao salvar programa', {
+        description: error.message,
+      });
+    }
+  });
+
+  // Mutation to add/update testemunhal
+  const testemunhalMutation = useMutation({
+    mutationFn: async (testemunhal: any) => {
+      if (selectedItem) {
+        // Update
+        const { data, error } = await supabase
+          .from('testemunhais')
+          .update({
+            patrocinador: testemunhal.patrocinador,
+            texto: testemunhal.texto,
+            horario_agendado: testemunhal.horario_agendado,
+            programa_id: testemunhal.programa_id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', selectedItem.id)
+          .select();
+          
+        if (error) throw error;
+        return data;
+      } else {
+        // Insert
+        const { data, error } = await supabase
+          .from('testemunhais')
+          .insert({
+            patrocinador: testemunhal.patrocinador,
+            texto: testemunhal.texto,
+            horario_agendado: testemunhal.horario_agendado,
+            programa_id: testemunhal.programa_id,
+            status: 'pendente',
+          })
+          .select();
+          
+        if (error) throw error;
+        return data;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['testemunhais-gerenciamento'] });
+      toast.success(
+        selectedItem 
+          ? 'Testemunhal atualizado com sucesso!' 
+          : 'Testemunhal adicionado com sucesso!'
+      );
+      setIsModalOpen(false);
+    },
+    onError: (error) => {
+      toast.error('Erro ao salvar testemunhal', {
+        description: error.message,
+      });
+    }
+  });
+
+  // Mutation to delete item
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedItem) return null;
+      
+      const table = 'nome' in selectedItem ? 'programas' : 'testemunhais';
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', selectedItem.id);
+        
+      if (error) throw error;
+      return null;
+    },
+    onSuccess: () => {
+      if ('nome' in selectedItem) {
+        queryClient.invalidateQueries({ queryKey: ['programas-gerenciamento'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['testemunhais-gerenciamento'] });
+      }
+      toast.success('Item excluído com sucesso!');
+      setIsAlertOpen(false);
+    },
+    onError: (error) => {
+      toast.error('Erro ao excluir item', {
+        description: error.message,
+      });
+    }
   });
 
   const handleAdd = (type: 'programa' | 'testemunhal') => {
@@ -121,14 +246,14 @@ const GerenciamentoProgramas: React.FC = () => {
     setSelectedItem(null);
     setFormData({
       nome: '',
-      horario: '',
+      horario_inicio: '',
+      horario_fim: '',
       dias: [],
-      apresentadores: '',
+      apresentador: '',
       texto: '',
       patrocinador: '',
-      leituras: 1,
-      intervalo: 30,
-      programa: '',
+      horario_agendado: '',
+      programa_id: '',
     });
     setIsModalOpen(true);
   };
@@ -136,18 +261,23 @@ const GerenciamentoProgramas: React.FC = () => {
   const handleEdit = (item: any, type: 'programa' | 'testemunhal') => {
     setModalType(type);
     setSelectedItem(item);
-    setFormData(type === 'programa' ? {
-      nome: item.nome,
-      horario: item.horario,
-      dias: item.dias,
-      apresentadores: item.apresentadores,
-    } : {
-      texto: item.texto,
-      patrocinador: item.patrocinador,
-      leituras: item.leituras,
-      intervalo: item.intervalo,
-      programa: item.programa,
-    });
+    
+    if (type === 'programa') {
+      setFormData({
+        nome: item.nome,
+        horario_inicio: item.horario_inicio,
+        horario_fim: item.horario_fim,
+        apresentador: item.apresentador,
+      });
+    } else {
+      setFormData({
+        texto: item.texto,
+        patrocinador: item.patrocinador,
+        horario_agendado: item.horario_agendado,
+        programa_id: item.programa_id,
+      });
+    }
+    
     setIsModalOpen(true);
   };
 
@@ -156,69 +286,21 @@ const GerenciamentoProgramas: React.FC = () => {
     setIsAlertOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (selectedItem) {
-      if ('nome' in selectedItem) {
-        setProgramas(prev => prev.filter(p => p.id !== selectedItem.id));
-      } else {
-        setTestemunhais(prev => prev.filter(t => t.id !== selectedItem.id));
-      }
-      toast.success('Item excluído com sucesso!');
-    }
-    setIsAlertOpen(false);
-  };
-
   const handleFormChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleCheckboxChange = (day: number) => {
-    const newDays = formData.dias.includes(day)
-      ? formData.dias.filter((d: number) => d !== day)
-      : [...formData.dias, day];
-    
-    setFormData(prev => ({ ...prev, dias: newDays }));
-  };
-
   const handleSave = () => {
     if (modalType === 'programa') {
-      const newPrograma: Programa = {
-        id: selectedItem ? selectedItem.id : String(Date.now()),
-        nome: formData.nome,
-        horario: formData.horario,
-        dias: formData.dias,
-        apresentadores: formData.apresentadores,
-      };
-
-      if (selectedItem) {
-        setProgramas(prev => prev.map(p => p.id === newPrograma.id ? newPrograma : p));
-      } else {
-        setProgramas(prev => [...prev, newPrograma]);
-      }
+      programaMutation.mutate(formData);
     } else {
-      const newTestemunhal: Testemunhal = {
-        id: selectedItem ? selectedItem.id : String(Date.now()),
-        texto: formData.texto,
-        patrocinador: formData.patrocinador,
-        leituras: formData.leituras,
-        intervalo: formData.intervalo,
-        programa: formData.programa,
-      };
-
-      if (selectedItem) {
-        setTestemunhais(prev => prev.map(t => t.id === newTestemunhal.id ? newTestemunhal : t));
-      } else {
-        setTestemunhais(prev => [...prev, newTestemunhal]);
-      }
+      testemunhalMutation.mutate(formData);
     }
-
-    toast.success('Item salvo com sucesso!');
-    setIsModalOpen(false);
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header notificationCount={3} />
+      <Header notificationCount={testemunhais.filter(t => t.status === 'pendente' || t.status === 'atrasado').length} />
 
       <main className="container px-4 sm:px-6 pt-6 pb-16 mx-auto max-w-7xl">
         <div className="flex justify-between items-center mb-8">
@@ -241,7 +323,11 @@ const GerenciamentoProgramas: React.FC = () => {
                 Testemunhais
               </TabsTrigger>
             </TabsList>
-            <Button className="gap-2 px-4" onClick={() => handleAdd(activeTab === 'programas' ? 'programa' : 'testemunhal')}>
+            <Button 
+              className="gap-2 px-4" 
+              onClick={() => handleAdd(activeTab === 'programas' ? 'programa' : 'testemunhal')}
+              disabled={programaMutation.isPending || testemunhalMutation.isPending}
+            >
               <Plus size={18} />
               <span>Adicionar Novo</span>
             </Button>
@@ -268,21 +354,11 @@ const GerenciamentoProgramas: React.FC = () => {
                     <div className="space-y-3">
                       <div className="flex items-center text-gray-600">
                         <Clock className="h-4 w-4 mr-2" />
-                        <span>{programa.horario}</span>
+                        <span>{programa.horario_inicio.slice(0, 5)} - {programa.horario_fim.slice(0, 5)}</span>
                       </div>
                       <div className="flex items-center text-gray-600">
                         <User className="h-4 w-4 mr-2" />
-                        <span>{programa.apresentadores}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {programa.dias.map((dia) => (
-                          <span
-                            key={dia}
-                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                          >
-                            {diasSemana[dia]}
-                          </span>
-                        ))}
+                        <span>{programa.apresentador}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -300,9 +376,9 @@ const GerenciamentoProgramas: React.FC = () => {
                       <TableRow>
                         <TableHead>Texto</TableHead>
                         <TableHead>Patrocinador</TableHead>
-                        <TableHead>Leituras</TableHead>
-                        <TableHead>Intervalo (min)</TableHead>
+                        <TableHead>Horário</TableHead>
                         <TableHead>Programa</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -313,9 +389,23 @@ const GerenciamentoProgramas: React.FC = () => {
                             {testemunhal.texto}
                           </TableCell>
                           <TableCell>{testemunhal.patrocinador}</TableCell>
-                          <TableCell>{testemunhal.leituras}</TableCell>
-                          <TableCell>{testemunhal.intervalo}</TableCell>
-                          <TableCell>{testemunhal.programa}</TableCell>
+                          <TableCell>{testemunhal.horario_agendado.slice(0, 5)}</TableCell>
+                          <TableCell>{testemunhal.programas?.nome || ''}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              testemunhal.status === 'lido' 
+                                ? 'bg-green-100 text-green-800' 
+                                : testemunhal.status === 'atrasado'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {testemunhal.status === 'lido' 
+                                ? 'Lido' 
+                                : testemunhal.status === 'atrasado'
+                                  ? 'Atrasado'
+                                  : 'Pendente'}
+                            </span>
+                          </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               <Button variant="ghost" size="sm" onClick={() => handleEdit(testemunhal, 'testemunhal')}>
@@ -358,44 +448,37 @@ const GerenciamentoProgramas: React.FC = () => {
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="horario" className="text-right">
-                    Horário
+                  <Label htmlFor="horario_inicio" className="text-right">
+                    Horário Início
                   </Label>
                   <Input
-                    id="horario"
-                    value={formData.horario}
-                    onChange={(e) => handleFormChange('horario', e.target.value)}
-                    placeholder="Ex: 08:00"
+                    id="horario_inicio"
+                    type="time"
+                    value={formData.horario_inicio}
+                    onChange={(e) => handleFormChange('horario_inicio', e.target.value)}
                     className="col-span-3"
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">
-                    Dias
+                  <Label htmlFor="horario_fim" className="text-right">
+                    Horário Fim
                   </Label>
-                  <div className="col-span-3 flex flex-wrap gap-2">
-                    {diasSemana.map((dia, idx) => (
-                      <div key={idx} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`dia-${idx}`}
-                          checked={formData.dias.includes(idx)}
-                          onCheckedChange={() => handleCheckboxChange(idx)}
-                        />
-                        <label htmlFor={`dia-${idx}`} className="text-sm font-medium">
-                          {dia}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
+                  <Input
+                    id="horario_fim"
+                    type="time"
+                    value={formData.horario_fim}
+                    onChange={(e) => handleFormChange('horario_fim', e.target.value)}
+                    className="col-span-3"
+                  />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="apresentadores" className="text-right">
+                  <Label htmlFor="apresentador" className="text-right">
                     Apresentadores
                   </Label>
                   <Input
-                    id="apresentadores"
-                    value={formData.apresentadores}
-                    onChange={(e) => handleFormChange('apresentadores', e.target.value)}
+                    id="apresentador"
+                    value={formData.apresentador}
+                    onChange={(e) => handleFormChange('apresentador', e.target.value)}
                     className="col-span-3"
                   />
                 </div>
@@ -426,45 +509,31 @@ const GerenciamentoProgramas: React.FC = () => {
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="leituras" className="text-right">
-                    Leituras
+                  <Label htmlFor="horario_agendado" className="text-right">
+                    Horário
                   </Label>
                   <Input
-                    id="leituras"
-                    type="number"
-                    min="1"
-                    value={formData.leituras}
-                    onChange={(e) => handleFormChange('leituras', parseInt(e.target.value))}
+                    id="horario_agendado"
+                    type="time"
+                    value={formData.horario_agendado}
+                    onChange={(e) => handleFormChange('horario_agendado', e.target.value)}
                     className="col-span-3"
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="intervalo" className="text-right">
-                    Intervalo (min)
-                  </Label>
-                  <Input
-                    id="intervalo"
-                    type="number"
-                    min="1"
-                    value={formData.intervalo}
-                    onChange={(e) => handleFormChange('intervalo', parseInt(e.target.value))}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="programa" className="text-right">
+                  <Label htmlFor="programa_id" className="text-right">
                     Programa
                   </Label>
                   <Select 
-                    value={formData.programa} 
-                    onValueChange={(value) => handleFormChange('programa', value)}
+                    value={formData.programa_id} 
+                    onValueChange={(value) => handleFormChange('programa_id', value)}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Selecione um programa" />
                     </SelectTrigger>
                     <SelectContent>
                       {programas.map((programa) => (
-                        <SelectItem key={programa.id} value={programa.nome}>
+                        <SelectItem key={programa.id} value={programa.id}>
                           {programa.nome}
                         </SelectItem>
                       ))}
@@ -475,11 +544,19 @@ const GerenciamentoProgramas: React.FC = () => {
             )}
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsModalOpen(false)}
+                disabled={programaMutation.isPending || testemunhalMutation.isPending}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" onClick={handleSave}>
-                Salvar
+              <Button 
+                type="submit" 
+                onClick={handleSave}
+                disabled={programaMutation.isPending || testemunhalMutation.isPending}
+              >
+                {programaMutation.isPending || testemunhalMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -494,8 +571,13 @@ const GerenciamentoProgramas: React.FC = () => {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDelete}>Excluir</AlertDialogAction>
+              <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

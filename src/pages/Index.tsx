@@ -6,10 +6,68 @@ import PerformanceChart from '@/components/PerformanceChart';
 import NotificationsList from '@/components/NotificationsList';
 import ProgramsTable from '@/components/ProgramsTable';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 const Index = () => {
-  const [notificationCount, setNotificationCount] = useState(3);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch all programs from Supabase
+  const { data: programs = [] } = useQuery({
+    queryKey: ['programs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('programas')
+        .select('*');
+      
+      if (error) {
+        toast.error('Erro ao carregar programas', {
+          description: error.message,
+        });
+        return [];
+      }
+      
+      return data.map(program => ({
+        id: program.id,
+        name: program.nome,
+        time: `${program.horario_inicio.slice(0, 5)} - ${program.horario_fim.slice(0, 5)}`,
+        presenter: program.apresentador,
+        status: program.status,
+      }));
+    },
+  });
+
+  // Fetch all testimonials from Supabase
+  const { data: testemunhais = [] } = useQuery({
+    queryKey: ['testemunhais'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('testemunhais')
+        .select('*, programas(nome)')
+        .order('horario_agendado', { ascending: true })
+        .limit(3);
+      
+      if (error) {
+        toast.error('Erro ao carregar testemunhais', {
+          description: error.message,
+        });
+        return [];
+      }
+      
+      return data.map(item => ({
+        id: item.id,
+        title: item.patrocinador,
+        program: item.programas?.nome || 'Programa não encontrado',
+        time: item.horario_agendado.slice(0, 5),
+        status: item.status,
+      }));
+    },
+  });
+
+  // Get notification count based on testemunhais
+  const notificationCount = testemunhais.filter(t => 
+    t.status === 'pendente' || t.status === 'atrasado'
+  ).length;
 
   // Simulating data loading
   useEffect(() => {
@@ -24,56 +82,6 @@ const Index = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Notification data
-  const notifications = [
-    {
-      id: '1',
-      title: 'Testemunhal Pendente',
-      program: 'Manhã Total',
-      time: '10:30',
-      status: 'pending' as const,
-    },
-    {
-      id: '2',
-      title: 'Leitura Confirmada',
-      program: 'Tarde Show',
-      time: '14:15',
-      status: 'success' as const,
-    },
-    {
-      id: '3',
-      title: 'Nova Solicitação',
-      program: 'Noite dos Amigos',
-      time: '19:45',
-      status: 'pending' as const,
-    },
-  ];
-
-  // Programs data
-  const programs = [
-    {
-      id: '1',
-      name: 'Manhã Total',
-      time: '06:00 - 10:00',
-      presenter: 'Carlos Silva',
-      status: 'Ativo',
-    },
-    {
-      id: '2',
-      name: 'Tarde Show',
-      time: '14:00 - 17:00',
-      presenter: 'Ana Oliveira',
-      status: 'Ativo',
-    },
-    {
-      id: '3',
-      name: 'Noite dos Amigos',
-      time: '19:00 - 22:00',
-      presenter: 'Roberto Almeida',
-      status: 'Ativo',
-    },
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Header notificationCount={notificationCount} />
@@ -83,19 +91,19 @@ const Index = () => {
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <StatCard 
             title="Total de Programas" 
-            value="12" 
+            value={programs.length.toString()} 
             color="blue"
             className="opacity-0 animate-[fadeIn_0.4s_ease-out_0.1s_forwards]"
           />
           <StatCard 
             title="Testemunhais Ativos" 
-            value="45" 
+            value={testemunhais.filter(t => t.status === 'pendente').length.toString()} 
             color="green"
             className="opacity-0 animate-[fadeIn_0.4s_ease-out_0.2s_forwards]"
           />
           <StatCard 
             title="Leituras Pendentes" 
-            value="8" 
+            value={testemunhais.filter(t => t.status === 'pendente').length.toString()} 
             color="red"
             className="opacity-0 animate-[fadeIn_0.4s_ease-out_0.3s_forwards]"
           />
@@ -107,7 +115,7 @@ const Index = () => {
             className="opacity-0 animate-[fadeIn_0.4s_ease-out_0.4s_forwards]"
           />
           <NotificationsList 
-            notifications={notifications}
+            notifications={testemunhais}
             className="opacity-0 animate-[fadeIn_0.4s_ease-out_0.5s_forwards]"
           />
         </section>
