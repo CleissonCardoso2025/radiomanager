@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +44,32 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+interface Programa {
+  id: string;
+  nome: string;
+  horario_inicio: string;
+  horario_fim: string;
+  apresentador: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  dias: string[];
+}
+
+interface Testemunhal {
+  id: string;
+  patrocinador: string;
+  texto: string;
+  horario_agendado: string;
+  programa_id: string;
+  status: string;
+  timestamp_leitura: string;
+  created_at: string;
+  updated_at: string;
+  programas: { nome: string };
+  leituras: number;
+}
+
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
 const GerenciamentoProgramas: React.FC = () => {
@@ -52,7 +77,7 @@ const GerenciamentoProgramas: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [modalType, setModalType] = useState<'programa' | 'testemunhal'>('programa');
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<Programa | Testemunhal | null>(null);
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<any>({
@@ -68,8 +93,7 @@ const GerenciamentoProgramas: React.FC = () => {
     programa_id: '',
   });
 
-  // Fetch programas from Supabase
-  const { data: programas = [] } = useQuery({
+  const { data: programas = [] } = useQuery<Programa[]>({
     queryKey: ['programas-gerenciamento'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -84,12 +108,11 @@ const GerenciamentoProgramas: React.FC = () => {
         return [];
       }
       
-      return data;
+      return data || [];
     },
   });
 
-  // Fetch testemunhais from Supabase
-  const { data: testemunhais = [] } = useQuery({
+  const { data: testemunhais = [] } = useQuery<Testemunhal[]>({
     queryKey: ['testemunhais-gerenciamento'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -104,15 +127,13 @@ const GerenciamentoProgramas: React.FC = () => {
         return [];
       }
       
-      return data;
+      return data || [];
     },
   });
 
-  // Mutation to add/update programa
   const programaMutation = useMutation({
     mutationFn: async (programa: any) => {
       if (selectedItem) {
-        // Update
         const { data, error } = await supabase
           .from('programas')
           .update({
@@ -129,7 +150,6 @@ const GerenciamentoProgramas: React.FC = () => {
         if (error) throw error;
         return data;
       } else {
-        // Insert
         const { data, error } = await supabase
           .from('programas')
           .insert({
@@ -161,11 +181,9 @@ const GerenciamentoProgramas: React.FC = () => {
     }
   });
 
-  // Mutation to add/update testemunhal
   const testemunhalMutation = useMutation({
     mutationFn: async (testemunhal: any) => {
       if (selectedItem) {
-        // Update
         const { data, error } = await supabase
           .from('testemunhais')
           .update({
@@ -182,7 +200,6 @@ const GerenciamentoProgramas: React.FC = () => {
         if (error) throw error;
         return data;
       } else {
-        // Insert
         const { data, error } = await supabase
           .from('testemunhais')
           .insert({
@@ -215,7 +232,6 @@ const GerenciamentoProgramas: React.FC = () => {
     }
   });
 
-  // Mutation to delete item
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!selectedItem) return null;
@@ -263,32 +279,34 @@ const GerenciamentoProgramas: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (item: any, type: 'programa' | 'testemunhal') => {
+  const handleEdit = (item: Programa | Testemunhal, type: 'programa' | 'testemunhal') => {
     setModalType(type);
     setSelectedItem(item);
     
     if (type === 'programa') {
+      const programa = item as Programa;
       setFormData({
-        nome: item.nome,
-        horario_inicio: item.horario_inicio,
-        horario_fim: item.horario_fim,
-        apresentador: item.apresentador,
-        dias: item.dias || [],
+        nome: programa.nome,
+        horario_inicio: programa.horario_inicio,
+        horario_fim: programa.horario_fim,
+        apresentador: programa.apresentador,
+        dias: programa.dias || [],
       });
     } else {
+      const testemunhal = item as Testemunhal;
       setFormData({
-        texto: item.texto,
-        patrocinador: item.patrocinador,
-        horario_agendado: item.horario_agendado,
-        programa_id: item.programa_id,
-        leituras: item.leituras || 1,
+        texto: testemunhal.texto,
+        patrocinador: testemunhal.patrocinador,
+        horario_agendado: testemunhal.horario_agendado,
+        programa_id: testemunhal.programa_id,
+        leituras: testemunhal.leituras || 1,
       });
     }
     
     setIsModalOpen(true);
   };
 
-  const handleDelete = (item: any) => {
+  const handleDelete = (item: Programa | Testemunhal) => {
     setSelectedItem(item);
     setIsAlertOpen(true);
   };
