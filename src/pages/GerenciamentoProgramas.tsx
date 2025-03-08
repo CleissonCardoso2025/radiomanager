@@ -108,10 +108,13 @@ const GerenciamentoProgramas: React.FC = () => {
         return [];
       }
       
-      return (data || []).map(item => ({
-        ...item,
-        dias: Array.isArray(item.dias) ? item.dias : [],
-      }));
+      return (data || []).map(item => {
+        const itemWithAny = item as any;
+        return {
+          ...item,
+          dias: Array.isArray(itemWithAny.dias) ? itemWithAny.dias : [],
+        };
+      });
     },
   });
 
@@ -130,10 +133,13 @@ const GerenciamentoProgramas: React.FC = () => {
         return [];
       }
       
-      return (data || []).map(item => ({
-        ...item,
-        leituras: typeof item.leituras === 'number' ? item.leituras : 1,
-      }));
+      return (data || []).map(item => {
+        const itemWithAny = item as any;
+        return {
+          ...item,
+          leituras: typeof itemWithAny.leituras === 'number' ? itemWithAny.leituras : 1,
+        };
+      });
     },
   });
 
@@ -384,7 +390,7 @@ const GerenciamentoProgramas: React.FC = () => {
             <Button 
               className="gap-2 px-4" 
               onClick={() => handleAdd(activeTab === 'programas' ? 'programa' : 'testemunhal')}
-              disabled={programaMutation?.isPending || testemunhalMutation?.isPending}
+              disabled={programaMutation.isPending || testemunhalMutation.isPending}
             >
               <Plus size={18} />
               <span>Adicionar Novo</span>
