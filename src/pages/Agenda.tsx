@@ -5,26 +5,24 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
-import { Check, Clock, Search, Bell, User, Calendar as CalendarIcon } from 'lucide-react';
+import { Check, Clock, Search, Bell, User } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, isToday, parseISO, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Agenda: React.FC = () => {
   const [searchText, setSearchText] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const today = new Date();
   const queryClient = useQueryClient();
   
-  // Fetch testemunhais data from Supabase
+  // Fetch testemunhais data from Supabase for today
   const { data: testemunhais = [], isLoading } = useQuery({
-    queryKey: ['testemunhais-agenda', selectedDate],
+    queryKey: ['testemunhais-agenda', format(today, 'yyyy-MM-dd')],
     queryFn: async () => {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('testemunhais')
         .select('*, programas(nome, dias)')
@@ -37,11 +35,11 @@ const Agenda: React.FC = () => {
         return [];
       }
       
-      // Filter by selected day of week
-      const dayOfWeek = format(selectedDate, 'EEEE', { locale: ptBR });
+      // Filter by today's day of week
+      const dayOfWeek = format(today, 'EEEE', { locale: ptBR });
       
       return data.filter(t => {
-        // Check if the testemunhal's program has the selected day in its days array
+        // Check if the testemunhal's program has today's day in its days array
         const programDays = t.programas?.dias || [];
         return programDays.some((day: string) => 
           day.toLowerCase() === dayOfWeek.toLowerCase()
@@ -117,13 +115,12 @@ const Agenda: React.FC = () => {
     markAsReadMutation.mutate(id);
   };
 
-  const filteredTestemunhais = testemunhais.filter(t => 
-    t.patrocinador.toLowerCase().includes(searchText.toLowerCase())
-  );
-
-  const pendentesCount = testemunhais.filter(t => t.status === 'pendente').length;
-  const atrasadosCount = testemunhais.filter(t => t.status === 'atrasado').length;
-  const notificationCount = pendentesCount + atrasadosCount;
+  // Filter out already read testimonials and apply search filter
+  const filteredTestemunhais = testemunhais
+    .filter(t => t.status !== 'lido') // Remove read items from display
+    .filter(t => 
+      t.patrocinador.toLowerCase().includes(searchText.toLowerCase())
+    );
 
   const container = {
     hidden: { opacity: 0 },
@@ -140,86 +137,29 @@ const Agenda: React.FC = () => {
     show: { opacity: 1, y: 0 }
   };
 
+  const exit = {
+    opacity: 0,
+    y: -20,
+    transition: { duration: 0.3 }
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header notificationCount={notificationCount} />
+      <Header />
       
       {/* Cabeçalho da página */}
       <div className="bg-white shadow-sm border-b">
-        <div className="container px-6 py-4">
+        <div className="container px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full p-2">
                 <User className="text-white h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">Carlos Roberto Silva</h2>
-                <p className="text-muted-foreground">Locutor Principal</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Seletor de data e Calendário */}
-      <div className="container px-6 py-6">
-        <div className="mb-6">
-          <h3 className="text-lg font-medium mb-2">Selecione uma data:</h3>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white p-4 rounded-lg shadow"
-            >
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                className="rounded-md border"
-                locale={ptBR}
-              />
-            </motion.div>
-            <div className="flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                <motion.div 
-                  whileHover={{ scale: 1.03 }}
-                  className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg shadow p-6"
-                >
-                  <div className="text-center">
-                    <h3 className="text-xl font-bold text-foreground">{testemunhais.length}</h3>
-                    <p className="text-muted-foreground">Total de Testemunhais</p>
-                  </div>
-                </motion.div>
-                <motion.div 
-                  whileHover={{ scale: 1.03 }}
-                  className="bg-gradient-to-r from-yellow-100 to-yellow-200 rounded-lg shadow p-6"
-                >
-                  <div className="text-center">
-                    <h3 className="text-xl font-bold text-yellow-700">{pendentesCount}</h3>
-                    <p className="text-muted-foreground">Pendentes</p>
-                  </div>
-                </motion.div>
-                <motion.div 
-                  whileHover={{ scale: 1.03 }}
-                  className="bg-gradient-to-r from-red-100 to-red-200 rounded-lg shadow p-6"
-                >
-                  <div className="text-center">
-                    <h3 className="text-xl font-bold text-red-700">{atrasadosCount}</h3>
-                    <p className="text-muted-foreground">Atrasados</p>
-                  </div>
-                </motion.div>
-                <motion.div 
-                  whileHover={{ scale: 1.03 }}
-                  className="bg-gradient-to-r from-green-100 to-green-200 rounded-lg shadow p-6"
-                >
-                  <div className="text-center">
-                    <h3 className="text-xl font-bold text-green-700">
-                      {testemunhais.filter(t => t.status === 'lido').length}
-                    </h3>
-                    <p className="text-muted-foreground">Concluídos</p>
-                  </div>
-                </motion.div>
+                <h2 className="text-lg font-semibold">Agenda Diária</h2>
+                <p className="text-muted-foreground">
+                  {format(today, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                </p>
               </div>
             </div>
           </div>
@@ -227,7 +167,7 @@ const Agenda: React.FC = () => {
       </div>
 
       {/* Busca */}
-      <div className="container px-6 mb-6">
+      <div className="container px-4 py-4">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
@@ -240,89 +180,89 @@ const Agenda: React.FC = () => {
       </div>
 
       {/* Lista de Testemunhais */}
-      <div className="container px-6 pb-8 flex-1">
+      <div className="container px-4 pb-8 flex-1">
         {isLoading ? (
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <motion.div 
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className="space-y-4"
-          >
-            {filteredTestemunhais.length === 0 ? (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-10"
-              >
-                <p className="text-lg text-muted-foreground">Nenhum testemunhal encontrado para esta data e filtro</p>
-                <p className="text-sm text-muted-foreground mt-2">Tente selecionar outra data ou ajustar sua busca</p>
-              </motion.div>
-            ) : (
-              filteredTestemunhais.map((testemunhal, index) => (
+          <AnimatePresence>
+            <motion.div 
+              variants={container}
+              initial="hidden"
+              animate="show"
+              className="space-y-4"
+            >
+              {filteredTestemunhais.length === 0 ? (
                 <motion.div 
-                  key={testemunhal.id}
-                  variants={item}
-                  whileHover={{ scale: 1.01 }}
-                  transition={{ type: "spring", stiffness: 300 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center py-10"
                 >
-                  <Card className={cn(
-                    "overflow-hidden hover:shadow-lg transition-all", 
-                    getRandomGradient()
-                  )}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-4 mb-3">
-                            <Badge variant="outline" className={getStatusColor(testemunhal.status)}>
-                              {getStatusText(testemunhal.status)}
-                            </Badge>
-                            <span className="text-muted-foreground flex items-center">
-                              <Clock className="mr-1 h-4 w-4" />
-                              {testemunhal.horario_agendado.slice(0, 5)}
-                            </span>
-                            <Badge className="bg-primary/20 text-primary border-primary/30">
-                              {testemunhal.programas?.nome || "Sem programa"}
-                            </Badge>
-                          </div>
-                          <h3 className="text-lg font-semibold mb-2">{testemunhal.patrocinador}</h3>
-                          <div className="text-muted-foreground">
-                            {testemunhal.texto}
-                          </div>
-                          {testemunhal.timestamp_leitura && (
-                            <div className="mt-2 text-sm text-muted-foreground">
-                              Lido às {new Date(testemunhal.timestamp_leitura).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                          )}
-                        </div>
-                        <div className="ml-4">
-                          {testemunhal.status !== 'lido' && (
-                            <Button
-                              className="gap-2 animate-pulse hover:animate-none"
-                              onClick={() => handleMarkAsRead(testemunhal.id)}
-                              disabled={markAsReadMutation.isPending}
-                            >
-                              <Check className="h-4 w-4" />
-                              {markAsReadMutation.isPending ? 'Processando...' : 'Marcar como Lido'}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <p className="text-lg text-muted-foreground">Não há testemunhais pendentes para hoje</p>
+                  <p className="text-sm text-muted-foreground mt-2">Todos os testemunhais foram lidos ou não há agendamentos para hoje</p>
                 </motion.div>
-              ))
-            )}
-          </motion.div>
+              ) : (
+                filteredTestemunhais.map((testemunhal) => (
+                  <AnimatePresence key={testemunhal.id} mode="wait">
+                    <motion.div 
+                      key={testemunhal.id}
+                      variants={item}
+                      exit={exit}
+                      whileHover={{ scale: 1.01 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                    >
+                      <Card className={cn(
+                        "overflow-hidden hover:shadow-lg transition-all", 
+                        getRandomGradient()
+                      )}>
+                        <CardContent className="p-4 sm:p-6">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex flex-wrap items-center gap-2 mb-3">
+                                <Badge variant="outline" className={getStatusColor(testemunhal.status)}>
+                                  {getStatusText(testemunhal.status)}
+                                </Badge>
+                                <span className="text-muted-foreground flex items-center">
+                                  <Clock className="mr-1 h-4 w-4" />
+                                  {testemunhal.horario_agendado.slice(0, 5)}
+                                </span>
+                                <Badge className="bg-primary/20 text-primary border-primary/30">
+                                  {testemunhal.programas?.nome || "Sem programa"}
+                                </Badge>
+                              </div>
+                              <h3 className="text-lg font-semibold mb-2">{testemunhal.patrocinador}</h3>
+                              <div className="text-muted-foreground mb-4 sm:mb-0">
+                                {testemunhal.texto}
+                              </div>
+                            </div>
+                            <div className="w-full sm:w-auto">
+                              {testemunhal.status !== 'lido' && (
+                                <Button
+                                  className="w-full sm:w-auto gap-2 animate-pulse hover:animate-none"
+                                  onClick={() => handleMarkAsRead(testemunhal.id)}
+                                  disabled={markAsReadMutation.isPending}
+                                >
+                                  <Check className="h-4 w-4" />
+                                  {markAsReadMutation.isPending ? 'Processando...' : 'Marcar como Lido'}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  </AnimatePresence>
+                ))
+              )}
+            </motion.div>
+          </AnimatePresence>
         )}
       </div>
 
       {/* Rodapé */}
       <div className="bg-white border-t mt-auto">
-        <div className="container px-6 py-4">
+        <div className="container px-4 py-3">
           <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground">
             <div>
               Última atualização: {format(new Date(), 'HH:mm')}
