@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
           <div>
             Última atualização: {format(new Date(), 'HH:mm')}
           </div>
-          <div>Criado por Agência Cleisson Cardoso</div>
+          <div>2025   Criado por Agência Cleisson Cardoso</div>
         </div>
       </div>
     </div>;
