@@ -78,6 +78,15 @@ const App = () => {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/" element={
+                  isLoading ? (
+                    <div className="h-screen flex items-center justify-center">Carregando...</div>
+                  ) : user ? (
+                    <Navigate to="/dashboard" replace />
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
+                } />
+                <Route path="/dashboard" element={
                   <RoleRoute allowedRoles={['admin']}>
                     <Index />
                   </RoleRoute>
