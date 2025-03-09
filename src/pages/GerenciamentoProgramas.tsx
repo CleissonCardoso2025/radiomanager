@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { BadgeCheck, Calendar, CalendarDays, Clock, Pencil, Plus, Repeat, Trash2, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface Programa {
   id: string;
@@ -78,7 +77,6 @@ const GerenciamentoProgramas: React.FC = () => {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [modalType, setModalType] = useState<'programa' | 'testemunhal'>('programa');
   const [selectedItem, setSelectedItem] = useState<Programa | Testemunhal | null>(null);
-  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<any>({
     nome: '',
@@ -94,9 +92,11 @@ const GerenciamentoProgramas: React.FC = () => {
     distribuir_automaticamente: true,
   });
 
-  const { data: programas = [] } = useQuery<Programa[]>({
-    queryKey: ['programas-gerenciamento'],
-    queryFn: async () => {
+  const [programas, setProgramas] = useState<Programa[]>([]);
+  const [testemunhais, setTestemunhais] = useState<Testemunhal[]>([]);
+
+  useEffect(() => {
+    const fetchProgramas = async () => {
       const { data, error } = await supabase
         .from('programas')
         .select('*')
@@ -109,16 +109,13 @@ const GerenciamentoProgramas: React.FC = () => {
           closeButton: true,
           duration: 5000
         });
-        return [];
+        return;
       }
       
-      return data || [];
-    },
-  });
+      setProgramas(data || []);
+    };
 
-  const { data: testemunhais = [] } = useQuery<Testemunhal[]>({
-    queryKey: ['testemunhais-gerenciamento'],
-    queryFn: async () => {
+    const fetchTestemunhais = async () => {
       const { data, error } = await supabase
         .from('testemunhais')
         .select('*, programas(nome)')
@@ -131,12 +128,15 @@ const GerenciamentoProgramas: React.FC = () => {
           closeButton: true,
           duration: 5000
         });
-        return [];
+        return;
       }
       
-      return data || [];
-    },
-  });
+      setTestemunhais(data || []);
+    };
+
+    fetchProgramas();
+    fetchTestemunhais();
+  }, []);
 
   // Função para converter horário no formato HH:MM para minutos desde meia-noite
   const timeToMinutes = (time: string): number => {
@@ -193,198 +193,6 @@ const GerenciamentoProgramas: React.FC = () => {
     
     return times;
   };
-
-  const programaMutation = useMutation({
-    mutationFn: async (programa: any) => {
-      if (selectedItem) {
-        const { data, error } = await supabase
-          .from('programas')
-          .update({
-            nome: programa.nome,
-            horario_inicio: programa.horario_inicio,
-            horario_fim: programa.horario_fim,
-            apresentador: programa.apresentador,
-            dias: programa.dias,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedItem.id)
-          .select();
-          
-        if (error) throw error;
-        return data;
-      } else {
-        const { data, error } = await supabase
-          .from('programas')
-          .insert({
-            nome: programa.nome,
-            horario_inicio: programa.horario_inicio,
-            horario_fim: programa.horario_fim,
-            apresentador: programa.apresentador,
-            dias: programa.dias,
-          })
-          .select();
-          
-        if (error) throw error;
-        return data;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['programas-gerenciamento'] });
-      toast.success(
-        selectedItem 
-          ? 'Programa atualizado com sucesso!' 
-          : 'Programa adicionado com sucesso!',
-        {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        }
-      );
-      setIsModalOpen(false);
-    },
-    onError: (error) => {
-      toast.error('Erro ao salvar programa', {
-        description: error.message,
-        position: 'bottom-right',
-        closeButton: true,
-        duration: 5000
-      });
-    }
-  });
-
-  const testemunhalMutation = useMutation({
-    mutationFn: async (testemunhal: any) => {
-      // Buscar programa selecionado
-      const programa = programas.find(p => p.id === testemunhal.programa_id);
-      
-      // Verificar se deve gerar horários aleatórios ou usar o horário específico
-      let horarios: string[] = [];
-      
-      if (testemunhal.distribuir_automaticamente && programa) {
-        horarios = generateDistributedTimes(
-          programa.horario_inicio,
-          programa.horario_fim,
-          testemunhal.leituras
-        );
-      } else {
-        // Usar o horário fornecido manualmente
-        horarios = [testemunhal.horario_agendado];
-      }
-      
-      if (selectedItem) {
-        // Atualizar um testemunhal existente
-        const { data, error } = await supabase
-          .from('testemunhais')
-          .update({
-            patrocinador: testemunhal.patrocinador,
-            texto: testemunhal.texto,
-            horario_agendado: horarios[0] || testemunhal.horario_agendado,
-            programa_id: testemunhal.programa_id,
-            leituras: testemunhal.leituras,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedItem.id)
-          .select();
-          
-        if (error) throw error;
-        return data;
-      } else {
-        // Para novos testemunhais, criar múltiplas entradas se houver múltiplas leituras e distribuição automática
-        if (testemunhal.distribuir_automaticamente && testemunhal.leituras > 1) {
-          const inserts = horarios.map(horario => ({
-            patrocinador: testemunhal.patrocinador,
-            texto: testemunhal.texto,
-            horario_agendado: horario,
-            programa_id: testemunhal.programa_id,
-            leituras: 1, // cada inserção representa uma leitura
-            status: 'pendente',
-          }));
-          
-          const { data, error } = await supabase
-            .from('testemunhais')
-            .insert(inserts)
-            .select();
-            
-          if (error) throw error;
-          return data;
-        } else {
-          // Inserir um único testemunhal com o número total de leituras
-          const { data, error } = await supabase
-            .from('testemunhais')
-            .insert({
-              patrocinador: testemunhal.patrocinador,
-              texto: testemunhal.texto,
-              horario_agendado: horarios[0] || testemunhal.horario_agendado,
-              programa_id: testemunhal.programa_id,
-              leituras: testemunhal.leituras,
-              status: 'pendente',
-            })
-            .select();
-            
-          if (error) throw error;
-          return data;
-        }
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['testemunhais-gerenciamento'] });
-      toast.success(
-        selectedItem 
-          ? 'Testemunhal atualizado com sucesso!' 
-          : 'Testemunhal adicionado com sucesso!',
-        {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        }
-      );
-      setIsModalOpen(false);
-    },
-    onError: (error) => {
-      toast.error('Erro ao salvar testemunhal', {
-        description: error.message,
-        position: 'bottom-right',
-        closeButton: true,
-        duration: 5000
-      });
-    }
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedItem) return null;
-      
-      const table = 'nome' in selectedItem ? 'programas' : 'testemunhais';
-      const { error } = await supabase
-        .from(table)
-        .delete()
-        .eq('id', selectedItem.id);
-        
-      if (error) throw error;
-      return null;
-    },
-    onSuccess: () => {
-      if (selectedItem && 'nome' in selectedItem) {
-        queryClient.invalidateQueries({ queryKey: ['programas-gerenciamento'] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['testemunhais-gerenciamento'] });
-      }
-      toast.success('Item excluído com sucesso!', {
-        position: 'bottom-right',
-        closeButton: true,
-        duration: 5000
-      });
-      setIsAlertOpen(false);
-    },
-    onError: (error) => {
-      toast.error('Erro ao excluir item', {
-        description: error.message,
-        position: 'bottom-right',
-        closeButton: true,
-        duration: 5000
-      });
-    }
-  });
 
   const handleAdd = (type: 'programa' | 'testemunhal') => {
     setModalType(type);
@@ -453,7 +261,7 @@ const GerenciamentoProgramas: React.FC = () => {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (modalType === 'programa') {
       if (!formData.nome || !formData.horario_inicio || !formData.horario_fim || formData.dias.length === 0) {
         toast.error('Preencha todos os campos obrigatórios', {
@@ -464,7 +272,30 @@ const GerenciamentoProgramas: React.FC = () => {
         });
         return;
       }
-      programaMutation.mutate(formData);
+      
+      const { data, error } = await supabase
+        .from('programas')
+        .upsert({
+          nome: formData.nome,
+          horario_inicio: formData.horario_inicio,
+          horario_fim: formData.horario_fim,
+          apresentador: formData.apresentador,
+          dias: formData.dias,
+        })
+        .select();
+        
+      if (error) {
+        toast.error('Erro ao salvar programa', {
+          description: error.message,
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+        return;
+      }
+      
+      setProgramas(prev => [...prev, data[0]]);
+      setIsModalOpen(false);
     } else {
       if (!formData.patrocinador || !formData.texto || !formData.programa_id) {
         toast.error('Preencha todos os campos obrigatórios', {
@@ -486,8 +317,84 @@ const GerenciamentoProgramas: React.FC = () => {
         return;
       }
       
-      testemunhalMutation.mutate(formData);
+      const programa = programas.find(p => p.id === formData.programa_id);
+      
+      // Verificar se deve gerar horários aleatórios ou usar o horário específico
+      let horarios: string[] = [];
+      
+      if (formData.distribuir_automaticamente && programa) {
+        horarios = generateDistributedTimes(
+          programa.horario_inicio,
+          programa.horario_fim,
+          formData.leituras
+        );
+      } else {
+        // Usar o horário fornecido manualmente
+        horarios = [formData.horario_agendado];
+      }
+      
+      const inserts = horarios.map(horario => ({
+        patrocinador: formData.patrocinador,
+        texto: formData.texto,
+        horario_agendado: horario,
+        programa_id: formData.programa_id,
+        leituras: 1, // cada inserção representa uma leitura
+        status: 'pendente',
+      }));
+      
+      const { data, error } = await supabase
+        .from('testemunhais')
+        .insert(inserts)
+        .select('*, programas(nome)');
+        
+      if (error) {
+        toast.error('Erro ao salvar testemunhal', {
+          description: error.message,
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+        return;
+      }
+      
+      // Transformar os dados para corresponder ao tipo Testemunhal
+      const novosTestemunhais = data.map(item => ({
+        ...item,
+        programas: item.programas || { nome: '' },
+        nome: item.programas?.nome || ''
+      })) as Testemunhal[];
+      
+      setTestemunhais(prev => [...prev, ...novosTestemunhais]);
+      setIsModalOpen(false);
     }
+  };
+
+  const handleDeleteItem = async () => {
+    if (!selectedItem) return;
+    
+    const table = 'nome' in selectedItem ? 'programas' : 'testemunhais';
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq('id', selectedItem.id);
+      
+    if (error) {
+      toast.error('Erro ao excluir item', {
+        description: error.message,
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+      return;
+    }
+    
+    if (selectedItem && 'nome' in selectedItem) {
+      setProgramas(prev => prev.filter(p => p.id !== selectedItem.id));
+    } else {
+      setTestemunhais(prev => prev.filter(t => t.id !== selectedItem.id));
+    }
+    
+    setIsAlertOpen(false);
   };
 
   const notificationCount = Array.isArray(testemunhais) 
@@ -534,7 +441,6 @@ const GerenciamentoProgramas: React.FC = () => {
             <Button 
               className="gap-2 px-4" 
               onClick={() => handleAdd(activeTab === 'programas' ? 'programa' : 'testemunhal')}
-              disabled={programaMutation.isPending || testemunhalMutation.isPending}
             >
               <Plus size={18} />
               <span>Adicionar Novo</span>
@@ -668,7 +574,6 @@ const GerenciamentoProgramas: React.FC = () => {
                 {selectedItem ? 'Editar' : 'Adicionar'} {modalType === 'programa' ? 'Programa' : 'Testemunhal'}
               </DialogTitle>
             </DialogHeader>
-
             {modalType === 'programa' ? (
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -840,16 +745,14 @@ const GerenciamentoProgramas: React.FC = () => {
               <Button 
                 variant="outline" 
                 onClick={() => setIsModalOpen(false)}
-                disabled={programaMutation.isPending || testemunhalMutation.isPending}
               >
                 Cancelar
               </Button>
               <Button 
                 type="submit" 
                 onClick={handleSave}
-                disabled={programaMutation.isPending || testemunhalMutation.isPending}
               >
-                {programaMutation.isPending || testemunhalMutation.isPending ? 'Salvando...' : 'Salvar'}
+                Salvar
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -864,12 +767,11 @@ const GerenciamentoProgramas: React.FC = () => {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setIsAlertOpen(false)}>Cancelar</AlertDialogCancel>
               <AlertDialogAction 
-                onClick={() => deleteMutation.mutate()}
-                disabled={deleteMutation.isPending}
+                onClick={handleDeleteItem}
               >
-                {deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}
+                Excluir
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -82,56 +82,6 @@ const Login = () => {
     }
   };
 
-  // Função para facilitar o login com usuários de teste
-  const handleTestLogin = async (userType: 'admin' | 'locutor') => {
-    setIsLoading(true);
-    
-    try {
-      // Credenciais de teste - em um ambiente de produção, isso não existiria
-      const testCredentials = {
-        admin: {
-          email: 'cleissoncardoso@gmail.com',
-          password: 'password123' // Senha simplificada para testes
-        },
-        locutor: {
-          email: 'locutor@radiomanager.com',
-          password: 'password123' // Senha simplificada para testes
-        }
-      };
-      
-      const { email, password } = testCredentials[userType];
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) throw error;
-      
-      if (userType === 'admin') {
-        toast.success(`Login como administrador realizado com sucesso!`, {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        navigate('/');
-      } else {
-        // Locutor: redirecionar diretamente para agenda sem avisos
-        navigate('/agenda');
-      }
-    } catch (error: any) {
-      console.error('Erro de autenticação:', error);
-      toast.error(`Erro ao fazer login como ${userType}`, {
-        description: error.message || 'Verifique suas credenciais e tente novamente.',
-        position: 'bottom-right',
-        closeButton: true,
-        duration: 5000
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <Card className="w-full max-w-md">
@@ -195,35 +145,6 @@ const Login = () => {
                 : 'Não tem uma conta? Cadastre-se'
               }
             </Button>
-            
-            {/* Botões para teste rápido de login */}
-            {!isSignUp && (
-              <div className="w-full pt-4 border-t border-gray-200">
-                <p className="text-xs text-gray-500 mb-2 text-center">Acesso rápido para testes:</p>
-                <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleTestLogin('admin')}
-                    disabled={isLoading}
-                  >
-                    Admin
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleTestLogin('locutor')}
-                    disabled={isLoading}
-                  >
-                    Locutor
-                  </Button>
-                </div>
-              </div>
-            )}
           </CardFooter>
         </form>
       </Card>
