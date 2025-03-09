@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { RoleProvider } from "@/contexts/RoleContext";
+import RoleRoute from "@/components/RoleRoute";
 import Index from "./pages/Index";
 import GerenciamentoProgramas from "./pages/GerenciamentoProgramas";
 import Agenda from "./pages/Agenda";
@@ -68,37 +70,39 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={{ user, isLoading }}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              } />
-              <Route path="/gerenciamento" element={
-                <ProtectedRoute>
-                  <GerenciamentoProgramas />
-                </ProtectedRoute>
-              } />
-              <Route path="/agenda" element={
-                <ProtectedRoute>
-                  <Agenda />
-                </ProtectedRoute>
-              } />
-              <Route path="/relatorios" element={
-                <ProtectedRoute>
-                  <Relatorios />
-                </ProtectedRoute>
-              } />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+        <RoleProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/" element={
+                  <RoleRoute allowedRoles={['admin']}>
+                    <Index />
+                  </RoleRoute>
+                } />
+                <Route path="/gerenciamento" element={
+                  <RoleRoute allowedRoles={['admin']}>
+                    <GerenciamentoProgramas />
+                  </RoleRoute>
+                } />
+                <Route path="/agenda" element={
+                  <RoleRoute allowedRoles={['admin', 'locutor']}>
+                    <Agenda />
+                  </RoleRoute>
+                } />
+                <Route path="/relatorios" element={
+                  <RoleRoute allowedRoles={['admin']}>
+                    <Relatorios />
+                  </RoleRoute>
+                } />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </RoleProvider>
       </AuthContext.Provider>
     </QueryClientProvider>
   );

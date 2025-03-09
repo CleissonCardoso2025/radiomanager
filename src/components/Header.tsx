@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, ChevronDown, Menu, Search, User, X } from 'lucide-react';
+import { Bell, ChevronDown, Menu, Search, User, X, LogOut } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,7 +14,10 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useRole } from '@/contexts/RoleContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface HeaderProps {
   notificationCount: number;
@@ -23,35 +26,49 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { userRole } = useRole();
 
   const navItems = [
-    { name: 'Dashboard', path: '/', isActive: location.pathname === '/' },
-    { name: 'Programas e Testemunhais', path: '/gerenciamento', isActive: location.pathname === '/gerenciamento' },
-    { name: 'Agenda', path: '/agenda', isActive: location.pathname === '/agenda' },
-    { name: 'Relatórios', path: '/relatorios', isActive: location.pathname === '/relatorios' },
+    { name: 'Dashboard', path: '/', isActive: location.pathname === '/', requiredRole: 'admin' },
+    { name: 'Programas e Testemunhais', path: '/gerenciamento', isActive: location.pathname === '/gerenciamento', requiredRole: 'admin' },
+    { name: 'Agenda', path: '/agenda', isActive: location.pathname === '/agenda', requiredRole: ['admin', 'locutor'] },
+    { name: 'Relatórios', path: '/relatorios', isActive: location.pathname === '/relatorios', requiredRole: 'admin' },
   ];
 
-  const userMenuItems = [
-    { label: 'Meu Perfil' },
-    { label: 'Configurações' },
-    { label: 'Sair' },
-  ];
+  const filteredNavItems = navItems.filter(item => {
+    if (Array.isArray(item.requiredRole)) {
+      return userRole && item.requiredRole.includes(userRole);
+    }
+    return userRole === item.requiredRole;
+  });
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error('Erro ao sair', {
+        description: error.message,
+      });
+    } else {
+      toast.success('Logout realizado com sucesso');
+      navigate('/login');
+    }
+  };
 
   return (
     <header className="sticky top-0 z-30 w-full bg-white/80 backdrop-blur-md border-b border-gray-100 transition-all duration-300">
       <div className="container px-6 h-16 mx-auto flex items-center justify-between">
         <div className="flex items-center gap-10">
           <div className="flex items-center">
-            <Link to="/">
+            <Link to={userRole === 'locutor' ? '/agenda' : '/'}>
               <h1 className="text-2xl font-medium text-primary tracking-tight">
                 RadioManager
               </h1>
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-1">
-            {navItems.map((item) => (
+            {filteredNavItems.map((item) => (
               <Link
                 key={item.name}
                 to={item.path}
@@ -64,36 +81,37 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
         </div>
 
         <div className="flex items-center space-x-2">
-          {/* Search toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full hover:bg-gray-100 transition-all"
-            onClick={() => setIsSearchOpen(!isSearchOpen)}
-          >
-            {isSearchOpen ? <X size={20} /> : <Search size={20} />}
-          </Button>
+          {userRole === 'admin' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full hover:bg-gray-100 transition-all"
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+            >
+              {isSearchOpen ? <X size={20} /> : <Search size={20} />}
+            </Button>
+          )}
 
-          {/* Search input (animated) */}
-          <div
-            className={`absolute right-28 transition-all duration-300 ease-in-out overflow-hidden ${
-              isSearchOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'
-            }`}
-          >
-            <div className="relative w-full">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={16}
-              />
-              <input
-                type="text"
-                placeholder="Pesquisar..."
-                className="input-search pl-10"
-              />
+          {userRole === 'admin' && (
+            <div
+              className={`absolute right-28 transition-all duration-300 ease-in-out overflow-hidden ${
+                isSearchOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'
+              }`}
+            >
+              <div className="relative w-full">
+                <Search
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  size={16}
+                />
+                <input
+                  type="text"
+                  placeholder="Pesquisar..."
+                  className="input-search pl-10"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -136,27 +154,34 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="rounded-full gap-2 hover:bg-gray-100">
                 <User size={20} />
-                <span className="hidden sm:inline-block font-normal">Admin</span>
+                <span className="hidden sm:inline-block font-normal">
+                  {userRole === 'locutor' ? 'Locutor' : 'Admin'}
+                </span>
                 <ChevronDown size={16} className="text-gray-500" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <div className="flex flex-col p-2 gap-1">
-                {userMenuItems.map((item) => (
-                  <DropdownMenuItem key={item.label} className="cursor-pointer">
-                    {item.label}
+                <DropdownMenuItem className="cursor-pointer">
+                  Meu Perfil
+                </DropdownMenuItem>
+                {userRole === 'admin' && (
+                  <DropdownMenuItem className="cursor-pointer">
+                    Configurações
                   </DropdownMenuItem>
-                ))}
+                )}
+                <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sair
+                </DropdownMenuItem>
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Mobile menu */}
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger asChild>
@@ -166,7 +191,7 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
               </SheetTrigger>
               <SheetContent side="right" className="p-0">
                 <div className="pt-16 px-6 flex flex-col gap-3">
-                  {navItems.map((item) => (
+                  {filteredNavItems.map((item) => (
                     <Link
                       key={item.name}
                       to={item.path}
@@ -179,6 +204,14 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
                       {item.name}
                     </Link>
                   ))}
+                  <Button
+                    variant="destructive"
+                    className="mt-4"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sair
+                  </Button>
                 </div>
               </SheetContent>
             </Sheet>
