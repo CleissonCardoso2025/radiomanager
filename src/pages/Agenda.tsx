@@ -24,7 +24,7 @@ const Agenda: React.FC = () => {
       try {
         const { data, error } = await supabase
           .from('testemunhais')
-          .select('*, programas(nome, dias)')
+          .select('id, patrocinador, texto, horario_agendado, status, programa_id, programas!inner(id, nome, dias, apresentador)')
           .order('horario_agendado', { ascending: true });
         
         if (error) {
@@ -47,7 +47,13 @@ const Agenda: React.FC = () => {
             );
           });
           
-          setTestemunhais(filteredData);
+          // Certifique-se de que todos os campos necessários estão presentes
+          const processedData = filteredData.map(item => ({
+            ...item,
+            texto: item.texto || "Sem texto disponível"
+          }));
+          
+          setTestemunhais(processedData);
         }
         
         setIsLoading(false);
@@ -82,11 +88,9 @@ const Agenda: React.FC = () => {
         
       if (error) throw error;
       
-      // Update local state
+      // Remove o testemunhal da lista local imediatamente
       setTestemunhais(prevTestemunhais => 
-        prevTestemunhais.map(t => 
-          t.id === id ? { ...t, status: 'lido' } : t
-        )
+        prevTestemunhais.filter(t => t.id !== id)
       );
       
       toast.success('Testemunhal marcado como lido', {

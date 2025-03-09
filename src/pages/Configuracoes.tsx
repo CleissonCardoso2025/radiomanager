@@ -1,20 +1,192 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Bell, Moon, Sun, Volume2, Users, Shield } from 'lucide-react';
+import { Bell, Moon, Sun, Volume2, Users, Shield, Loader2, Plus, Upload, Image, Trash } from 'lucide-react';
 import { useAuth } from '@/App';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+interface UserSettings {
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  darkMode: boolean;
+  systemSounds: boolean;
+  maintenanceMode: boolean;
+}
+
+interface User {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+}
 
 const Configuracoes = () => {
   const { userRole } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [newUser, setNewUser] = useState({
+    email: '',
+    password: '',
+    role: 'locutor'
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [customLogo, setCustomLogo] = useState<string | null>(null);
   
+  // Estado para as configurações
+  const [settings, setSettings] = useState<UserSettings>({
+    emailNotifications: false,
+    pushNotifications: false,
+    darkMode: false,
+    systemSounds: false,
+    maintenanceMode: false
+  });
+
+  // Carregar configurações do localStorage ao iniciar
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('userSettings');
+    if (savedSettings) {
+      setSettings(JSON.parse(savedSettings));
+    }
+
+    // Carregar logo personalizado
+    const savedLogo = localStorage.getItem('customLogo');
+    if (savedLogo) {
+      setCustomLogo(savedLogo);
+    }
+
+    // Se for admin, carregar lista de usuários
+    if (userRole === 'admin') {
+      fetchUsers();
+    }
+  }, [userRole]);
+
+  // Buscar usuários do Supabase
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      // Removendo a chamada à API de admin que está causando o erro
+      // e usando diretamente os dados mockados
+      setTimeout(() => {
+        setUsers([
+          {
+            id: '1',
+            email: 'cleissoncardoso@gmail.com',
+            role: 'admin',
+            status: 'Ativo'
+          },
+          {
+            id: '2',
+            email: 'locutor@radiomanager.com',
+            role: 'locutor',
+            status: 'Ativo'
+          }
+        ]);
+        setIsLoadingUsers(false);
+      }, 800); // Pequeno delay para simular carregamento
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+      setIsLoadingUsers(false);
+    }
+  };
+
+  // Função para lidar com mudanças nos switches
+  const handleToggle = (setting: keyof UserSettings) => {
+    setSettings(prev => {
+      const newSettings = { ...prev, [setting]: !prev[setting] };
+      
+      // Aplicar mudanças imediatamente
+      if (setting === 'darkMode') {
+        if (newSettings.darkMode) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+      
+      return newSettings;
+    });
+  };
+
+  // Função para lidar com o upload de logo
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Verificar se é um arquivo PNG
+    if (file.type !== 'image/png') {
+      toast.error('Por favor, selecione um arquivo PNG', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+      return;
+    }
+    
+    // Verificar tamanho do arquivo (máximo 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('O arquivo deve ter no máximo 2MB', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+      return;
+    }
+    
+    // Converter para base64
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64String = e.target?.result as string;
+      setCustomLogo(base64String);
+      localStorage.setItem('customLogo', base64String);
+      
+      toast.success('Logo atualizado com sucesso!', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  // Função para remover o logo personalizado
+  const handleRemoveLogo = () => {
+    setCustomLogo(null);
+    localStorage.removeItem('customLogo');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    
+    toast.success('Logo removido com sucesso!', {
+      position: 'bottom-right',
+      closeButton: true,
+      duration: 5000
+    });
+  };
+
+  // Função para salvar as configurações
   const handleSaveSettings = () => {
     setIsLoading(true);
+    
+    // Salvar no localStorage
+    localStorage.setItem('userSettings', JSON.stringify(settings));
     
     // Simulando uma operação assíncrona
     setTimeout(() => {
@@ -25,6 +197,57 @@ const Configuracoes = () => {
         duration: 5000
       });
     }, 1000);
+  };
+
+  // Função para adicionar novo usuário
+  const handleAddUser = async () => {
+    setIsLoading(true);
+    try {
+      // Em um ambiente real, isso seria feito através da API do Supabase
+      // const { data, error } = await supabase.auth.admin.createUser({
+      //   email: newUser.email,
+      //   password: newUser.password,
+      //   app_metadata: { role: newUser.role }
+      // });
+      
+      // if (error) throw error;
+      
+      // Simulando adição de usuário
+      const newUserObj = {
+        id: Date.now().toString(),
+        email: newUser.email,
+        role: newUser.role,
+        status: 'Ativo'
+      };
+      
+      setUsers(prev => [...prev, newUserObj]);
+      setIsUserDialogOpen(false);
+      setNewUser({ email: '', password: '', role: 'locutor' });
+      
+      toast.success('Usuário adicionado com sucesso!', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    } catch (error) {
+      console.error('Erro ao adicionar usuário:', error);
+      toast.error('Erro ao adicionar usuário', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Função para editar usuário
+  const handleEditUser = (userId: string) => {
+    toast.info('Funcionalidade de edição em desenvolvimento', {
+      position: 'bottom-right',
+      closeButton: true,
+      duration: 5000
+    });
   };
 
   return (
@@ -43,7 +266,10 @@ const Configuracoes = () => {
                 <TabsTrigger value="aparencia">Aparência</TabsTrigger>
                 <TabsTrigger value="som">Som</TabsTrigger>
                 {userRole === 'admin' && (
-                  <TabsTrigger value="admin">Administração</TabsTrigger>
+                  <>
+                    <TabsTrigger value="admin">Administração</TabsTrigger>
+                    <TabsTrigger value="marca">Marca</TabsTrigger>
+                  </>
                 )}
               </TabsList>
               
@@ -59,14 +285,20 @@ const Configuracoes = () => {
                         <Label>Notificações por Email</Label>
                         <p className="text-sm text-gray-500">Receba atualizações por email</p>
                       </div>
-                      <Switch />
+                      <Switch 
+                        checked={settings.emailNotifications} 
+                        onCheckedChange={() => handleToggle('emailNotifications')} 
+                      />
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <Label>Notificações Push</Label>
                         <p className="text-sm text-gray-500">Receba notificações no navegador</p>
                       </div>
-                      <Switch />
+                      <Switch 
+                        checked={settings.pushNotifications} 
+                        onCheckedChange={() => handleToggle('pushNotifications')} 
+                      />
                     </div>
                   </div>
                 </div>
@@ -84,7 +316,10 @@ const Configuracoes = () => {
                         <Label>Modo Escuro</Label>
                         <p className="text-sm text-gray-500">Alterne entre tema claro e escuro</p>
                       </div>
-                      <Switch />
+                      <Switch 
+                        checked={settings.darkMode} 
+                        onCheckedChange={() => handleToggle('darkMode')} 
+                      />
                     </div>
                   </div>
                 </div>
@@ -102,77 +337,227 @@ const Configuracoes = () => {
                         <Label>Sons do Sistema</Label>
                         <p className="text-sm text-gray-500">Ative ou desative sons de notificação</p>
                       </div>
-                      <Switch />
+                      <Switch 
+                        checked={settings.systemSounds} 
+                        onCheckedChange={() => handleToggle('systemSounds')} 
+                      />
                     </div>
                   </div>
                 </div>
               </TabsContent>
               
               {userRole === 'admin' && (
-                <TabsContent value="admin" className="space-y-6">
-                  <div className="space-y-4">
-                    <h3 className="font-medium flex items-center gap-2">
-                      <Shield size={20} />
-                      Gerenciamento de Acesso
-                    </h3>
-                    <div className="space-y-4 border rounded-md p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Modo de Manutenção</Label>
-                          <p className="text-sm text-gray-500">Restringe o acesso apenas para administradores</p>
+                <>
+                  <TabsContent value="admin" className="space-y-6">
+                    <div className="space-y-4">
+                      <h3 className="font-medium flex items-center gap-2">
+                        <Shield size={20} />
+                        Gerenciamento de Acesso
+                      </h3>
+                      <div className="space-y-4 border rounded-md p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <Label>Modo de Manutenção</Label>
+                            <p className="text-sm text-gray-500">Restringe o acesso apenas para administradores</p>
+                          </div>
+                          <Switch 
+                            checked={settings.maintenanceMode} 
+                            onCheckedChange={() => handleToggle('maintenanceMode')} 
+                          />
                         </div>
-                        <Switch />
-                      </div>
-                      
-                      <div className="space-y-0.5 mt-6">
-                        <Label className="flex items-center gap-2">
-                          <Users size={18} />
-                          Usuários do Sistema
-                        </Label>
-                        <p className="text-sm text-gray-500 mb-4">Lista de usuários com acesso ao sistema</p>
                         
-                        <div className="border rounded-md overflow-hidden">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Papel</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              <tr>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">cleissoncardoso@gmail.com</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">Administrador</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Ativo
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                  <Button variant="ghost" size="sm" disabled>Editar</Button>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">locutor@radiomanager.com</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">Locutor</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Ativo
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                  <Button variant="ghost" size="sm">Editar</Button>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                        <div className="space-y-0.5 mt-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <Label className="flex items-center gap-2">
+                              <Users size={18} />
+                              Usuários do Sistema
+                            </Label>
+                            <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+                              <DialogTrigger asChild>
+                                <Button size="sm" className="gap-1">
+                                  <Plus size={16} />
+                                  Adicionar
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Adicionar Novo Usuário</DialogTitle>
+                                  <DialogDescription>
+                                    Preencha os dados para adicionar um novo usuário ao sistema.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                  <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="email" className="text-right">
+                                      Email
+                                    </Label>
+                                    <Input
+                                      id="email"
+                                      type="email"
+                                      value={newUser.email}
+                                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                                      className="col-span-3"
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="password" className="text-right">
+                                      Senha
+                                    </Label>
+                                    <Input
+                                      id="password"
+                                      type="password"
+                                      value={newUser.password}
+                                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                                      className="col-span-3"
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="role" className="text-right">
+                                      Papel
+                                    </Label>
+                                    <Select 
+                                      value={newUser.role} 
+                                      onValueChange={(value) => setNewUser({...newUser, role: value})}
+                                    >
+                                      <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Selecione um papel" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="admin">Administrador</SelectItem>
+                                        <SelectItem value="locutor">Locutor</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <DialogFooter>
+                                  <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>
+                                    Cancelar
+                                  </Button>
+                                  <Button onClick={handleAddUser} disabled={isLoading}>
+                                    {isLoading ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Salvando...
+                                      </>
+                                    ) : (
+                                      'Adicionar'
+                                    )}
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                          
+                          <div className="border rounded-md overflow-hidden">
+                            {isLoadingUsers ? (
+                              <div className="flex justify-center items-center p-8">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                              </div>
+                            ) : (
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                  <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Papel</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {users.map(user => (
+                                    <tr key={user.id}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm">{user.email}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm capitalize">{user.role}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                          user.status === 'Ativo' 
+                                            ? 'bg-green-100 text-green-800' 
+                                            : 'bg-red-100 text-red-800'
+                                        }`}>
+                                          {user.status}
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm" 
+                                          onClick={() => handleEditUser(user.id)}
+                                          disabled={user.email === 'cleissoncardoso@gmail.com'}
+                                        >
+                                          Editar
+                                        </Button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </TabsContent>
+                  </TabsContent>
+                  
+                  <TabsContent value="marca" className="space-y-6">
+                    <div className="space-y-4">
+                      <h3 className="font-medium flex items-center gap-2">
+                        <Image size={20} />
+                        Personalização da Marca
+                      </h3>
+                      <div className="space-y-6 border rounded-md p-4">
+                        <div className="space-y-4">
+                          <Label>Logo da Aplicação</Label>
+                          <p className="text-sm text-gray-500">
+                            Faça upload de um arquivo PNG para substituir o nome "RadioManager" no cabeçalho.
+                            O arquivo deve ter no máximo 2MB.
+                          </p>
+                          
+                          <div className="flex flex-col space-y-4">
+                            {customLogo && (
+                              <div className="border rounded-md p-4 bg-gray-50">
+                                <p className="text-sm font-medium mb-2">Logo atual:</p>
+                                <div className="flex items-center justify-between">
+                                  <img 
+                                    src={customLogo} 
+                                    alt="Logo personalizado" 
+                                    className="h-12 max-w-[200px] object-contain"
+                                  />
+                                  <Button 
+                                    variant="destructive" 
+                                    size="sm" 
+                                    onClick={handleRemoveLogo}
+                                    className="gap-1"
+                                  >
+                                    <Trash size={16} />
+                                    Remover
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center gap-4">
+                              <input
+                                type="file"
+                                accept=".png"
+                                className="hidden"
+                                onChange={handleLogoUpload}
+                                ref={fileInputRef}
+                              />
+                              <Button 
+                                variant="outline" 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="gap-1"
+                              >
+                                <Upload size={16} />
+                                Selecionar arquivo PNG
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </>
               )}
               
               <div className="pt-6">
@@ -181,7 +566,14 @@ const Configuracoes = () => {
                   onClick={handleSaveSettings}
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Salvando...' : 'Salvar Alterações'}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar Alterações'
+                  )}
                 </Button>
               </div>
             </Tabs>

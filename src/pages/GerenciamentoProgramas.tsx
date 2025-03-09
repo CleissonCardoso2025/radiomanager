@@ -372,29 +372,98 @@ const GerenciamentoProgramas: React.FC = () => {
   const handleDeleteItem = async () => {
     if (!selectedItem) return;
     
-    const table = 'nome' in selectedItem ? 'programas' : 'testemunhais';
-    const { error } = await supabase
-      .from(table)
-      .delete()
-      .eq('id', selectedItem.id);
+    try {
+      if ('nome' in selectedItem) {
+        // Se for um programa, primeiro verificamos se há testemunhais associados
+        const { data: testemunhaisAssociados, error: errorCheck } = await supabase
+          .from('testemunhais')
+          .select('id')
+          .eq('programa_id', selectedItem.id);
+          
+        if (errorCheck) {
+          toast.error('Erro ao verificar testemunhais associados', {
+            description: errorCheck.message,
+            position: 'bottom-right',
+            closeButton: true,
+            duration: 5000
+          });
+          return;
+        }
+        
+        // Se houver testemunhais associados, excluímos eles primeiro
+        if (testemunhaisAssociados && testemunhaisAssociados.length > 0) {
+          const { error: errorDeleteTestemunhais } = await supabase
+            .from('testemunhais')
+            .delete()
+            .eq('programa_id', selectedItem.id);
+            
+          if (errorDeleteTestemunhais) {
+            toast.error('Erro ao excluir testemunhais associados', {
+              description: errorDeleteTestemunhais.message,
+              position: 'bottom-right',
+              closeButton: true,
+              duration: 5000
+            });
+            return;
+          }
+        }
+        
+        // Agora podemos excluir o programa
+        const { error } = await supabase
+          .from('programas')
+          .delete()
+          .eq('id', selectedItem.id);
+          
+        if (error) {
+          toast.error('Erro ao excluir programa', {
+            description: error.message,
+            position: 'bottom-right',
+            closeButton: true,
+            duration: 5000
+          });
+          return;
+        }
+        
+        setProgramas(prev => prev.filter(p => p.id !== selectedItem.id));
+        toast.success('Programa excluído com sucesso!', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+      } else {
+        // Se for um testemunhal, excluímos normalmente
+        const { error } = await supabase
+          .from('testemunhais')
+          .delete()
+          .eq('id', selectedItem.id);
+          
+        if (error) {
+          toast.error('Erro ao excluir testemunhal', {
+            description: error.message,
+            position: 'bottom-right',
+            closeButton: true,
+            duration: 5000
+          });
+          return;
+        }
+        
+        setTestemunhais(prev => prev.filter(t => t.id !== selectedItem.id));
+        toast.success('Testemunhal excluído com sucesso!', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+      }
       
-    if (error) {
+      setIsAlertOpen(false);
+    } catch (error: any) {
       toast.error('Erro ao excluir item', {
         description: error.message,
         position: 'bottom-right',
         closeButton: true,
         duration: 5000
       });
-      return;
     }
-    
-    if (selectedItem && 'nome' in selectedItem) {
-      setProgramas(prev => prev.filter(p => p.id !== selectedItem.id));
-    } else {
-      setTestemunhais(prev => prev.filter(t => t.id !== selectedItem.id));
-    }
-    
-    setIsAlertOpen(false);
   };
 
   const notificationCount = Array.isArray(testemunhais) 

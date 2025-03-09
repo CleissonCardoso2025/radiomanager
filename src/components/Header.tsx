@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, ChevronDown, Menu, Search, User, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,20 +13,123 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
+  SheetHeader,
+  SheetTitle,
 } from '@/components/ui/sheet';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/App';
 
 interface HeaderProps {
-  notificationCount: number;
+  notificationCount?: number;
 }
 
-const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
+interface Notification {
+  id: string;
+  titulo: string;
+  descricao: string;
+  status: 'pendente' | 'sucesso';
+  created_at: string;
+}
+
+const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCount }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { userRole } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationCount, setNotificationCount] = useState(propNotificationCount || 0);
+  const [customLogo, setCustomLogo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (userRole === 'admin') {
+      fetchNotifications();
+    }
+    
+    // Carregar o logo personalizado do localStorage
+    const savedLogo = localStorage.getItem('customLogo');
+    if (savedLogo) {
+      setCustomLogo(savedLogo);
+    }
+  }, [userRole]);
+
+  const fetchNotifications = async () => {
+    try {
+      // Buscar testemunhais pendentes para notificações
+      const { data: testemunhaisPendentes, error: errorPendentes } = await supabase
+        .from('testemunhais')
+        .select('id, texto, horario_agendado, status, programas(nome)')
+        .eq('status', 'pendente')
+        .order('horario_agendado', { ascending: true });
+      
+      // Buscar testemunhais lidos recentemente para notificações de sucesso
+      const { data: testemunhaisLidos, error: errorLidos } = await supabase
+        .from('testemunhais')
+        .select('id, texto, horario_agendado, status, programas(nome)')
+        .eq('status', 'lido')
+        .order('updated_at', { ascending: false })
+        .limit(3);
+      
+      if (errorPendentes || errorLidos) {
+        console.error('Erro ao buscar notificações:', errorPendentes || errorLidos);
+        return;
+      }
+      
+      const pendentesFormatados = testemunhaisPendentes?.map(item => ({
+        id: item.id,
+        titulo: 'Testemunhal Pendente',
+        descricao: `${item.programas?.nome} - ${item.horario_agendado?.substring(0, 5)}`,
+        status: 'pendente' as const,
+        created_at: new Date().toISOString()
+      })) || [];
+      
+      const lidosFormatados = testemunhaisLidos?.map(item => ({
+        id: item.id,
+        titulo: 'Leitura Confirmada',
+        descricao: `${item.programas?.nome} - ${item.horario_agendado?.substring(0, 5)}`,
+        status: 'sucesso' as const,
+        created_at: new Date().toISOString()
+      })) || [];
+      
+      const todasNotificacoes = [...pendentesFormatados, ...lidosFormatados];
+      setNotifications(todasNotificacoes);
+      setNotificationCount(pendentesFormatados.length);
+    } catch (error) {
+      console.error('Erro ao buscar notificações:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      const pendingIds = notifications
+        .filter(n => n.status === 'pendente')
+        .map(n => n.id);
+      
+      if (pendingIds.length > 0) {
+        const { error } = await supabase
+          .from('testemunhais')
+          .update({ status: 'lido' })
+          .in('id', pendingIds);
+        
+        if (error) {
+          console.error('Erro ao marcar notificações como lidas:', error);
+          return;
+        }
+        
+        // Atualizar notificações localmente
+        setNotifications(prev => 
+          prev.map(n => 
+            n.status === 'pendente' 
+              ? { ...n, status: 'sucesso', titulo: 'Leitura Confirmada' } 
+              : n
+          )
+        );
+        setNotificationCount(0);
+      }
+    } catch (error) {
+      console.error('Erro ao marcar notificações como lidas:', error);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -86,9 +189,17 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
         <div className="flex items-center gap-10">
           <div className="flex items-center">
             <Link to="/">
-              <h1 className="text-2xl font-medium text-primary tracking-tight">
-                RadioManager
-              </h1>
+              {customLogo ? (
+                <img 
+                  src={customLogo} 
+                  alt="Logo" 
+                  className="h-8 max-w-[180px] object-contain" 
+                />
+              ) : (
+                <h1 className="text-2xl font-medium text-primary tracking-tight">
+                  RadioManager
+                </h1>
+              )}
             </Link>
           </div>
 
@@ -156,25 +267,38 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
               <DropdownMenuContent align="end" className="w-80 p-4">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="font-medium">Notificações</h3>
-                  <Button variant="ghost" size="sm" className="text-xs">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs"
+                    onClick={handleMarkAllAsRead}
+                  >
                     Marcar todas como lidas
                   </Button>
                 </div>
                 <DropdownMenuSeparator />
                 <div className="space-y-2 my-2">
-                  <NotificationItem
-                    title="Testemunhal Pendente"
-                    description="Programa Manhã Total - 10:30"
-                    status="pendente"
-                  />
-                  <NotificationItem
-                    title="Leitura Confirmada"
-                    description="Programa Tarde Show - 14:15"
-                    status="sucesso"
-                  />
+                  {notifications.length > 0 ? (
+                    notifications.slice(0, 5).map((notification) => (
+                      <NotificationItem
+                        key={notification.id}
+                        title={notification.titulo}
+                        description={notification.descricao}
+                        status={notification.status}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-center py-2 text-gray-500 text-sm">
+                      Nenhuma notificação
+                    </div>
+                  )}
                 </div>
                 <DropdownMenuSeparator />
-                <Button variant="outline" className="w-full mt-2 text-sm">
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-2 text-sm"
+                  onClick={() => navigate('/relatorios')}
+                >
                   Ver todas
                 </Button>
               </DropdownMenuContent>
@@ -216,6 +340,9 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="p-0">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Menu de Navegação</SheetTitle>
+                </SheetHeader>
                 <div className="pt-16 px-6 flex flex-col gap-3">
                   {navItems.map((item) => (
                     <Link

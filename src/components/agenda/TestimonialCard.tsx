@@ -1,9 +1,8 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Check, Clock } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Check, Clock, Type, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
@@ -41,11 +40,11 @@ export const getStatusText = (status: string) => {
 
 export const getRandomGradient = () => {
   const gradients = [
-    'bg-gradient-to-r from-pink-100 to-purple-100',
-    'bg-gradient-to-r from-blue-100 to-teal-100',
-    'bg-gradient-to-r from-yellow-100 to-orange-100',
-    'bg-gradient-to-r from-green-100 to-teal-100',
-    'bg-gradient-to-r from-indigo-100 to-purple-100',
+    'bg-white',
+    'bg-white',
+    'bg-white',
+    'bg-white',
+    'bg-white',
   ];
   return gradients[Math.floor(Math.random() * gradients.length)];
 };
@@ -55,6 +54,20 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
   onMarkAsRead,
   isPending
 }) => {
+  const [fontSize, setFontSize] = useState(16); // Tamanho padrão da fonte
+
+  const increaseFontSize = () => {
+    if (fontSize < 24) {
+      setFontSize(prevSize => prevSize + 2);
+    }
+  };
+
+  const decreaseFontSize = () => {
+    if (fontSize > 12) {
+      setFontSize(prevSize => prevSize - 2);
+    }
+  };
+
   return (
     <motion.div 
       variants={{
@@ -73,39 +86,69 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
         "overflow-hidden hover:shadow-lg transition-all", 
         getRandomGradient()
       )}>
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <Badge variant="outline" className={getStatusColor(testemunhal.status)}>
-                  {getStatusText(testemunhal.status)}
-                </Badge>
-                <span className="text-muted-foreground flex items-center">
-                  <Clock className="mr-1 h-4 w-4" />
-                  {testemunhal.horario_agendado.slice(0, 5)}
-                </span>
-                <Badge className="bg-primary/20 text-primary border-primary/30">
-                  {testemunhal.programas?.nome || "Sem programa"}
-                </Badge>
-              </div>
-              <h3 className="text-lg font-semibold mb-2">{testemunhal.patrocinador}</h3>
-              <div className="text-muted-foreground mb-4 sm:mb-0">
-                {testemunhal.texto}
-              </div>
+        <CardHeader className="p-4 pb-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className={getStatusColor(testemunhal.status)}>
+                {getStatusText(testemunhal.status)}
+              </Badge>
+              <span className="text-muted-foreground flex items-center">
+                <Clock className="mr-1 h-4 w-4" />
+                {testemunhal.horario_agendado.slice(0, 5)}
+              </span>
             </div>
-            <div className="w-full sm:w-auto">
-              {testemunhal.status !== 'lido' && (
-                <Button
-                  className="w-full sm:w-auto gap-2 animate-pulse hover:animate-none"
-                  onClick={() => onMarkAsRead(testemunhal.id)}
-                  disabled={isPending}
-                >
-                  <Check className="h-4 w-4" />
-                  {isPending ? 'Processando...' : 'Marcar como Lido'}
-                </Button>
-              )}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 w-8 p-0" 
+                onClick={decreaseFontSize}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+              <Type className="h-4 w-4 text-muted-foreground" />
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 w-8 p-0" 
+                onClick={increaseFontSize}
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
             </div>
           </div>
+          <div className="flex flex-col mb-2">
+            <Badge className="bg-primary/20 text-primary border-primary/30 self-start mb-1">
+              {testemunhal.programas?.nome || "Sem programa"}
+            </Badge>
+            {testemunhal.programas?.apresentador && (
+              <span className="text-sm text-muted-foreground">
+                Apresentador(es): {testemunhal.programas.apresentador}
+              </span>
+            )}
+          </div>
+          <h3 className="text-lg font-semibold">{testemunhal.patrocinador}</h3>
+        </CardHeader>
+        <CardContent className="p-4 pt-2 sm:p-6 sm:pt-2 relative">
+          <div 
+            className="text-muted-foreground mb-12 sm:mb-12"
+            style={{ fontSize: `${fontSize}px` }}
+          >
+            {testemunhal.texto}
+          </div>
+          
+          {testemunhal.status !== 'lido' && (
+            <div className="absolute bottom-4 right-4">
+              <Button
+                className="gap-2"
+                onClick={() => onMarkAsRead(testemunhal.id)}
+                disabled={isPending}
+              >
+                <Check className="h-4 w-4" />
+                {isPending ? 'Processando...' : 'Marcar como Lido'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>

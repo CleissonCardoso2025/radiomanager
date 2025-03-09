@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -45,81 +44,38 @@ import {
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock data for testimonials
-const testimonials = [
-  {
-    id: 1,
-    text: 'Supermercado Bom Preço - As melhores ofertas da cidade!',
-    sponsor: 'Supermercado Bom Preço',
-    program: 'Manhã Total',
-    scheduledTime: '10:30',
-    readTime: '10:32',
-    status: 'read',
-    date: '2023-11-10'
-  },
-  {
-    id: 2,
-    text: 'Farmácia Saúde Total - Cuidando de você e sua família',
-    sponsor: 'Farmácia Saúde Total',
-    program: 'Tarde Show',
-    scheduledTime: '14:15',
-    readTime: null,
-    status: 'pending',
-    date: '2023-11-10'
-  },
-  {
-    id: 3,
-    text: 'Auto Center Pneus - Troca de óleo com 20% de desconto',
-    sponsor: 'Auto Center Pneus',
-    program: 'Manhã Total',
-    scheduledTime: '09:45',
-    readTime: '10:10',
-    status: 'late',
-    date: '2023-11-09'
-  },
-  {
-    id: 4,
-    text: 'Restaurante Sabor Caseiro - Almoço executivo por apenas R$29,90',
-    sponsor: 'Restaurante Sabor Caseiro',
-    program: 'Manhã Total',
-    scheduledTime: '11:00',
-    readTime: '11:00',
-    status: 'read',
-    date: '2023-11-09'
-  },
-  {
-    id: 5,
-    text: 'Livraria Cultura - 30% de desconto em livros de literatura nacional',
-    sponsor: 'Livraria Cultura',
-    program: 'Tarde Show',
-    scheduledTime: '15:30',
-    readTime: null,
-    status: 'pending',
-    date: '2023-11-08'
-  }
-];
+// Interfaces para os dados
+interface Testemunhal {
+  id: string;
+  texto: string;
+  patrocinador: string;
+  programa: {
+    nome: string;
+  };
+  horario_agendado: string;
+  timestamp_leitura: string | null;
+  status: string;
+  created_at: string;
+}
 
-// Stats data
-const stats = {
-  total: testimonials.length,
-  read: testimonials.filter(t => t.status === 'read').length,
-  pending: testimonials.filter(t => t.status === 'pending').length,
-  late: testimonials.filter(t => t.status === 'late').length,
+interface ProgramStats {
+  name: string;
+  readOnTime: number;
+  readLate: number;
+  pending: number;
+}
+
+// Estatísticas iniciais vazias
+const initialStats = {
+  total: 0,
+  read: 0,
+  pending: 0,
+  late: 0,
+  onTime: 0,
+  programs: [] as ProgramStats[]
 };
-
-// Data for the read/unread pie chart
-const pieChartData = [
-  { name: 'Lidos', value: stats.read, color: '#4ade80' },
-  { name: 'Pendentes', value: stats.pending, color: '#facc15' },
-  { name: 'Atrasados', value: stats.late, color: '#f87171' },
-];
-
-// Data for programs bar chart
-const programsData = [
-  { name: 'Manhã Total', readOnTime: 1, readLate: 1, pending: 0 },
-  { name: 'Tarde Show', readOnTime: 0, readLate: 0, pending: 2 },
-];
 
 const Relatorios: React.FC = () => {
   const [activeTab, setActiveTab] = useState('execucao');
@@ -129,6 +85,124 @@ const Relatorios: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [programFilter, setProgramFilter] = useState<string | null>(null);
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [testimonials, setTestimonials] = useState<Testemunhal[]>([]);
+  const [stats, setStats] = useState(initialStats);
+  const [programas, setProgramas] = useState<{id: string, nome: string}[]>([]);
+
+  useEffect(() => {
+    fetchData();
+  }, [startDate, endDate]);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Formatar datas para a consulta
+      const startDateStr = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
+      const endDateStr = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
+
+      // Buscar testemunhais
+      const { data: testemunhaisData, error: testemunhaisError } = await supabase
+        .from('testemunhais')
+        .select('id, texto, patrocinador, horario_agendado, timestamp_leitura, status, created_at, programas(id, nome)')
+        .gte('created_at', startDateStr ? `${startDateStr}T00:00:00` : undefined)
+        .lte('created_at', endDateStr ? `${endDateStr}T23:59:59` : undefined)
+        .order('created_at', { ascending: false });
+
+      if (testemunhaisError) {
+        console.error('Erro ao buscar testemunhais:', testemunhaisError);
+        toast({
+          title: 'Erro ao carregar dados',
+          description: testemunhaisError.message,
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Buscar programas para o filtro
+      const { data: programasData, error: programasError } = await supabase
+        .from('programas')
+        .select('id, nome')
+        .order('nome');
+
+      if (programasError) {
+        console.error('Erro ao buscar programas:', programasError);
+      } else {
+        setProgramas(programasData || []);
+      }
+
+      // Processar os dados
+      const formattedTestimonials = testemunhaisData?.map(item => ({
+        id: item.id,
+        texto: item.texto,
+        patrocinador: item.patrocinador,
+        programa: item.programas,
+        horario_agendado: item.horario_agendado,
+        timestamp_leitura: item.timestamp_leitura,
+        status: item.status,
+        created_at: item.created_at
+      })) || [];
+
+      setTestimonials(formattedTestimonials);
+
+      // Calcular estatísticas
+      const total = formattedTestimonials.length;
+      const read = formattedTestimonials.filter(t => t.status === 'lido').length;
+      const pending = formattedTestimonials.filter(t => t.status === 'pendente').length;
+      const late = formattedTestimonials.filter(t => 
+        t.status === 'lido' && 
+        t.timestamp_leitura && 
+        t.horario_agendado && 
+        t.timestamp_leitura > t.horario_agendado
+      ).length;
+      const onTime = read - late;
+
+      // Estatísticas por programa
+      const programStats: Record<string, ProgramStats> = {};
+      
+      formattedTestimonials.forEach(t => {
+        const programName = t.programa?.nome || 'Sem programa';
+        
+        if (!programStats[programName]) {
+          programStats[programName] = {
+            name: programName,
+            readOnTime: 0,
+            readLate: 0,
+            pending: 0
+          };
+        }
+        
+        if (t.status === 'pendente') {
+          programStats[programName].pending += 1;
+        } else if (t.status === 'lido') {
+          if (t.timestamp_leitura && t.horario_agendado && t.timestamp_leitura > t.horario_agendado) {
+            programStats[programName].readLate += 1;
+          } else {
+            programStats[programName].readOnTime += 1;
+          }
+        }
+      });
+
+      setStats({
+        total,
+        read,
+        pending,
+        late,
+        onTime,
+        programs: Object.values(programStats)
+      });
+
+    } catch (error) {
+      console.error('Erro ao buscar dados:', error);
+      toast({
+        title: 'Erro ao carregar dados',
+        description: 'Ocorreu um erro ao carregar os dados. Tente novamente mais tarde.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleExport = (format: 'pdf' | 'excel') => {
     toast({
@@ -138,23 +212,24 @@ const Relatorios: React.FC = () => {
   };
 
   const filteredTestimonials = testimonials.filter(item => {
-    const matchesSearch = item.text.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         item.sponsor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.program.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      item.texto.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      item.patrocinador.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.programa?.nome.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = !statusFilter || item.status === statusFilter;
-    const matchesProgram = !programFilter || item.program === programFilter;
+    const matchesProgram = !programFilter || item.programa?.nome === programFilter;
     
     return matchesSearch && matchesStatus && matchesProgram;
   });
 
   const getStatusBadge = (status: string) => {
     switch(status) {
-      case 'read':
+      case 'lido':
         return <Badge className="bg-green-100 text-green-800 border-green-200">Lido</Badge>;
-      case 'pending':
+      case 'pendente':
         return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pendente</Badge>;
-      case 'late':
+      case 'atrasado':
         return <Badge className="bg-red-100 text-red-800 border-red-200">Atrasado</Badge>;
       default:
         return null;
@@ -163,7 +238,7 @@ const Relatorios: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
-      <Header notificationCount={stats.pending + stats.late} />
+      <Header />
       
       <main className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
@@ -220,7 +295,11 @@ const Relatorios: React.FC = () => {
               <CardDescription>Distribuição de testemunhais por status</CardDescription>
             </CardHeader>
             <CardContent>
-              <ReportChart type="pie" data={pieChartData} />
+              <ReportChart type="pie" data={[
+                { name: 'Lidos', value: stats.read, color: '#4ade80' },
+                { name: 'Pendentes', value: stats.pending, color: '#facc15' },
+                { name: 'Atrasados', value: stats.late, color: '#f87171' },
+              ]} />
             </CardContent>
           </Card>
           
@@ -230,7 +309,7 @@ const Relatorios: React.FC = () => {
               <CardDescription>Testemunhais lidos, atrasados e pendentes por programa</CardDescription>
             </CardHeader>
             <CardContent>
-              <ReportChart type="bar" data={programsData} />
+              <ReportChart type="bar" data={stats.programs} />
             </CardContent>
           </Card>
         </div>
@@ -309,6 +388,23 @@ const Relatorios: React.FC = () => {
                 />
               </div>
 
+              <div className="flex-1">
+                <Label htmlFor="program-filter">Programa</Label>
+                <select
+                  id="program-filter"
+                  className="w-full p-2 border rounded-md mt-1"
+                  value={programFilter || ''}
+                  onChange={(e) => setProgramFilter(e.target.value || null)}
+                >
+                  <option value="">Todos os programas</option>
+                  {programas.map(programa => (
+                    <option key={programa.id} value={programa.nome}>
+                      {programa.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <Button variant="outline" className="gap-2">
                 <Filter className="h-4 w-4" />
                 Filtros
@@ -328,6 +424,7 @@ const Relatorios: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Texto</TableHead>
                       <TableHead>Patrocinador</TableHead>
                       <TableHead>Programa</TableHead>
                       <TableHead>Horário Programado</TableHead>
@@ -340,12 +437,13 @@ const Relatorios: React.FC = () => {
                   <TableBody>
                     {filteredTestimonials.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.sponsor}</TableCell>
-                        <TableCell>{item.program}</TableCell>
-                        <TableCell>{item.scheduledTime}</TableCell>
-                        <TableCell>{item.readTime || "-"}</TableCell>
+                        <TableCell className="font-medium">{item.texto.substring(0, 50)}...</TableCell>
+                        <TableCell>{item.patrocinador}</TableCell>
+                        <TableCell>{item.programa?.nome}</TableCell>
+                        <TableCell>{item.horario_agendado?.substring(0, 5)}</TableCell>
+                        <TableCell>{item.timestamp_leitura ? new Date(item.timestamp_leitura).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : '-'}</TableCell>
                         <TableCell>{getStatusBadge(item.status)}</TableCell>
-                        <TableCell>{format(new Date(item.date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{format(new Date(item.created_at), 'dd/MM/yyyy')}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm">
                             Detalhes
@@ -371,6 +469,7 @@ const Relatorios: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Texto</TableHead>
                       <TableHead>Patrocinador</TableHead>
                       <TableHead>Programa</TableHead>
                       <TableHead>Horário Programado</TableHead>
@@ -381,14 +480,15 @@ const Relatorios: React.FC = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredTestimonials
-                      .filter(item => item.status === 'pending' || item.status === 'late')
+                      .filter(item => item.status === 'pendente' || item.status === 'atrasado')
                       .map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.sponsor}</TableCell>
-                          <TableCell>{item.program}</TableCell>
-                          <TableCell>{item.scheduledTime}</TableCell>
+                          <TableCell className="font-medium">{item.texto.substring(0, 50)}...</TableCell>
+                          <TableCell>{item.patrocinador}</TableCell>
+                          <TableCell>{item.programa?.nome}</TableCell>
+                          <TableCell>{item.horario_agendado?.substring(0, 5)}</TableCell>
                           <TableCell>{getStatusBadge(item.status)}</TableCell>
-                          <TableCell>{format(new Date(item.date), 'dd/MM/yyyy')}</TableCell>
+                          <TableCell>{format(new Date(item.created_at), 'dd/MM/yyyy')}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="sm">
                               Detalhes
@@ -414,8 +514,8 @@ const Relatorios: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Patrocinador</TableHead>
                       <TableHead>Texto</TableHead>
+                      <TableHead>Patrocinador</TableHead>
                       <TableHead>Programa</TableHead>
                       <TableHead>Horário</TableHead>
                       <TableHead>Leituras</TableHead>
@@ -426,10 +526,10 @@ const Relatorios: React.FC = () => {
                   <TableBody>
                     {filteredTestimonials.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.sponsor}</TableCell>
-                        <TableCell className="max-w-xs truncate">{item.text}</TableCell>
-                        <TableCell>{item.program}</TableCell>
-                        <TableCell>{item.scheduledTime}</TableCell>
+                        <TableCell className="font-medium">{item.texto.substring(0, 50)}...</TableCell>
+                        <TableCell>{item.patrocinador}</TableCell>
+                        <TableCell>{item.programa?.nome}</TableCell>
+                        <TableCell>{item.horario_agendado?.substring(0, 5)}</TableCell>
                         <TableCell>3 de 5</TableCell>
                         <TableCell>30 min</TableCell>
                         <TableCell className="text-right">
