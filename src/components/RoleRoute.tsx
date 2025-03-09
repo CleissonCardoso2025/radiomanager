@@ -17,7 +17,7 @@ const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
     return <div className="h-screen flex items-center justify-center">Carregando...</div>;
   }
   
-  // Redirect to login if not authenticated
+  // If user is not authenticated, redirect to login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -30,7 +30,14 @@ const RoleRoute = ({ children, allowedRoles }: RoleRouteProps) => {
     return <Navigate to="/agenda" replace />;
   }
   
-  // If user is not a locutor and doesn't have allowed role, show access denied
+  // If user is not a locutor and doesn't have allowed role, but is trying to access login
+  // Allow access to login page
+  const currentPath = window.location.pathname;
+  if (currentPath === '/login') {
+    return children;
+  }
+  
+  // If user doesn't have allowed role, show access denied
   if (!hasAllowedRole) {
     return (
       <div className="h-screen flex flex-col items-center justify-center">
