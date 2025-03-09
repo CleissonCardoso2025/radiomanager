@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import StatCard from '@/components/StatCard';
@@ -7,80 +6,83 @@ import NotificationsList from '@/components/NotificationsList';
 import ProgramsTable from '@/components/ProgramsTable';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const [programs, setPrograms] = useState([]);
+  const [testemunhais, setTestemunhais] = useState([]);
 
-  // Fetch all programs from Supabase
-  const { data: programs = [] } = useQuery({
-    queryKey: ['programs'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('programas')
-        .select('*');
-      
-      if (error) {
-        toast.error('Erro ao carregar programas', {
-          description: error.message,
-        });
-        return [];
-      }
-      
-      return data.map(program => ({
-        id: program.id,
-        name: program.nome,
-        time: `${program.horario_inicio.slice(0, 5)} - ${program.horario_fim.slice(0, 5)}`,
-        presenter: program.apresentador,
-        status: program.status,
-      }));
-    },
-  });
+  // Fetch data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch programs
+        const { data: programsData, error: programsError } = await supabase
+          .from('programas')
+          .select('*');
+        
+        if (programsError) {
+          toast.error('Erro ao carregar programas', {
+            description: programsError.message,
+            position: 'bottom-right',
+            closeButton: true,
+            duration: 5000
+          });
+        } else {
+          setPrograms(programsData.map(program => ({
+            id: program.id,
+            name: program.nome,
+            time: `${program.horario_inicio?.slice(0, 5) || ''} - ${program.horario_fim?.slice(0, 5) || ''}`,
+            presenter: program.apresentador,
+            status: program.status,
+          })));
+        }
 
-  // Fetch all testimonials from Supabase
-  const { data: testemunhais = [] } = useQuery({
-    queryKey: ['testemunhais'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('testemunhais')
-        .select('*, programas(nome)')
-        .order('horario_agendado', { ascending: true })
-        .limit(3);
-      
-      if (error) {
-        toast.error('Erro ao carregar testemunhais', {
-          description: error.message,
+        // Fetch testimonials
+        const { data: testimonialsData, error: testimonialsError } = await supabase
+          .from('testemunhais')
+          .select('*, programas(nome)')
+          .order('horario_agendado', { ascending: true })
+          .limit(3);
+        
+        if (testimonialsError) {
+          toast.error('Erro ao carregar testemunhais', {
+            description: testimonialsError.message,
+            position: 'bottom-right',
+            closeButton: true,
+            duration: 5000
+          });
+        } else {
+          setTestemunhais(testimonialsData.map(item => ({
+            id: item.id,
+            title: item.patrocinador,
+            program: item.programas?.nome || 'Programa não encontrado',
+            time: item.horario_agendado?.slice(0, 5) || '',
+            status: item.status,
+          })));
+        }
+
+        setIsLoading(false);
+        
+        toast.success('Bem-vindo ao RadioManager', {
+          description: 'Gerencie seus programas e testemunhais com facilidade.',
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
         });
-        return [];
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        setIsLoading(false);
       }
-      
-      return data.map(item => ({
-        id: item.id,
-        title: item.patrocinador,
-        program: item.programas?.nome || 'Programa não encontrado',
-        time: item.horario_agendado.slice(0, 5),
-        status: item.status,
-      }));
-    },
-  });
+    };
+
+    fetchData();
+  }, []);
 
   // Get notification count based on testemunhais
   const notificationCount = testemunhais.filter(t => 
     t.status === 'pendente' || t.status === 'atrasado'
   ).length;
-
-  // Simulating data loading
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      toast.success('Bem-vindo ao RadioManager', {
-        description: 'Gerencie seus programas e testemunhais com facilidade.',
-        position: 'top-right',
-      });
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">

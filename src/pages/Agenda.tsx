@@ -1,10 +1,8 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 // Imported Components
@@ -15,41 +13,64 @@ import Footer from '@/components/agenda/Footer';
 
 const Agenda: React.FC = () => {
   const [searchText, setSearchText] = useState('');
+  const [testemunhais, setTestemunhais] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMarkingAsRead, setIsMarkingAsRead] = useState(false);
   const today = new Date();
-  const queryClient = useQueryClient();
   
   // Fetch testemunhais data from Supabase for today
-  const { data: testemunhais = [], isLoading } = useQuery({
-    queryKey: ['testemunhais-agenda', format(today, 'yyyy-MM-dd')],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('testemunhais')
-        .select('*, programas(nome, dias)')
-        .order('horario_agendado', { ascending: true });
-      
-      if (error) {
+  useEffect(() => {
+    const fetchTestemunhais = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('testemunhais')
+          .select('*, programas(nome, dias)')
+          .order('horario_agendado', { ascending: true });
+        
+        if (error) {
+          toast.error('Erro ao carregar testemunhais', {
+            description: error.message,
+            position: 'bottom-right',
+            closeButton: true,
+            duration: 5000
+          });
+          setTestemunhais([]);
+        } else {
+          // Filter by today's day of week
+          const dayOfWeek = format(today, 'EEEE', { locale: ptBR });
+          
+          const filteredData = data.filter(t => {
+            // Check if the testemunhal's program has today's day in its days array
+            const programDays = t.programas?.dias || [];
+            return programDays.some((day: string) => 
+              day.toLowerCase() === dayOfWeek.toLowerCase()
+            );
+          });
+          
+          setTestemunhais(filteredData);
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Erro ao carregar testemunhais:', error);
         toast.error('Erro ao carregar testemunhais', {
-          description: error.message,
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
         });
-        return [];
+        setTestemunhais([]);
+        setIsLoading(false);
       }
-      
-      // Filter by today's day of week
-      const dayOfWeek = format(today, 'EEEE', { locale: ptBR });
-      
-      return data.filter(t => {
-        // Check if the testemunhal's program has today's day in its days array
-        const programDays = t.programas?.dias || [];
-        return programDays.some((day: string) => 
-          day.toLowerCase() === dayOfWeek.toLowerCase()
-        );
-      });
-    }
-  });
+    };
+    
+    fetchTestemunhais();
+  }, [today]);
 
-  // Mutation to mark a testemunhal as read
-  const markAsReadMutation = useMutation({
-    mutationFn: async (id: string) => {
+  // Function to mark a testemunhal as read
+  const handleMarkAsRead = async (id: string) => {
+    setIsMarkingAsRead(true);
+    
+    try {
       const { data, error } = await supabase
         .from('testemunhais')
         .update({ 
@@ -60,27 +81,35 @@ const Agenda: React.FC = () => {
         .select();
         
       if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['testemunhais-agenda'] });
-      toast.success('Testemunhal marcado como lido');
-    },
-    onError: (error) => {
+      
+      // Update local state
+      setTestemunhais(prevTestemunhais => 
+        prevTestemunhais.map(t => 
+          t.id === id ? { ...t, status: 'lido' } : t
+        )
+      );
+      
+      toast.success('Testemunhal marcado como lido', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    } catch (error: any) {
       toast.error('Erro ao marcar testemunhal como lido', {
         description: error.message,
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
       });
+    } finally {
+      setIsMarkingAsRead(false);
     }
-  });
+  };
 
   // Calculate notification count for the Header component
   const notificationCount = testemunhais.filter(t => 
     t.status === 'pendente' || t.status === 'atrasado'
   ).length;
-
-  const handleMarkAsRead = (id: string) => {
-    markAsReadMutation.mutate(id);
-  };
 
   // Filter out already read testimonials and apply search filter
   const filteredTestemunhais = testemunhais
@@ -98,7 +127,7 @@ const Agenda: React.FC = () => {
         testimonials={filteredTestemunhais} 
         isLoading={isLoading} 
         onMarkAsRead={handleMarkAsRead}
-        isPending={markAsReadMutation.isPending}
+        isPending={isMarkingAsRead}
       />
       <Footer />
     </div>

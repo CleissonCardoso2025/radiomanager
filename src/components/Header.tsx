@@ -14,7 +14,9 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/App';
 
 interface HeaderProps {
   notificationCount: number;
@@ -23,19 +25,60 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { userRole } = useAuth();
 
-  const navItems = [
-    { name: 'Dashboard', path: '/', isActive: location.pathname === '/' },
-    { name: 'Programas e Testemunhais', path: '/gerenciamento', isActive: location.pathname === '/gerenciamento' },
-    { name: 'Agenda', path: '/agenda', isActive: location.pathname === '/agenda' },
-    { name: 'Relatórios', path: '/relatorios', isActive: location.pathname === '/relatorios' },
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Erro ao sair:', error);
+    }
+  };
+
+  // Define todos os itens de navegação
+  const allNavItems = [
+    { name: 'Dashboard', path: '/', isActive: location.pathname === '/', requiredRole: 'admin' },
+    { name: 'Programas e Testemunhais', path: '/gerenciamento', isActive: location.pathname === '/gerenciamento', requiredRole: 'admin' },
+    { name: 'Agenda', path: '/agenda', isActive: location.pathname === '/agenda', requiredRole: 'any' },
+    { name: 'Relatórios', path: '/relatorios', isActive: location.pathname === '/relatorios', requiredRole: 'admin' },
   ];
 
-  const userMenuItems = [
-    { label: 'Meu Perfil' },
-    { label: 'Configurações' },
-    { label: 'Sair' },
+  // Filtra os itens de navegação com base no papel do usuário
+  const navItems = allNavItems.filter(item => {
+    if (item.requiredRole === 'admin') {
+      return userRole === 'admin';
+    }
+    return true; // Itens com requiredRole 'any' são mostrados para todos
+  });
+
+  // Define todos os itens do menu do usuário
+  const allUserMenuItems = [
+    { 
+      label: 'Meu Perfil',
+      onClick: () => navigate('/perfil'),
+      requiredRole: 'any'
+    },
+    { 
+      label: 'Configurações',
+      onClick: () => navigate('/configuracoes'),
+      requiredRole: 'admin'
+    },
+    { 
+      label: 'Sair',
+      onClick: handleLogout,
+      requiredRole: 'any'
+    },
   ];
+
+  // Filtra os itens do menu do usuário com base no papel do usuário
+  const userMenuItems = allUserMenuItems.filter(item => {
+    if (item.requiredRole === 'admin') {
+      return userRole === 'admin';
+    }
+    return true; // Itens com requiredRole 'any' são mostrados para todos
+  });
 
   return (
     <header className="sticky top-0 z-30 w-full bg-white/80 backdrop-blur-md border-b border-gray-100 transition-all duration-300">
@@ -93,62 +136,70 @@ const Header: React.FC<HeaderProps> = ({ notificationCount }) => {
             </div>
           </div>
 
-          {/* Notifications */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full hover:bg-gray-100 transition-all relative"
-              >
-                <Bell size={20} />
-                {notificationCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 flex items-center justify-center h-5 w-5 p-0 bg-primary text-white text-xs animate-ping-slow">
-                    {notificationCount}
-                  </Badge>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 p-4">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-medium">Notificações</h3>
-                <Button variant="ghost" size="sm" className="text-xs">
-                  Marcar todas como lidas
+          {/* Notifications - Apenas para administradores */}
+          {userRole === 'admin' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full hover:bg-gray-100 transition-all relative"
+                >
+                  <Bell size={20} />
+                  {notificationCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 flex items-center justify-center h-5 w-5 p-0 bg-primary text-white text-xs animate-ping-slow">
+                      {notificationCount}
+                    </Badge>
+                  )}
                 </Button>
-              </div>
-              <DropdownMenuSeparator />
-              <div className="space-y-2 my-2">
-                <NotificationItem
-                  title="Testemunhal Pendente"
-                  description="Programa Manhã Total - 10:30"
-                  status="pendente"
-                />
-                <NotificationItem
-                  title="Leitura Confirmada"
-                  description="Programa Tarde Show - 14:15"
-                  status="sucesso"
-                />
-              </div>
-              <DropdownMenuSeparator />
-              <Button variant="outline" className="w-full mt-2 text-sm">
-                Ver todas
-              </Button>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-medium">Notificações</h3>
+                  <Button variant="ghost" size="sm" className="text-xs">
+                    Marcar todas como lidas
+                  </Button>
+                </div>
+                <DropdownMenuSeparator />
+                <div className="space-y-2 my-2">
+                  <NotificationItem
+                    title="Testemunhal Pendente"
+                    description="Programa Manhã Total - 10:30"
+                    status="pendente"
+                  />
+                  <NotificationItem
+                    title="Leitura Confirmada"
+                    description="Programa Tarde Show - 14:15"
+                    status="sucesso"
+                  />
+                </div>
+                <DropdownMenuSeparator />
+                <Button variant="outline" className="w-full mt-2 text-sm">
+                  Ver todas
+                </Button>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="rounded-full gap-2 hover:bg-gray-100">
                 <User size={20} />
-                <span className="hidden sm:inline-block font-normal">Admin</span>
+                <span className="hidden sm:inline-block font-normal">
+                  {userRole === 'admin' ? 'Admin' : 'Locutor'}
+                </span>
                 <ChevronDown size={16} className="text-gray-500" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <div className="flex flex-col p-2 gap-1">
                 {userMenuItems.map((item) => (
-                  <DropdownMenuItem key={item.label} className="cursor-pointer">
+                  <DropdownMenuItem 
+                    key={item.label} 
+                    className="cursor-pointer"
+                    onClick={item.onClick}
+                  >
                     {item.label}
                   </DropdownMenuItem>
                 ))}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,7 @@ const Login = () => {
     checkSession();
   }, [navigate]);
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
@@ -41,8 +40,10 @@ const Login = () => {
         
         if (error) throw error;
         
-        toast.success('Conta criada com sucesso!', {
-          description: 'Por favor, verifique seu email para confirmar o cadastro.',
+        toast.success('Conta criada com sucesso! Verifique seu email para confirmar.', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
         });
       } else {
         // Sign in
@@ -53,13 +54,78 @@ const Login = () => {
         
         if (error) throw error;
         
-        toast.success('Login realizado com sucesso!');
-        navigate('/');
+        // Verificar se o usuário é admin ou locutor
+        const isAdmin = email === 'cleissoncardoso@gmail.com';
+        
+        if (isAdmin) {
+          toast.success('Login realizado com sucesso!', {
+            position: 'bottom-right',
+            closeButton: true,
+            duration: 5000
+          });
+          navigate('/');
+        } else {
+          // Locutor: redirecionar diretamente para agenda sem avisos
+          navigate('/agenda');
+        }
       }
     } catch (error: any) {
       console.error('Erro de autenticação:', error);
       toast.error(isSignUp ? 'Erro ao criar conta' : 'Erro ao fazer login', {
         description: error.message || 'Verifique suas credenciais e tente novamente.',
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Função para facilitar o login com usuários de teste
+  const handleTestLogin = async (userType: 'admin' | 'locutor') => {
+    setIsLoading(true);
+    
+    try {
+      // Credenciais de teste - em um ambiente de produção, isso não existiria
+      const testCredentials = {
+        admin: {
+          email: 'cleissoncardoso@gmail.com',
+          password: 'password123' // Senha simplificada para testes
+        },
+        locutor: {
+          email: 'locutor@radiomanager.com',
+          password: 'password123' // Senha simplificada para testes
+        }
+      };
+      
+      const { email, password } = testCredentials[userType];
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
+      if (userType === 'admin') {
+        toast.success(`Login como administrador realizado com sucesso!`, {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+        navigate('/');
+      } else {
+        // Locutor: redirecionar diretamente para agenda sem avisos
+        navigate('/agenda');
+      }
+    } catch (error: any) {
+      console.error('Erro de autenticação:', error);
+      toast.error(`Erro ao fazer login como ${userType}`, {
+        description: error.message || 'Verifique suas credenciais e tente novamente.',
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
       });
     } finally {
       setIsLoading(false);
@@ -80,7 +146,7 @@ const Login = () => {
             }
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleAuth}>
+        <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -129,6 +195,35 @@ const Login = () => {
                 : 'Não tem uma conta? Cadastre-se'
               }
             </Button>
+            
+            {/* Botões para teste rápido de login */}
+            {!isSignUp && (
+              <div className="w-full pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-500 mb-2 text-center">Acesso rápido para testes:</p>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleTestLogin('admin')}
+                    disabled={isLoading}
+                  >
+                    Admin
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleTestLogin('locutor')}
+                    disabled={isLoading}
+                  >
+                    Locutor
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardFooter>
         </form>
       </Card>

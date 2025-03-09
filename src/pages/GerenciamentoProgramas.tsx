@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -106,6 +105,9 @@ const GerenciamentoProgramas: React.FC = () => {
       if (error) {
         toast.error('Erro ao carregar programas', {
           description: error.message,
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
         });
         return [];
       }
@@ -125,6 +127,9 @@ const GerenciamentoProgramas: React.FC = () => {
       if (error) {
         toast.error('Erro ao carregar testemunhais', {
           description: error.message,
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
         });
         return [];
       }
@@ -228,13 +233,21 @@ const GerenciamentoProgramas: React.FC = () => {
       toast.success(
         selectedItem 
           ? 'Programa atualizado com sucesso!' 
-          : 'Programa adicionado com sucesso!'
+          : 'Programa adicionado com sucesso!',
+        {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        }
       );
       setIsModalOpen(false);
     },
     onError: (error) => {
       toast.error('Erro ao salvar programa', {
         description: error.message,
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
       });
     }
   });
@@ -318,13 +331,21 @@ const GerenciamentoProgramas: React.FC = () => {
       toast.success(
         selectedItem 
           ? 'Testemunhal atualizado com sucesso!' 
-          : 'Testemunhal adicionado com sucesso!'
+          : 'Testemunhal adicionado com sucesso!',
+        {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        }
       );
       setIsModalOpen(false);
     },
     onError: (error) => {
       toast.error('Erro ao salvar testemunhal', {
         description: error.message,
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
       });
     }
   });
@@ -348,12 +369,19 @@ const GerenciamentoProgramas: React.FC = () => {
       } else {
         queryClient.invalidateQueries({ queryKey: ['testemunhais-gerenciamento'] });
       }
-      toast.success('Item excluído com sucesso!');
+      toast.success('Item excluído com sucesso!', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
       setIsAlertOpen(false);
     },
     onError: (error) => {
       toast.error('Erro ao excluir item', {
         description: error.message,
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
       });
     }
   });
@@ -430,6 +458,9 @@ const GerenciamentoProgramas: React.FC = () => {
       if (!formData.nome || !formData.horario_inicio || !formData.horario_fim || formData.dias.length === 0) {
         toast.error('Preencha todos os campos obrigatórios', {
           description: 'Nome, horário de início, horário de fim e dias da semana são obrigatórios.',
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
         });
         return;
       }
@@ -438,6 +469,9 @@ const GerenciamentoProgramas: React.FC = () => {
       if (!formData.patrocinador || !formData.texto || !formData.programa_id) {
         toast.error('Preencha todos os campos obrigatórios', {
           description: 'Patrocinador, texto e programa são obrigatórios.',
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
         });
         return;
       }
@@ -445,7 +479,9 @@ const GerenciamentoProgramas: React.FC = () => {
       // Se a distribuição automática estiver ativada, o horário agendado não é obrigatório
       if (!formData.distribuir_automaticamente && !formData.horario_agendado) {
         toast.error('Preencha o horário agendado ou utilize a distribuição automática', {
-          description: 'É necessário definir um horário ou ativar a distribuição automática.',
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
         });
         return;
       }
