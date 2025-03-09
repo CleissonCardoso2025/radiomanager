@@ -74,6 +74,11 @@ const Agenda: React.FC = () => {
     }
   });
 
+  // Calculate notification count for the Header component
+  const notificationCount = testemunhais.filter(t => 
+    t.status === 'pendente' || t.status === 'atrasado'
+  ).length;
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'lido':
@@ -145,7 +150,7 @@ const Agenda: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
+      <Header notificationCount={notificationCount} />
       
       {/* Cabeçalho da página */}
       <div className="bg-white shadow-sm border-b">
