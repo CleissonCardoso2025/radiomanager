@@ -40,8 +40,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BadgeCheck, Calendar, CalendarDays, Clock, Pencil, Plus, Repeat, Trash2, User } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 interface Programa {
   id: string;
@@ -67,6 +71,8 @@ interface Testemunhal {
   updated_at: string;
   programas: { nome: string };
   leituras: number;
+  data_inicio?: Date;
+  data_fim?: Date;
 }
 
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
@@ -90,6 +96,8 @@ const GerenciamentoProgramas: React.FC = () => {
     intervalo: 30,
     programa_id: '',
     distribuir_automaticamente: true,
+    data_inicio: new Date(),
+    data_fim: undefined,
   });
 
   const [programas, setProgramas] = useState<Programa[]>([]);
@@ -138,56 +146,45 @@ const GerenciamentoProgramas: React.FC = () => {
     fetchTestemunhais();
   }, []);
 
-  // Função para converter horário no formato HH:MM para minutos desde meia-noite
   const timeToMinutes = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
   };
 
-  // Função para converter minutos desde meia-noite para HH:MM
   const minutesToTime = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
   };
 
-  // Função para gerar horários distribuídos para as leituras
   const generateDistributedTimes = (
     startTime: string,
     endTime: string,
     count: number
   ): string[] => {
-    // Converter horários para minutos
     const startMinutes = timeToMinutes(startTime);
     const endMinutes = timeToMinutes(endTime);
     
-    // Calcular duração total do programa em minutos
     const duration = endMinutes - startMinutes;
     
     if (duration <= 0 || count <= 0) return [];
     
-    // Distribuir leituras uniformemente
     const times: string[] = [];
     
     if (count === 1) {
-      // Se tiver apenas uma leitura, colocar no meio do programa
       const middleTime = Math.floor(startMinutes + duration / 2);
       times.push(minutesToTime(middleTime));
     } else {
-      // Calcular intervalo entre leituras
       const interval = duration / (count + 1);
       
-      // Gerar os horários distribuídos
       for (let i = 1; i <= count; i++) {
-        // Adicionar uma variação aleatória de até 5 minutos para cada horário
         const baseTime = Math.floor(startMinutes + interval * i);
-        const variation = Math.floor(Math.random() * 11) - 5; // -5 a +5 minutos
+        const variation = Math.floor(Math.random() * 11) - 5;
         const adjustedTime = Math.max(startMinutes, Math.min(endMinutes, baseTime + variation));
         
         times.push(minutesToTime(adjustedTime));
       }
       
-      // Ordenar os horários
       times.sort();
     }
     
@@ -209,6 +206,8 @@ const GerenciamentoProgramas: React.FC = () => {
       programa_id: '',
       leituras: 1,
       distribuir_automaticamente: true,
+      data_inicio: new Date(),
+      data_fim: undefined,
     });
     setIsModalOpen(true);
   };
@@ -235,6 +234,8 @@ const GerenciamentoProgramas: React.FC = () => {
         programa_id: testemunhal.programa_id,
         leituras: testemunhal.leituras || 1,
         distribuir_automaticamente: false,
+        data_inicio: testemunhal.data_inicio ? new Date(testemunhal.data_inicio) : new Date(),
+        data_fim: testemunhal.data_fim ? new Date(testemunhal.data_fim) : undefined,
       });
     }
     
@@ -276,6 +277,7 @@ const GerenciamentoProgramas: React.FC = () => {
       const { data, error } = await supabase
         .from('programas')
         .upsert({
+          id: selectedItem?.id,
           nome: formData.nome,
           horario_inicio: formData.horario_inicio,
           horario_fim: formData.horario_fim,
@@ -294,12 +296,16 @@ const GerenciamentoProgramas: React.FC = () => {
         return;
       }
       
-      setProgramas(prev => [...prev, data[0]]);
+      if (selectedItem) {
+        setProgramas(prev => prev.map(p => p.id === selectedItem.id ? data[0] : p));
+      } else {
+        setProgramas(prev => [...prev, data[0]]);
+      }
       setIsModalOpen(false);
     } else {
-      if (!formData.patrocinador || !formData.texto || !formData.programa_id) {
+      if (!formData.patrocinador || !formData.texto || !formData.programa_id || !formData.data_inicio) {
         toast.error('Preencha todos os campos obrigatórios', {
-          description: 'Patrocinador, texto e programa são obrigatórios.',
+          description: 'Patrocinador, texto, programa e data de início são obrigatórios.',
           position: 'bottom-right',
           closeButton: true,
           duration: 5000
@@ -307,7 +313,6 @@ const GerenciamentoProgramas: React.FC = () => {
         return;
       }
       
-      // Se a distribuição automática estiver ativada, o horário agendado não é obrigatório
       if (!formData.distribuir_automaticamente && !formData.horario_agendado) {
         toast.error('Preencha o horário agendado ou utilize a distribuição automática', {
           position: 'bottom-right',
@@ -319,7 +324,6 @@ const GerenciamentoProgramas: React.FC = () => {
       
       const programa = programas.find(p => p.id === formData.programa_id);
       
-      // Verificar se deve gerar horários aleatórios ou usar o horário específico
       let horarios: string[] = [];
       
       if (formData.distribuir_automaticamente && programa) {
@@ -329,7 +333,6 @@ const GerenciamentoProgramas: React.FC = () => {
           formData.leituras
         );
       } else {
-        // Usar o horário fornecido manualmente
         horarios = [formData.horario_agendado];
       }
       
@@ -338,8 +341,10 @@ const GerenciamentoProgramas: React.FC = () => {
         texto: formData.texto,
         horario_agendado: horario,
         programa_id: formData.programa_id,
-        leituras: 1, // cada inserção representa uma leitura
+        leituras: 1,
         status: 'pendente',
+        data_inicio: formData.data_inicio,
+        data_fim: formData.data_fim,
       }));
       
       const { data, error } = await supabase
@@ -357,7 +362,6 @@ const GerenciamentoProgramas: React.FC = () => {
         return;
       }
       
-      // Transformar os dados para corresponder ao tipo Testemunhal
       const novosTestemunhais = data.map(item => ({
         ...item,
         programas: item.programas || { nome: '' },
@@ -374,7 +378,6 @@ const GerenciamentoProgramas: React.FC = () => {
     
     try {
       if ('nome' in selectedItem) {
-        // Se for um programa, primeiro verificamos se há testemunhais associados
         const { data: testemunhaisAssociados, error: errorCheck } = await supabase
           .from('testemunhais')
           .select('id')
@@ -390,7 +393,6 @@ const GerenciamentoProgramas: React.FC = () => {
           return;
         }
         
-        // Se houver testemunhais associados, excluímos eles primeiro
         if (testemunhaisAssociados && testemunhaisAssociados.length > 0) {
           const { error: errorDeleteTestemunhais } = await supabase
             .from('testemunhais')
@@ -408,7 +410,6 @@ const GerenciamentoProgramas: React.FC = () => {
           }
         }
         
-        // Agora podemos excluir o programa
         const { error } = await supabase
           .from('programas')
           .delete()
@@ -431,7 +432,6 @@ const GerenciamentoProgramas: React.FC = () => {
           duration: 5000
         });
       } else {
-        // Se for um testemunhal, excluímos normalmente
         const { error } = await supabase
           .from('testemunhais')
           .delete()
@@ -470,7 +470,6 @@ const GerenciamentoProgramas: React.FC = () => {
     ? testemunhais.filter(t => t.status === 'pendente' || t.status === 'atrasado').length 
     : 0;
 
-  // Função para verificar se o horário de um testemunhal está dentro do horário do programa
   const isTimeWithinProgram = (programaId: string, horario: string): boolean => {
     const programa = programas.find(p => p.id === programaId);
     if (!programa) return false;
@@ -480,6 +479,11 @@ const GerenciamentoProgramas: React.FC = () => {
     const fimMinutes = timeToMinutes(programa.horario_fim);
     
     return horarioMinutes >= inicioMinutes && horarioMinutes <= fimMinutes;
+  };
+
+  const formatDate = (date: Date | undefined) => {
+    if (!date) return '';
+    return format(date, 'dd/MM/yyyy', { locale: ptBR });
   };
 
   return (
@@ -573,6 +577,7 @@ const GerenciamentoProgramas: React.FC = () => {
                         <TableHead>Patrocinador</TableHead>
                         <TableHead>Horário</TableHead>
                         <TableHead>Programa</TableHead>
+                        <TableHead>Período</TableHead>
                         <TableHead>Leituras</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
@@ -595,6 +600,16 @@ const GerenciamentoProgramas: React.FC = () => {
                             )}
                           </TableCell>
                           <TableCell>{testemunhal.programas?.nome || ''}</TableCell>
+                          <TableCell>
+                            {testemunhal.data_inicio && (
+                              <span className="text-xs">
+                                De: {formatDate(new Date(testemunhal.data_inicio))}
+                                {testemunhal.data_fim && (
+                                  <> até: {formatDate(new Date(testemunhal.data_fim))}</>
+                                )}
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center">
                               <Repeat className="h-4 w-4 mr-1 text-gray-500" />
@@ -807,6 +822,73 @@ const GerenciamentoProgramas: React.FC = () => {
                     />
                   </div>
                 )}
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="data_inicio" className="text-right">
+                    Data Início
+                  </Label>
+                  <div className="col-span-3">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {formData.data_inicio ? (
+                            format(formData.data_inicio, "dd/MM/yyyy", { locale: ptBR })
+                          ) : (
+                            <span>Selecione a data de início</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={formData.data_inicio}
+                          onSelect={(date) => handleFormChange('data_inicio', date)}
+                          initialFocus
+                          locale={ptBR}
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="data_fim" className="text-right">
+                    Data Fim
+                  </Label>
+                  <div className="col-span-3">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {formData.data_fim ? (
+                            format(formData.data_fim, "dd/MM/yyyy", { locale: ptBR })
+                          ) : (
+                            <span>Selecione a data de fim (opcional)</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={formData.data_fim}
+                          onSelect={(date) => handleFormChange('data_fim', date)}
+                          initialFocus
+                          locale={ptBR}
+                          disabled={(date) => formData.data_inicio ? date < formData.data_inicio : false}
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
               </div>
             )}
 
