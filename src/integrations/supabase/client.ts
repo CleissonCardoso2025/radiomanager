@@ -13,25 +13,36 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   }
 });
 
-// Adiciona métodos admin que não existem no cliente normal
-supabase.auth.admin = {
-  createUser: async (userData: {
-    email: string;
-    password: string;
-    email_confirm?: boolean;
-  }) => {
-    try {
-      // Primeiro, tentar criar o usuário usando o método padrão de signup
-      const { data, error } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-      });
+// Instead of extending supabase.auth.admin which is a specific TypeScript type,
+// let's create a helper function to handle user creation
+export const createUserWithRole = async (
+  email: string, 
+  password: string, 
+  role: 'admin' | 'locutor'
+) => {
+  try {
+    // First, try to create the user using the standard signup method
+    const { data, error } = await supabase.auth.signUp({
+      email: email,
+      password: password,
+    });
+    
+    if (error) throw error;
+
+    // If user was created successfully, add the role
+    if (data.user) {
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: data.user.id,
+          role: role
+        });
       
-      if (error) throw error;
-      
-      return { data, error: null };
-    } catch (error: any) {
-      return { data: null, error };
+      if (roleError) throw roleError;
     }
+    
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error };
   }
 };

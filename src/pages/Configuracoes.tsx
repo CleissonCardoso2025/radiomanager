@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +8,7 @@ import { Bell, Moon, Sun, Volume2, Users, Shield, Loader2, Plus, Upload, Image, 
 import { useAuth } from '@/App';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, createUserWithRole } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -42,14 +41,14 @@ interface UserSettings {
 interface User {
   id: string;
   email: string;
-  role: string;
+  role: 'admin' | 'locutor';
   status: string;
 }
 
 interface NewUserForm {
   email: string;
   password: string;
-  role: string;
+  role: 'admin' | 'locutor';
 }
 
 const Configuracoes = () => {
@@ -66,7 +65,6 @@ const Configuracoes = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [customLogo, setCustomLogo] = useState<string | null>(null);
   
-  // Estado para as configurações
   const [settings, setSettings] = useState<UserSettings>({
     emailNotifications: false,
     pushNotifications: false,
@@ -75,7 +73,6 @@ const Configuracoes = () => {
     maintenanceMode: false
   });
 
-  // Form para criar novo usuário
   const form = useForm<NewUserForm>({
     defaultValues: {
       email: '',
@@ -84,26 +81,22 @@ const Configuracoes = () => {
     }
   });
 
-  // Carregar configurações do localStorage ao iniciar
   useEffect(() => {
     const savedSettings = localStorage.getItem('userSettings');
     if (savedSettings) {
       setSettings(JSON.parse(savedSettings));
     }
 
-    // Carregar logo personalizado
     const savedLogo = localStorage.getItem('customLogo');
     if (savedLogo) {
       setCustomLogo(savedLogo);
     }
 
-    // Se for admin, carregar lista de usuários
     if (userRole === 'admin') {
       fetchUsers();
     }
   }, [userRole]);
 
-  // Buscar usuários do Supabase
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
     try {
@@ -117,16 +110,12 @@ const Configuracoes = () => {
 
       if (error) throw error;
 
-      // Formatar os usuários para exibição
       if (data) {
-        // Precisamos buscar os detalhes dos usuários na tabela auth.users
-        // Como não podemos fazer isso diretamente, vamos usar os dados que temos
-        // e em um aplicativo real, você poderia manter uma tabela "profiles" sincronizada
         const formattedUsers = data.map(userRole => ({
           id: userRole.user_id,
-          email: userRole.user_id, // Idealmente seria o email, mas não podemos acessar diretamente
-          role: userRole.role,
-          status: 'Ativo' // Assumindo status ativo para todos os usuários com papel
+          email: userRole.user_id,
+          role: userRole.role as 'admin' | 'locutor',
+          status: 'Ativo'
         }));
         
         setUsers(formattedUsers);
@@ -143,12 +132,10 @@ const Configuracoes = () => {
     }
   };
 
-  // Função para lidar com mudanças nos switches
   const handleToggle = (setting: keyof UserSettings) => {
     setSettings(prev => {
       const newSettings = { ...prev, [setting]: !prev[setting] };
       
-      // Aplicar mudanças imediatamente
       if (setting === 'darkMode') {
         if (newSettings.darkMode) {
           document.documentElement.classList.add('dark');
@@ -161,12 +148,10 @@ const Configuracoes = () => {
     });
   };
 
-  // Função para lidar com o upload de logo
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    // Verificar se é um arquivo PNG
     if (file.type !== 'image/png') {
       toast.error('Por favor, selecione um arquivo PNG', {
         position: 'bottom-right',
@@ -176,7 +161,6 @@ const Configuracoes = () => {
       return;
     }
     
-    // Verificar tamanho do arquivo (máximo 2MB)
     if (file.size > 2 * 1024 * 1024) {
       toast.error('O arquivo deve ter no máximo 2MB', {
         position: 'bottom-right',
@@ -186,7 +170,6 @@ const Configuracoes = () => {
       return;
     }
     
-    // Converter para base64
     const reader = new FileReader();
     reader.onload = (e) => {
       const base64String = e.target?.result as string;
@@ -201,8 +184,7 @@ const Configuracoes = () => {
     };
     reader.readAsDataURL(file);
   };
-  
-  // Função para remover o logo personalizado
+
   const handleRemoveLogo = () => {
     setCustomLogo(null);
     localStorage.removeItem('customLogo');
@@ -217,14 +199,11 @@ const Configuracoes = () => {
     });
   };
 
-  // Função para salvar as configurações
   const handleSaveSettings = () => {
     setIsLoading(true);
     
-    // Salvar no localStorage
     localStorage.setItem('userSettings', JSON.stringify(settings));
     
-    // Simulando uma operação assíncrona
     setTimeout(() => {
       setIsLoading(false);
       toast.success('Configurações salvas com sucesso!', {
@@ -235,54 +214,18 @@ const Configuracoes = () => {
     }, 1000);
   };
 
-  // Função para adicionar novo usuário
   const handleAddUser = async (data: NewUserForm) => {
     setIsLoading(true);
     try {
-      // Criar o usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: data.email,
-        password: data.password,
-        email_confirm: true, // Auto confirma o email para facilitar testes
-      });
+      const { data: authData, error } = await createUserWithRole(
+        data.email, 
+        data.password, 
+        data.role
+      );
       
-      if (authError) throw authError;
+      if (error) throw error;
       
-      if (authData.user) {
-        // Verificar se o papel já foi criado pelo trigger automaticamente
-        // Se não, criar manualmente
-        const { data: userRoleData, error: userRoleError } = await supabase
-          .from('user_roles')
-          .select('*')
-          .eq('user_id', authData.user.id)
-          .single();
-        
-        if (userRoleError && userRoleError.code !== 'PGRST116') {
-          // Se houver um erro que não seja "nenhum registro encontrado"
-          throw userRoleError;
-        }
-        
-        // Se o papel não existir, criar um novo
-        if (!userRoleData) {
-          const { error: insertError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: authData.user.id,
-              role: data.role
-            });
-          
-          if (insertError) throw insertError;
-        } else if (userRoleData.role !== data.role) {
-          // Se o papel existir mas for diferente, atualizar
-          const { error: updateError } = await supabase
-            .from('user_roles')
-            .update({ role: data.role })
-            .eq('user_id', authData.user.id);
-          
-          if (updateError) throw updateError;
-        }
-        
-        // Adicionar o novo usuário à lista
+      if (authData?.user) {
         const newUserObj: User = {
           id: authData.user.id,
           email: authData.user.email || data.email,
@@ -305,7 +248,6 @@ const Configuracoes = () => {
       
       let errorMessage = 'Erro ao adicionar usuário';
       
-      // Tratar erros específicos
       if (error.message?.includes('duplicate key')) {
         errorMessage = 'Este email já está em uso';
       } else if (error.message) {
@@ -322,7 +264,6 @@ const Configuracoes = () => {
     }
   };
 
-  // Função para editar usuário
   const handleEditUser = (userId: string) => {
     toast.info('Funcionalidade de edição em desenvolvimento', {
       position: 'bottom-right',
@@ -504,7 +445,7 @@ const Configuracoes = () => {
                                       render={({ field }) => (
                                         <FormItem>
                                           <FormLabel>Papel</FormLabel>
-                                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                          <Select onValueChange={field.onChange as (value: string) => void} defaultValue={field.value}>
                                             <FormControl>
                                               <SelectTrigger>
                                                 <SelectValue placeholder="Selecione um papel" />
