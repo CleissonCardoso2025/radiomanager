@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +21,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useForm, FormProvider, Controller } from 'react-hook-form';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 interface UserSettings {
   emailNotifications: boolean;
@@ -34,6 +44,12 @@ interface User {
   email: string;
   role: string;
   status: string;
+}
+
+interface NewUserForm {
+  email: string;
+  password: string;
+  role: string;
 }
 
 const Configuracoes = () => {
@@ -59,6 +75,15 @@ const Configuracoes = () => {
     maintenanceMode: false
   });
 
+  // Form para criar novo usuário
+  const form = useForm<NewUserForm>({
+    defaultValues: {
+      email: '',
+      password: '',
+      role: 'locutor'
+    }
+  });
+
   // Carregar configurações do localStorage ao iniciar
   useEffect(() => {
     const savedSettings = localStorage.getItem('userSettings');
@@ -82,27 +107,38 @@ const Configuracoes = () => {
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
     try {
-      // Removendo a chamada à API de admin que está causando o erro
-      // e usando diretamente os dados mockados
-      setTimeout(() => {
-        setUsers([
-          {
-            id: '1',
-            email: 'cleissoncardoso@gmail.com',
-            role: 'admin',
-            status: 'Ativo'
-          },
-          {
-            id: '2',
-            email: 'locutor@radiomanager.com',
-            role: 'locutor',
-            status: 'Ativo'
-          }
-        ]);
-        setIsLoadingUsers(false);
-      }, 800); // Pequeno delay para simular carregamento
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select(`
+          user_id,
+          role,
+          created_at
+        `);
+
+      if (error) throw error;
+
+      // Formatar os usuários para exibição
+      if (data) {
+        // Precisamos buscar os detalhes dos usuários na tabela auth.users
+        // Como não podemos fazer isso diretamente, vamos usar os dados que temos
+        // e em um aplicativo real, você poderia manter uma tabela "profiles" sincronizada
+        const formattedUsers = data.map(userRole => ({
+          id: userRole.user_id,
+          email: userRole.user_id, // Idealmente seria o email, mas não podemos acessar diretamente
+          role: userRole.role,
+          status: 'Ativo' // Assumindo status ativo para todos os usuários com papel
+        }));
+        
+        setUsers(formattedUsers);
+      }
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
+      toast.error('Não foi possível carregar a lista de usuários', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    } finally {
       setIsLoadingUsers(false);
     }
   };
@@ -200,38 +236,83 @@ const Configuracoes = () => {
   };
 
   // Função para adicionar novo usuário
-  const handleAddUser = async () => {
+  const handleAddUser = async (data: NewUserForm) => {
     setIsLoading(true);
     try {
-      // Em um ambiente real, isso seria feito através da API do Supabase
-      // const { data, error } = await supabase.auth.admin.createUser({
-      //   email: newUser.email,
-      //   password: newUser.password,
-      //   app_metadata: { role: newUser.role }
-      // });
-      
-      // if (error) throw error;
-      
-      // Simulando adição de usuário
-      const newUserObj = {
-        id: Date.now().toString(),
-        email: newUser.email,
-        role: newUser.role,
-        status: 'Ativo'
-      };
-      
-      setUsers(prev => [...prev, newUserObj]);
-      setIsUserDialogOpen(false);
-      setNewUser({ email: '', password: '', role: 'locutor' });
-      
-      toast.success('Usuário adicionado com sucesso!', {
-        position: 'bottom-right',
-        closeButton: true,
-        duration: 5000
+      // Criar o usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: data.email,
+        password: data.password,
+        email_confirm: true, // Auto confirma o email para facilitar testes
       });
-    } catch (error) {
+      
+      if (authError) throw authError;
+      
+      if (authData.user) {
+        // Verificar se o papel já foi criado pelo trigger automaticamente
+        // Se não, criar manualmente
+        const { data: userRoleData, error: userRoleError } = await supabase
+          .from('user_roles')
+          .select('*')
+          .eq('user_id', authData.user.id)
+          .single();
+        
+        if (userRoleError && userRoleError.code !== 'PGRST116') {
+          // Se houver um erro que não seja "nenhum registro encontrado"
+          throw userRoleError;
+        }
+        
+        // Se o papel não existir, criar um novo
+        if (!userRoleData) {
+          const { error: insertError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: authData.user.id,
+              role: data.role
+            });
+          
+          if (insertError) throw insertError;
+        } else if (userRoleData.role !== data.role) {
+          // Se o papel existir mas for diferente, atualizar
+          const { error: updateError } = await supabase
+            .from('user_roles')
+            .update({ role: data.role })
+            .eq('user_id', authData.user.id);
+          
+          if (updateError) throw updateError;
+        }
+        
+        // Adicionar o novo usuário à lista
+        const newUserObj: User = {
+          id: authData.user.id,
+          email: authData.user.email || data.email,
+          role: data.role,
+          status: 'Ativo'
+        };
+        
+        setUsers(prev => [...prev, newUserObj]);
+        setIsUserDialogOpen(false);
+        form.reset();
+        
+        toast.success('Usuário adicionado com sucesso!', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+      }
+    } catch (error: any) {
       console.error('Erro ao adicionar usuário:', error);
-      toast.error('Erro ao adicionar usuário', {
+      
+      let errorMessage = 'Erro ao adicionar usuário';
+      
+      // Tratar erros específicos
+      if (error.message?.includes('duplicate key')) {
+        errorMessage = 'Este email já está em uso';
+      } else if (error.message) {
+        errorMessage = `Erro: ${error.message}`;
+      }
+      
+      toast.error(errorMessage, {
         position: 'bottom-right',
         closeButton: true,
         duration: 5000
@@ -386,64 +467,76 @@ const Configuracoes = () => {
                                     Preencha os dados para adicionar um novo usuário ao sistema.
                                   </DialogDescription>
                                 </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="email" className="text-right">
-                                      Email
-                                    </Label>
-                                    <Input
-                                      id="email"
-                                      type="email"
-                                      value={newUser.email}
-                                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                                      className="col-span-3"
+                                
+                                <FormProvider {...form}>
+                                  <form onSubmit={form.handleSubmit(handleAddUser)} className="space-y-4">
+                                    <FormField
+                                      control={form.control}
+                                      name="email"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel>Email</FormLabel>
+                                          <FormControl>
+                                            <Input type="email" placeholder="usuario@exemplo.com" {...field} />
+                                          </FormControl>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
                                     />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="password" className="text-right">
-                                      Senha
-                                    </Label>
-                                    <Input
-                                      id="password"
-                                      type="password"
-                                      value={newUser.password}
-                                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                                      className="col-span-3"
+                                    
+                                    <FormField
+                                      control={form.control}
+                                      name="password"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel>Senha</FormLabel>
+                                          <FormControl>
+                                            <Input type="password" {...field} />
+                                          </FormControl>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
                                     />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="role" className="text-right">
-                                      Papel
-                                    </Label>
-                                    <Select 
-                                      value={newUser.role} 
-                                      onValueChange={(value) => setNewUser({...newUser, role: value})}
-                                    >
-                                      <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Selecione um papel" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="admin">Administrador</SelectItem>
-                                        <SelectItem value="locutor">Locutor</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-                                <DialogFooter>
-                                  <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>
-                                    Cancelar
-                                  </Button>
-                                  <Button onClick={handleAddUser} disabled={isLoading}>
-                                    {isLoading ? (
-                                      <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Salvando...
-                                      </>
-                                    ) : (
-                                      'Adicionar'
-                                    )}
-                                  </Button>
-                                </DialogFooter>
+                                    
+                                    <FormField
+                                      control={form.control}
+                                      name="role"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel>Papel</FormLabel>
+                                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                              <SelectTrigger>
+                                                <SelectValue placeholder="Selecione um papel" />
+                                              </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                              <SelectItem value="admin">Administrador</SelectItem>
+                                              <SelectItem value="locutor">Locutor</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    
+                                    <DialogFooter>
+                                      <Button variant="outline" type="button" onClick={() => setIsUserDialogOpen(false)}>
+                                        Cancelar
+                                      </Button>
+                                      <Button type="submit" disabled={isLoading}>
+                                        {isLoading ? (
+                                          <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Salvando...
+                                          </>
+                                        ) : (
+                                          'Adicionar'
+                                        )}
+                                      </Button>
+                                    </DialogFooter>
+                                  </form>
+                                </FormProvider>
                               </DialogContent>
                             </Dialog>
                           </div>
