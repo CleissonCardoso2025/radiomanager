@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -54,19 +55,32 @@ const Login = () => {
         
         if (error) throw error;
         
-        // Verificar se o usuário é admin ou locutor
-        const isAdmin = email === 'cleissoncardoso@gmail.com';
+        // Fetch user role from user_roles table
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .single();
+          
+        if (roleError) {
+          console.error('Error fetching user role:', roleError);
+          throw new Error('Erro ao verificar permissões do usuário');
+        }
         
-        if (isAdmin) {
+        const userRole = roleData?.role;
+        
+        if (userRole === 'admin') {
           toast.success('Login realizado com sucesso!', {
             position: 'bottom-right',
             closeButton: true,
             duration: 5000
           });
           navigate('/');
-        } else {
+        } else if (userRole === 'locutor') {
           // Locutor: redirecionar diretamente para agenda sem avisos
           navigate('/agenda');
+        } else {
+          throw new Error('Tipo de usuário não reconhecido');
         }
       }
     } catch (error: any) {
