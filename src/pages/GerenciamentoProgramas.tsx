@@ -71,8 +71,8 @@ interface Testemunhal {
   updated_at: string;
   programas: { nome: string };
   leituras: number;
-  data_inicio?: Date;
-  data_fim?: Date;
+  data_inicio: string | null;
+  data_fim: string | null;
 }
 
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
@@ -481,9 +481,13 @@ const GerenciamentoProgramas: React.FC = () => {
     return horarioMinutes >= inicioMinutes && horarioMinutes <= fimMinutes;
   };
 
-  const formatDate = (date: Date | undefined) => {
-    if (!date) return '';
-    return format(date, 'dd/MM/yyyy', { locale: ptBR });
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '';
+    try {
+      return format(new Date(dateStr), 'dd/MM/yyyy', { locale: ptBR });
+    } catch (e) {
+      return '';
+    }
   };
 
   return (
@@ -603,9 +607,9 @@ const GerenciamentoProgramas: React.FC = () => {
                           <TableCell>
                             {testemunhal.data_inicio && (
                               <span className="text-xs">
-                                De: {formatDate(new Date(testemunhal.data_inicio))}
+                                De: {formatDate(testemunhal.data_inicio)}
                                 {testemunhal.data_fim && (
-                                  <> até: {formatDate(new Date(testemunhal.data_fim))}</>
+                                  <> até: {formatDate(testemunhal.data_fim)}</>
                                 )}
                               </span>
                             )}
@@ -933,4 +937,3 @@ const GerenciamentoProgramas: React.FC = () => {
 };
 
 export default GerenciamentoProgramas;
-
