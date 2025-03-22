@@ -343,8 +343,8 @@ const GerenciamentoProgramas: React.FC = () => {
         programa_id: formData.programa_id,
         leituras: 1,
         status: 'pendente',
-        data_inicio: formData.data_inicio,
-        data_fim: formData.data_fim,
+        data_inicio: formData.data_inicio ? formData.data_inicio.toISOString().split('T')[0] : null,
+        data_fim: formData.data_fim ? formData.data_fim.toISOString().split('T')[0] : null,
       }));
       
       const { data, error } = await supabase
@@ -933,3 +933,4 @@ const GerenciamentoProgramas: React.FC = () => {
 };
 
 export default GerenciamentoProgramas;
+
