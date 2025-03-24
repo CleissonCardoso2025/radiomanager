@@ -132,20 +132,24 @@ const Configuracoes = () => {
       if (userRolesError) throw userRolesError;
 
       if (userRolesData) {
-        // Now get user emails from auth.users
-        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+        // Use direct query instead of admin API which requires special permissions
+        const { data: authData, error: authError } = await supabase
+          .from('user_roles')
+          .select(`
+            user_id,
+            role
+          `);
         
         if (authError) throw authError;
         
-        if (authData && authData.users) {
+        if (authData) {
           const formattedUsers = userRolesData.map(userRole => {
-            const authUser = authData.users.find(user => user.id === userRole.user_id);
             return {
               id: userRole.user_id,
-              email: authUser?.email || userRole.user_id,
+              email: userRole.user_id, // Fallback to user_id as email
               role: userRole.role as 'admin' | 'locutor',
               status: 'Ativo'
-            }
+            };
           });
           
           setUsers(formattedUsers);
