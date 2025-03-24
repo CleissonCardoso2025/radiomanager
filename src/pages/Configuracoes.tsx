@@ -270,11 +270,12 @@ const Configuracoes = () => {
       if (error) throw error;
       
       if (authData?.user) {
-        await updateUserEmailMap(authData.user.id, data.email);
+        // Garantir que o email real seja armazenado no mapeamento local
+        updateUserEmailMap(authData.user.id, data.email);
         
         const newUserObj: User = {
           id: authData.user.id,
-          email: data.email,
+          email: data.email, // Usar o email real que foi fornecido no formulário
           role: data.role,
           status: 'Ativo'
         };

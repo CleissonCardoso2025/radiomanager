@@ -77,6 +77,9 @@ const initialStats = {
   programs: [] as ProgramStats[]
 };
 
+// Configurações de paginação
+const ITEMS_PER_PAGE = 10;
+
 const Relatorios: React.FC = () => {
   const [activeTab, setActiveTab] = useState('execucao');
   const [startDate, setStartDate] = useState<Date | undefined>(new Date());
@@ -89,6 +92,10 @@ const Relatorios: React.FC = () => {
   const [testimonials, setTestimonials] = useState<Testemunhal[]>([]);
   const [stats, setStats] = useState(initialStats);
   const [programas, setProgramas] = useState<{id: string, nome: string}[]>([]);
+  
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     fetchData();
@@ -222,6 +229,41 @@ const Relatorios: React.FC = () => {
     
     return matchesSearch && matchesStatus && matchesProgram;
   });
+
+  // Calcular total de páginas com base nos itens filtrados
+  useEffect(() => {
+    setTotalPages(Math.max(1, Math.ceil(filteredTestimonials.length / ITEMS_PER_PAGE)));
+    // Resetar para a primeira página quando os filtros mudam
+    setCurrentPage(1);
+  }, [filteredTestimonials.length]);
+
+  // Obter os itens da página atual
+  const getCurrentPageItems = () => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredTestimonials.slice(startIndex, endIndex);
+  };
+
+  // Navegar para a próxima página
+  const nextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Navegar para a página anterior
+  const prevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  // Ir para uma página específica
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch(status) {
@@ -435,7 +477,7 @@ const Relatorios: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredTestimonials.map((item) => (
+                    {getCurrentPageItems().map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.texto.substring(0, 50)}...</TableCell>
                         <TableCell>{item.patrocinador}</TableCell>
@@ -451,8 +493,66 @@ const Relatorios: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filteredTestimonials.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-4">
+                          Nenhum testemunhal encontrado com os filtros selecionados.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
+                
+                {/* Paginação */}
+                {filteredTestimonials.length > 0 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-gray-500">
+                      Mostrando {Math.min(filteredTestimonials.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)} a {Math.min(filteredTestimonials.length, currentPage * ITEMS_PER_PAGE)} de {filteredTestimonials.length} registros
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={prevPage} 
+                        disabled={currentPage === 1}
+                      >
+                        Anterior
+                      </Button>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        // Lógica para mostrar páginas ao redor da página atual
+                        let pageToShow;
+                        if (totalPages <= 5) {
+                          pageToShow = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageToShow = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageToShow = totalPages - 4 + i;
+                        } else {
+                          pageToShow = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <Button 
+                            key={pageToShow}
+                            variant={currentPage === pageToShow ? "default" : "outline"} 
+                            size="sm"
+                            onClick={() => goToPage(pageToShow)}
+                          >
+                            {pageToShow}
+                          </Button>
+                        );
+                      })}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={nextPage} 
+                        disabled={currentPage === totalPages}
+                      >
+                        Próxima
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -479,7 +579,7 @@ const Relatorios: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredTestimonials
+                    {getCurrentPageItems()
                       .filter(item => item.status === 'pendente' || item.status === 'atrasado')
                       .map((item) => (
                         <TableRow key={item.id}>
@@ -496,8 +596,65 @@ const Relatorios: React.FC = () => {
                           </TableCell>
                         </TableRow>
                       ))}
+                    {filteredTestimonials.filter(item => item.status === 'pendente' || item.status === 'atrasado').length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-4">
+                          Nenhuma pendência encontrada com os filtros selecionados.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
+                
+                {/* Paginação */}
+                {filteredTestimonials.filter(item => item.status === 'pendente' || item.status === 'atrasado').length > 0 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-gray-500">
+                      Mostrando pendências {Math.min(filteredTestimonials.filter(item => item.status === 'pendente' || item.status === 'atrasado').length, (currentPage - 1) * ITEMS_PER_PAGE + 1)} a {Math.min(filteredTestimonials.filter(item => item.status === 'pendente' || item.status === 'atrasado').length, currentPage * ITEMS_PER_PAGE)} de {filteredTestimonials.filter(item => item.status === 'pendente' || item.status === 'atrasado').length} registros
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={prevPage} 
+                        disabled={currentPage === 1}
+                      >
+                        Anterior
+                      </Button>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageToShow;
+                        if (totalPages <= 5) {
+                          pageToShow = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageToShow = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageToShow = totalPages - 4 + i;
+                        } else {
+                          pageToShow = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <Button 
+                            key={pageToShow}
+                            variant={currentPage === pageToShow ? "default" : "outline"} 
+                            size="sm"
+                            onClick={() => goToPage(pageToShow)}
+                          >
+                            {pageToShow}
+                          </Button>
+                        );
+                      })}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={nextPage} 
+                        disabled={currentPage === totalPages}
+                      >
+                        Próxima
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -524,14 +681,14 @@ const Relatorios: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredTestimonials.map((item) => (
+                    {getCurrentPageItems().map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.texto.substring(0, 50)}...</TableCell>
                         <TableCell>{item.patrocinador}</TableCell>
                         <TableCell>{item.programa?.nome}</TableCell>
                         <TableCell>{item.horario_agendado?.substring(0, 5)}</TableCell>
-                        <TableCell>3 de 5</TableCell>
-                        <TableCell>30 min</TableCell>
+                        <TableCell>0 de 0</TableCell>
+                        <TableCell>0 min</TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm">
                             Ajustar
@@ -539,8 +696,65 @@ const Relatorios: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filteredTestimonials.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-4">
+                          Nenhum testemunhal encontrado com os filtros selecionados.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
+                
+                {/* Paginação */}
+                {filteredTestimonials.length > 0 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-gray-500">
+                      Mostrando {Math.min(filteredTestimonials.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)} a {Math.min(filteredTestimonials.length, currentPage * ITEMS_PER_PAGE)} de {filteredTestimonials.length} registros
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={prevPage} 
+                        disabled={currentPage === 1}
+                      >
+                        Anterior
+                      </Button>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageToShow;
+                        if (totalPages <= 5) {
+                          pageToShow = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageToShow = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageToShow = totalPages - 4 + i;
+                        } else {
+                          pageToShow = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <Button 
+                            key={pageToShow}
+                            variant={currentPage === pageToShow ? "default" : "outline"} 
+                            size="sm"
+                            onClick={() => goToPage(pageToShow)}
+                          >
+                            {pageToShow}
+                          </Button>
+                        );
+                      })}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={nextPage} 
+                        disabled={currentPage === totalPages}
+                      >
+                        Próxima
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

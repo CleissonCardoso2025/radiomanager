@@ -10,7 +10,13 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [
-    react(),
+    react({
+      // Otimização para o desenvolvimento
+      devTarget: 'es2022',
+      // Melhorar a performance do SWC
+      tsDecorators: false,
+      plugins: []
+    }),
     mode === 'development' &&
     componentTagger(),
   ].filter(Boolean),
@@ -19,4 +25,42 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Otimizações de build
+  build: {
+    target: 'es2015',
+    sourcemap: mode !== 'production',
+    // Dividir chunks para melhorar o carregamento
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: [
+            'react',
+            'react-dom',
+            'react-router-dom',
+            '@supabase/supabase-js'
+          ],
+          ui: [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-toast',
+            'sonner'
+          ]
+        }
+      }
+    }
+  },
+  // Otimizações para desenvolvimento
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@supabase/supabase-js'
+    ],
+    esbuildOptions: {
+      target: 'es2020'
+    }
+  },
+  // Reduzir o tamanho dos logs
+  logLevel: mode === 'production' ? 'info' : 'info'
 }));

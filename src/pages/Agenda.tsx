@@ -4,7 +4,7 @@ import { format, differenceInMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase, connectionStatus, isConnectionError } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { isMobileDevice, notifyUpcomingTestimonial, releaseScreenWakeLock, keepScreenAwake } from '@/services/notificationService';
+import { isMobileDevice, notifyUpcomingTestimonial, releaseScreenWakeLock, keepScreenAwake, playNotificationSound } from '@/services/notificationService';
 import { AlertCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -223,6 +223,14 @@ const Agenda: React.FC = () => {
         // Obter a data atual formatada como string YYYY-MM-DD
         const dataAtual = format(today, 'yyyy-MM-dd');
         
+        // Obter o usuário atual
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          console.error('Usuário não autenticado');
+          return;
+        }
+        
         // Buscar conteúdos programados para a data atual
         const { data, error } = await supabase
           .from('conteudos_produzidos')
@@ -250,8 +258,25 @@ const Agenda: React.FC = () => {
         
         console.log('Conteúdos produzidos para hoje:', data);
         
+        // Filtrar conteúdos já lidos (a menos que sejam recorrentes)
+        const filteredData = data && Array.isArray(data) ? data.filter(item => {
+          // Se o status não for 'lido', mostrar o conteúdo
+          if (item.status !== 'lido') return true;
+          
+          // Se o conteúdo for recorrente, mostrar mesmo que já tenha sido lido
+          if (item.recorrente) return true;
+          
+          // Se o usuário atual não estiver no array lido_por, mostrar o conteúdo
+          if (item.lido_por && Array.isArray(item.lido_por) && !item.lido_por.includes(user.id)) {
+            return true;
+          }
+          
+          // Caso contrário, não mostrar o conteúdo
+          return false;
+        }) : [];
+        
         // Processar os dados para o formato esperado pelo componente TestimonialList
-        const processedData = data && Array.isArray(data) ? data.map(item => {
+        const processedData = filteredData.map(item => {
           try {
             // Verificar se o item tem as propriedades necessárias
             if (!item || !item.horario_programado || typeof item.horario_programado !== 'string') {
@@ -284,22 +309,28 @@ const Agenda: React.FC = () => {
             // Adicionar flag isUpcoming com base na proximidade do horário (10-30 minutos)
             const isUpcoming = minutesUntil >= 10 && minutesUntil <= 30;
             
+            // Se o item estiver próximo e estivermos em um dispositivo móvel, tocar som de notificação
+            if (isUpcoming && isMobileDevice()) {
+              playNotificationSound('alert');
+            }
+            
             return {
               ...item,
               id: item.id || `temp-${Date.now()}-${Math.random()}`,
               texto: item.conteudo || "Sem conteúdo disponível",
               patrocinador: item.nome || "Sem nome",
               horario_agendado: item.horario_programado,
-              status: 'pendente',
+              status: item.status || 'pendente',
               isUpcoming,
               minutesUntil,
-              tipo: 'conteudo'
+              tipo: 'conteudo',
+              recorrente: item.recorrente || false
             };
           } catch (err) {
             console.error('Erro ao processar conteúdo:', err, item);
             return null;
           }
-        }).filter(Boolean) : [];
+        }).filter(Boolean);
         
         // Ordenar para mostrar conteúdos próximos primeiro, depois por horário programado
         const sortedData = processedData.sort((a, b) => {
@@ -352,6 +383,15 @@ const Agenda: React.FC = () => {
     setIsMarkingAsRead(true);
     
     try {
+      // Obter o usuário atual
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('Usuário não autenticado');
+        setIsMarkingAsRead(false);
+        return;
+      }
+      
       if (tipo === 'testemunhal') {
         const { data, error } = await supabase
           .from('testemunhais')
@@ -369,16 +409,46 @@ const Agenda: React.FC = () => {
           prevTestemunhais.filter(t => t.id !== id)
         );
         
+        // Reproduzir som de sucesso em dispositivos móveis
+        if (isMobileDevice()) {
+          playNotificationSound('success');
+        }
+        
         toast.success('Testemunhal marcado como lido', {
           position: 'bottom-right',
           closeButton: true,
           duration: 5000
         });
       } else if (tipo === 'conteudo') {
+        // Primeiro, verificar se o conteúdo é recorrente
+        const { data: conteudoData, error: conteudoError } = await supabase
+          .from('conteudos_produzidos')
+          .select('recorrente, lido_por')
+          .eq('id', id)
+          .single();
+          
+        if (conteudoError) throw conteudoError;
+        
+        // Preparar o array lido_por atualizado
+        let lido_por = [];
+        
+        if (conteudoData.lido_por && Array.isArray(conteudoData.lido_por)) {
+          // Se o array já existe, adicionar o usuário atual se ainda não estiver presente
+          lido_por = [...conteudoData.lido_por];
+          if (!lido_por.includes(user.id)) {
+            lido_por.push(user.id);
+          }
+        } else {
+          // Se o array não existe, criar um novo com o usuário atual
+          lido_por = [user.id];
+        }
+        
+        // Atualizar o conteúdo
         const { data, error } = await supabase
           .from('conteudos_produzidos')
           .update({ 
             status: 'lido',
+            lido_por: lido_por,
             updated_at: new Date().toISOString()
           })
           .eq('id', id)
@@ -386,10 +456,24 @@ const Agenda: React.FC = () => {
           
         if (error) throw error;
         
-        // Remove the content from the local list immediately
-        setConteudos(prevConteudos => 
-          prevConteudos.filter(c => c.id !== id)
-        );
+        // Se o conteúdo não for recorrente, remover da lista local
+        if (!conteudoData.recorrente) {
+          setConteudos(prevConteudos => 
+            prevConteudos.filter(c => c.id !== id)
+          );
+        } else {
+          // Se for recorrente, apenas atualizar o status na lista local
+          setConteudos(prevConteudos => 
+            prevConteudos.map(c => 
+              c.id === id ? { ...c, status: 'lido' } : c
+            )
+          );
+        }
+        
+        // Reproduzir som de sucesso em dispositivos móveis
+        if (isMobileDevice()) {
+          playNotificationSound('success');
+        }
         
         toast.success('Conteúdo marcado como lido', {
           position: 'bottom-right',

@@ -1,18 +1,26 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { supabase } from './integrations/supabase/client';
 
-// Pages
-import Login from './pages/Login';
-import Index from './pages/Index';
-import GerenciamentoProgramas from './pages/GerenciamentoProgramas';
-import Agenda from './pages/Agenda';
-import Relatorios from './pages/Relatorios';
-import Perfil from './pages/Perfil';
-import Configuracoes from './pages/Configuracoes';
-import AcessoNegado from './pages/AcessoNegado';
-import NotFound from './pages/NotFound';
+// Lazy load pages
+const Login = lazy(() => import('./pages/Login'));
+const Index = lazy(() => import('./pages/Index'));
+const GerenciamentoProgramas = lazy(() => import('./pages/GerenciamentoProgramas'));
+const Agenda = lazy(() => import('./pages/Agenda'));
+const Relatorios = lazy(() => import('./pages/Relatorios'));
+const Perfil = lazy(() => import('./pages/Perfil'));
+const Configuracoes = lazy(() => import('./pages/Configuracoes'));
+const AcessoNegado = lazy(() => import('./pages/AcessoNegado'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+// Loading component
+const LoadingFallback = () => (
+  <div className="h-screen flex items-center justify-center">
+    <div className="animate-spin-slow h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+    <span className="ml-3">Carregando...</span>
+  </div>
+);
 
 interface AuthContextType {
   user: any | null;
@@ -101,42 +109,44 @@ const App = () => {
     <AuthContext.Provider value={{ user, isLoading, userRole }}>
       <Toaster />
       <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <Index />
-            </ProtectedRoute>
-          } />
-          <Route path="/gerenciamento" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <GerenciamentoProgramas />
-            </ProtectedRoute>
-          } />
-          <Route path="/agenda" element={
-            <ProtectedRoute allowedRoles={['admin', 'locutor']}>
-              <Agenda />
-            </ProtectedRoute>
-          } />
-          <Route path="/relatorios" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <Relatorios />
-            </ProtectedRoute>
-          } />
-          <Route path="/perfil" element={
-            <ProtectedRoute allowedRoles={['admin', 'locutor']}>
-              <Perfil />
-            </ProtectedRoute>
-          } />
-          <Route path="/configuracoes" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <Configuracoes />
-            </ProtectedRoute>
-          } />
-          <Route path="/acesso-negado" element={<AcessoNegado />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Index />
+              </ProtectedRoute>
+            } />
+            <Route path="/gerenciamento" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <GerenciamentoProgramas />
+              </ProtectedRoute>
+            } />
+            <Route path="/agenda" element={
+              <ProtectedRoute allowedRoles={['admin', 'locutor']}>
+                <Agenda />
+              </ProtectedRoute>
+            } />
+            <Route path="/relatorios" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Relatorios />
+              </ProtectedRoute>
+            } />
+            <Route path="/perfil" element={
+              <ProtectedRoute allowedRoles={['admin', 'locutor']}>
+                <Perfil />
+              </ProtectedRoute>
+            } />
+            <Route path="/configuracoes" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Configuracoes />
+              </ProtectedRoute>
+            } />
+            <Route path="/acesso-negado" element={<AcessoNegado />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </Router>
     </AuthContext.Provider>
   );

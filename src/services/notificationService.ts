@@ -8,6 +8,37 @@ export const isMobileDevice = (): boolean => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
 
+// Função para reproduzir som de notificação
+export const playNotificationSound = (soundType: 'alert' | 'success' = 'alert'): void => {
+  if (!isMobileDevice()) return;
+  
+  try {
+    const sound = new Audio();
+    
+    if (soundType === 'alert') {
+      sound.src = '/sounds/notification-alert.mp3';
+    } else {
+      sound.src = '/sounds/notification-success.mp3';
+    }
+    
+    // Verificar se o áudio está carregado antes de reproduzir
+    sound.oncanplaythrough = () => {
+      sound.play().catch(error => {
+        console.error('Erro ao reproduzir som de notificação:', error);
+      });
+    };
+    
+    // Definir um timeout para evitar que o áudio fique carregando indefinidamente
+    setTimeout(() => {
+      if (sound.readyState < 4) { // 4 = HAVE_ENOUGH_DATA
+        console.warn('Timeout ao carregar som de notificação');
+      }
+    }, 3000);
+  } catch (error) {
+    console.error('Erro ao criar objeto de áudio:', error);
+  }
+};
+
 // Função para fazer o dispositivo vibrar
 export const vibrateDevice = (pattern?: number | number[]): void => {
   if (!isMobileDevice() || !window.navigator.vibrate) return;
@@ -62,6 +93,9 @@ export const notifyUpcomingTestimonial = (count: number): void => {
   
   // Manter a tela acesa
   keepScreenAwake();
+  
+  // Reproduzir som de notificação
+  playNotificationSound();
   
   // Mostrar notificação se suportado
   if ('Notification' in window && Notification.permission === 'granted') {
