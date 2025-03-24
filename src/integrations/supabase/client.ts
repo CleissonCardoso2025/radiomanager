@@ -46,3 +46,34 @@ export const createUserWithRole = async (
     return { data: null, error };
   }
 };
+
+// New function to get users with their emails
+export const getUsersWithEmails = async () => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_users_with_emails');
+    
+    if (error) throw error;
+    
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error };
+  }
+};
+
+// New function to update a user's password
+export const updateUserPassword = async (userId: string, newPassword: string) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('admin_update_user_password', {
+        user_id: userId,
+        new_password: newPassword
+      });
+    
+    if (error) throw error;
+    
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error };
+  }
+};

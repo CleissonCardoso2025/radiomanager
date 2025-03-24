@@ -124,9 +124,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_update_user_password: {
+        Args: {
+          user_id: string
+          new_password: string
+        }
+        Returns: Json
+      }
       check_is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      get_users_with_emails: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          email: string
+          role: string
+          created_at: string
+        }[]
       }
       has_role: {
         Args: {

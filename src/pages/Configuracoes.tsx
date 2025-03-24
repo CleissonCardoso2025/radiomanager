@@ -1,15 +1,14 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Bell, Moon, Sun, Volume2, Users, Shield, Loader2, Plus, Upload, Image, Trash, Pencil } from 'lucide-react';
+import { Bell, Moon, Sun, Volume2, Users, Shield, Loader2, Plus, Upload, Image, Trash, Pencil, Key } from 'lucide-react';
 import { useAuth } from '@/App';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase, createUserWithRole } from '@/integrations/supabase/client';
+import { supabase, createUserWithRole, getUsersWithEmails, updateUserPassword } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +37,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface UserSettings {
   emailNotifications: boolean;
@@ -66,12 +76,20 @@ interface EditUserForm {
   role: 'admin' | 'locutor';
 }
 
+interface PasswordChangeForm {
+  id: string;
+  email: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 const Configuracoes = () => {
   const { userRole } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,6 +119,16 @@ const Configuracoes = () => {
     }
   });
 
+  const passwordForm = useForm<PasswordChangeForm>({
+    defaultValues: {
+      id: '',
+      email: '',
+      newPassword: '',
+      confirmPassword: ''
+    },
+    mode: 'onChange'
+  });
+
   useEffect(() => {
     const savedSettings = localStorage.getItem('userSettings');
     if (savedSettings) {
@@ -120,40 +148,21 @@ const Configuracoes = () => {
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
     try {
-      // First get user roles
-      const { data: userRolesData, error: userRolesError } = await supabase
-        .from('user_roles')
-        .select(`
-          user_id,
-          role,
-          created_at
-        `);
+      const { data: usersWithEmails, error } = await getUsersWithEmails();
 
-      if (userRolesError) throw userRolesError;
+      if (error) throw error;
 
-      if (userRolesData) {
-        // Use direct query instead of admin API which requires special permissions
-        const { data: authData, error: authError } = await supabase
-          .from('user_roles')
-          .select(`
-            user_id,
-            role
-          `);
+      if (usersWithEmails) {
+        const formattedUsers = usersWithEmails.map(user => {
+          return {
+            id: user.id,
+            email: user.email,
+            role: user.role as 'admin' | 'locutor',
+            status: 'Ativo'
+          };
+        });
         
-        if (authError) throw authError;
-        
-        if (authData) {
-          const formattedUsers = userRolesData.map(userRole => {
-            return {
-              id: userRole.user_id,
-              email: userRole.user_id, // Fallback to user_id as email
-              role: userRole.role as 'admin' | 'locutor',
-              status: 'Ativo'
-            };
-          });
-          
-          setUsers(formattedUsers);
-        }
+        setUsers(formattedUsers);
       }
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
@@ -312,10 +321,23 @@ const Configuracoes = () => {
     }
   };
 
+  const handlePasswordChange = (userId: string) => {
+    const userToEdit = users.find(user => user.id === userId);
+    if (userToEdit) {
+      setSelectedUser(userToEdit);
+      passwordForm.reset({
+        id: userToEdit.id,
+        email: userToEdit.email,
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setIsPasswordDialogOpen(true);
+    }
+  };
+
   const handleUpdateUser = async (data: EditUserForm) => {
     setIsLoading(true);
     try {
-      // Update the user role in the database
       const { error } = await supabase
         .from('user_roles')
         .update({ role: data.role })
@@ -323,7 +345,6 @@ const Configuracoes = () => {
       
       if (error) throw error;
       
-      // Update the local state
       setUsers(prev => prev.map(user => 
         user.id === data.id ? { ...user, role: data.role } : user
       ));
@@ -338,6 +359,42 @@ const Configuracoes = () => {
     } catch (error: any) {
       console.error('Erro ao atualizar usuário:', error);
       toast.error(`Erro ao atualizar usuário: ${error.message}`, {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (data: PasswordChangeForm) => {
+    if (data.newPassword !== data.confirmPassword) {
+      toast.error('As senhas não conferem', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data: result, error } = await updateUserPassword(data.id, data.newPassword);
+      
+      if (error) throw error;
+      
+      setIsPasswordDialogOpen(false);
+      passwordForm.reset();
+      
+      toast.success('Senha atualizada com sucesso!', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    } catch (error: any) {
+      console.error('Erro ao atualizar senha:', error);
+      toast.error(`Erro ao atualizar senha: ${error.message}`, {
         position: 'bottom-right',
         closeButton: true,
         duration: 5000
@@ -587,16 +644,28 @@ const Configuracoes = () => {
                                         </span>
                                       </TableCell>
                                       <TableCell className="text-right">
-                                        <Button 
-                                          variant="ghost" 
-                                          size="sm" 
-                                          onClick={() => handleEditUser(user.id)}
-                                          className="gap-1"
-                                          disabled={user.email === 'cleissoncardoso@gmail.com'}
-                                        >
-                                          <Pencil size={14} />
-                                          Editar
-                                        </Button>
+                                        <div className="flex justify-end gap-2">
+                                          <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={() => handleEditUser(user.id)}
+                                            className="gap-1"
+                                            disabled={user.email === 'cleissoncardoso@gmail.com'}
+                                          >
+                                            <Pencil size={14} />
+                                            Editar
+                                          </Button>
+                                          <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={() => handlePasswordChange(user.id)}
+                                            className="gap-1"
+                                            disabled={user.email === 'cleissoncardoso@gmail.com'}
+                                          >
+                                            <Key size={14} />
+                                            Nova Senha
+                                          </Button>
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   ))}
@@ -692,7 +761,6 @@ const Configuracoes = () => {
         </Card>
       </main>
 
-      {/* Edit User Dialog */}
       <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -754,6 +822,85 @@ const Configuracoes = () => {
                     'Salvar Alterações'
                   )}
                 </Button>
+              </DialogFooter>
+            </form>
+          </FormProvider>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Senha</DialogTitle>
+            <DialogDescription>
+              Defina uma nova senha para o usuário {selectedUser?.email}.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <FormProvider {...passwordForm}>
+            <form onSubmit={passwordForm.handleSubmit(handleUpdatePassword)} className="space-y-4">
+              <FormField
+                control={passwordForm.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nova Senha</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="Digite a nova senha" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={passwordForm.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirmar Senha</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="Confirme a nova senha" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setIsPasswordDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" disabled={isLoading || 
+                      !passwordForm.watch('newPassword') || 
+                      passwordForm.watch('newPassword') !== passwordForm.watch('confirmPassword')}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        'Alterar Senha'
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. A senha do usuário será alterada imediatamente.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={passwordForm.handleSubmit(handleUpdatePassword)}>
+                        Confirmar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </DialogFooter>
             </form>
           </FormProvider>
