@@ -1,5 +1,7 @@
+
 import React from 'react';
 import { format } from 'date-fns';
+
 const Footer: React.FC = () => {
   return <div className="bg-white border-t mt-auto">
       <div className="container px-4 py-3">
@@ -7,9 +9,10 @@ const Footer: React.FC = () => {
           <div>
             Última atualização: {format(new Date(), 'HH:mm')}
           </div>
-          <div>2025   Criado por Agência Cleisson Cardoso</div>
+          <div>2025 © Agencia Cleisson Cardoso</div>
         </div>
       </div>
     </div>;
 };
+
 export default Footer;

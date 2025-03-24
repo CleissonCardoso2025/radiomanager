@@ -46,7 +46,6 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
       fetchNotifications();
     }
     
-    // Carregar o logo personalizado do localStorage
     const savedLogo = localStorage.getItem('customLogo');
     if (savedLogo) {
       setCustomLogo(savedLogo);
@@ -55,14 +54,12 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
 
   const fetchNotifications = async () => {
     try {
-      // Buscar testemunhais pendentes para notificações
       const { data: testemunhaisPendentes, error: errorPendentes } = await supabase
         .from('testemunhais')
         .select('id, texto, horario_agendado, status, programas(nome)')
         .eq('status', 'pendente')
         .order('horario_agendado', { ascending: true });
       
-      // Buscar testemunhais lidos recentemente para notificações de sucesso
       const { data: testemunhaisLidos, error: errorLidos } = await supabase
         .from('testemunhais')
         .select('id, texto, horario_agendado, status, programas(nome)')
@@ -116,7 +113,6 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
           return;
         }
         
-        // Atualizar notificações localmente
         setNotifications(prev => 
           prev.map(n => 
             n.status === 'pendente' 
@@ -140,7 +136,6 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
     }
   };
 
-  // Define todos os itens de navegação
   const allNavItems = [
     { name: 'Dashboard', path: '/', isActive: location.pathname === '/', requiredRole: 'admin' },
     { name: 'Programas e Testemunhais', path: '/gerenciamento', isActive: location.pathname === '/gerenciamento', requiredRole: 'admin' },
@@ -148,15 +143,13 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
     { name: 'Relatórios', path: '/relatorios', isActive: location.pathname === '/relatorios', requiredRole: 'admin' },
   ];
 
-  // Filtra os itens de navegação com base no papel do usuário
   const navItems = allNavItems.filter(item => {
     if (item.requiredRole === 'admin') {
       return userRole === 'admin';
     }
-    return true; // Itens com requiredRole 'any' são mostrados para todos
+    return true;
   });
 
-  // Define todos os itens do menu do usuário
   const allUserMenuItems = [
     { 
       label: 'Meu Perfil',
@@ -175,12 +168,11 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
     },
   ];
 
-  // Filtra os itens do menu do usuário com base no papel do usuário
   const userMenuItems = allUserMenuItems.filter(item => {
     if (item.requiredRole === 'admin') {
       return userRole === 'admin';
     }
-    return true; // Itens com requiredRole 'any' são mostrados para todos
+    return true;
   });
 
   return (
@@ -197,13 +189,12 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
                 />
               ) : (
                 <h1 className="text-2xl font-medium text-primary tracking-tight">
-                  RadioManager
+                  Radio Manager
                 </h1>
               )}
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => (
               <Link
@@ -218,7 +209,6 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
         </div>
 
         <div className="flex items-center space-x-2">
-          {/* Search toggle */}
           <Button
             variant="ghost"
             size="icon"
@@ -228,7 +218,6 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
             {isSearchOpen ? <X size={20} /> : <Search size={20} />}
           </Button>
 
-          {/* Search input (animated) */}
           <div
             className={`absolute right-28 transition-all duration-300 ease-in-out overflow-hidden ${
               isSearchOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'
@@ -247,7 +236,6 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
             </div>
           </div>
 
-          {/* Notifications - Apenas para administradores */}
           {userRole === 'admin' && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -305,7 +293,6 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
             </DropdownMenu>
           )}
 
-          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="rounded-full gap-2 hover:bg-gray-100">
@@ -331,7 +318,6 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Mobile menu */}
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger asChild>
