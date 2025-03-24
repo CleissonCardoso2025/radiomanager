@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Bell, Moon, Sun, Volume2, Users, Shield, Loader2, Plus, Upload, Image, Trash } from 'lucide-react';
+import { Bell, Moon, Sun, Volume2, Users, Shield, Loader2, Plus, Upload, Image, Trash, Pencil } from 'lucide-react';
 import { useAuth } from '@/App';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,6 +30,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface UserSettings {
   emailNotifications: boolean;
@@ -51,17 +60,20 @@ interface NewUserForm {
   role: 'admin' | 'locutor';
 }
 
+interface EditUserForm {
+  id: string;
+  email: string;
+  role: 'admin' | 'locutor';
+}
+
 const Configuracoes = () => {
   const { userRole } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-  const [newUser, setNewUser] = useState({
-    email: '',
-    password: '',
-    role: 'locutor'
-  });
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [customLogo, setCustomLogo] = useState<string | null>(null);
   
@@ -77,6 +89,14 @@ const Configuracoes = () => {
     defaultValues: {
       email: '',
       password: '',
+      role: 'locutor'
+    }
+  });
+
+  const editForm = useForm<EditUserForm>({
+    defaultValues: {
+      id: '',
+      email: '',
       role: 'locutor'
     }
   });
@@ -100,7 +120,8 @@ const Configuracoes = () => {
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
     try {
-      const { data, error } = await supabase
+      // First get user roles
+      const { data: userRolesData, error: userRolesError } = await supabase
         .from('user_roles')
         .select(`
           user_id,
@@ -108,17 +129,27 @@ const Configuracoes = () => {
           created_at
         `);
 
-      if (error) throw error;
+      if (userRolesError) throw userRolesError;
 
-      if (data) {
-        const formattedUsers = data.map(userRole => ({
-          id: userRole.user_id,
-          email: userRole.user_id,
-          role: userRole.role as 'admin' | 'locutor',
-          status: 'Ativo'
-        }));
+      if (userRolesData) {
+        // Now get user emails from auth.users
+        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
         
-        setUsers(formattedUsers);
+        if (authError) throw authError;
+        
+        if (authData && authData.users) {
+          const formattedUsers = userRolesData.map(userRole => {
+            const authUser = authData.users.find(user => user.id === userRole.user_id);
+            return {
+              id: userRole.user_id,
+              email: authUser?.email || userRole.user_id,
+              role: userRole.role as 'admin' | 'locutor',
+              status: 'Ativo'
+            }
+          });
+          
+          setUsers(formattedUsers);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
@@ -265,11 +296,51 @@ const Configuracoes = () => {
   };
 
   const handleEditUser = (userId: string) => {
-    toast.info('Funcionalidade de edição em desenvolvimento', {
-      position: 'bottom-right',
-      closeButton: true,
-      duration: 5000
-    });
+    const userToEdit = users.find(user => user.id === userId);
+    if (userToEdit) {
+      setSelectedUser(userToEdit);
+      editForm.reset({
+        id: userToEdit.id,
+        email: userToEdit.email,
+        role: userToEdit.role
+      });
+      setIsEditUserDialogOpen(true);
+    }
+  };
+
+  const handleUpdateUser = async (data: EditUserForm) => {
+    setIsLoading(true);
+    try {
+      // Update the user role in the database
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ role: data.role })
+        .eq('user_id', data.id);
+      
+      if (error) throw error;
+      
+      // Update the local state
+      setUsers(prev => prev.map(user => 
+        user.id === data.id ? { ...user, role: data.role } : user
+      ));
+      
+      setIsEditUserDialogOpen(false);
+      
+      toast.success('Usuário atualizado com sucesso!', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    } catch (error: any) {
+      console.error('Erro ao atualizar usuário:', error);
+      toast.error(`Erro ao atualizar usuário: ${error.message}`, {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -488,21 +559,21 @@ const Configuracoes = () => {
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                               </div>
                             ) : (
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                  <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Papel</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Papel</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                   {users.map(user => (
-                                    <tr key={user.id}>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm">{user.email}</td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm capitalize">{user.role}</td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <TableRow key={user.id}>
+                                      <TableCell>{user.email}</TableCell>
+                                      <TableCell className="capitalize">{user.role}</TableCell>
+                                      <TableCell>
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                           user.status === 'Ativo' 
                                             ? 'bg-green-100 text-green-800' 
@@ -510,21 +581,23 @@ const Configuracoes = () => {
                                         }`}>
                                           {user.status}
                                         </span>
-                                      </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                      </TableCell>
+                                      <TableCell className="text-right">
                                         <Button 
                                           variant="ghost" 
                                           size="sm" 
                                           onClick={() => handleEditUser(user.id)}
+                                          className="gap-1"
                                           disabled={user.email === 'cleissoncardoso@gmail.com'}
                                         >
+                                          <Pencil size={14} />
                                           Editar
                                         </Button>
-                                      </td>
-                                    </tr>
+                                      </TableCell>
+                                    </TableRow>
                                   ))}
-                                </tbody>
-                              </table>
+                                </TableBody>
+                              </Table>
                             )}
                           </div>
                         </div>
@@ -614,6 +687,74 @@ const Configuracoes = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Usuário</DialogTitle>
+            <DialogDescription>
+              Altere as informações do usuário.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <FormProvider {...editForm}>
+            <form onSubmit={editForm.handleSubmit(handleUpdateUser)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} disabled />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Papel</FormLabel>
+                    <Select onValueChange={field.onChange as (value: string) => void} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um papel" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                        <SelectItem value="locutor">Locutor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setIsEditUserDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar Alterações'
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </FormProvider>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
