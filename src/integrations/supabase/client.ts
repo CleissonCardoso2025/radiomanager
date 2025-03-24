@@ -50,33 +50,48 @@ export const createUserWithRole = async (
 // Function to get users with their emails
 export const getUsersWithEmails = async () => {
   try {
-    // Using the generic query method instead of rpc to handle potential type mismatches
-    const { data, error } = await supabase
+    // Get all user roles first
+    const { data: userRoles, error: userRolesError } = await supabase
       .from('user_roles')
-      .select(`
-        user_id,
-        role,
-        auth_users:user_id (
-          email,
-          created_at
-        )
-      `)
-      .order('created_at', { foreignTable: 'auth_users', ascending: false });
+      .select('*');
     
-    if (error) {
-      console.error('Error fetching users with emails:', error);
-      throw error;
+    if (userRolesError) {
+      console.error('Error fetching user roles:', userRolesError);
+      throw userRolesError;
     }
     
-    // Transform the data to match the expected format
-    const transformedData = data?.map(item => ({
-      id: item.user_id,
-      email: item.auth_users?.email || '',
-      role: item.role,
-      created_at: item.auth_users?.created_at
-    })) || [];
+    if (!userRoles || userRoles.length === 0) {
+      return { data: [], error: null };
+    }
     
-    return { data: transformedData, error: null };
+    // Then separately get user data from auth.users via RPC function
+    // since we can't directly join with auth.users
+    const promises = userRoles.map(async (userRole) => {
+      // Get user profile from auth via admin function
+      const { data: userData, error: userError } = await supabase
+        .auth.admin.getUserById(userRole.user_id);
+      
+      if (userError) {
+        console.warn(`Error fetching user ${userRole.user_id}:`, userError);
+        return {
+          id: userRole.user_id,
+          email: 'Unknown email',
+          role: userRole.role,
+          created_at: userRole.created_at
+        };
+      }
+      
+      return {
+        id: userRole.user_id,
+        email: userData?.user?.email || 'Unknown email',
+        role: userRole.role,
+        created_at: userData?.user?.created_at || userRole.created_at
+      };
+    });
+    
+    const usersWithEmails = await Promise.all(promises);
+    
+    return { data: usersWithEmails, error: null };
   } catch (error: any) {
     console.error('Error in getUsersWithEmails function:', error);
     return { data: null, error };
