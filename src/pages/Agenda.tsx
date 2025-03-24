@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { format, differenceInMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { supabase, connectionStatus, isConnectionError } from '@/integrations/supabase/client';
+import { supabase, connectionStatus, isConnectionError, checkConnection } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { isMobileDevice, notifyUpcomingTestimonial, releaseScreenWakeLock, keepScreenAwake, playNotificationSound } from '@/services/notificationService';
 import { AlertCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
@@ -58,7 +58,7 @@ const Agenda: React.FC = () => {
 
   useEffect(() => {
     // Verificar a conexão ao carregar a página
-    supabase.checkConnection();
+    checkConnection();
     
     // Adicionar listener para mudanças no status da conexão
     const handleConnectionChange = (event: CustomEvent) => {
