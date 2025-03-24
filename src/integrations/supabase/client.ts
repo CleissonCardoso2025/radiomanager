@@ -50,15 +50,33 @@ export const createUserWithRole = async (
 // Function to get users with their emails
 export const getUsersWithEmails = async () => {
   try {
+    // Using the generic query method instead of rpc to handle potential type mismatches
     const { data, error } = await supabase
-      .rpc('get_users_with_emails');
+      .from('user_roles')
+      .select(`
+        user_id,
+        role,
+        auth_users:user_id (
+          email,
+          created_at
+        )
+      `)
+      .order('created_at', { foreignTable: 'auth_users', ascending: false });
     
     if (error) {
       console.error('Error fetching users with emails:', error);
       throw error;
     }
     
-    return { data, error: null };
+    // Transform the data to match the expected format
+    const transformedData = data?.map(item => ({
+      id: item.user_id,
+      email: item.auth_users?.email || '',
+      role: item.role,
+      created_at: item.auth_users?.created_at
+    })) || [];
+    
+    return { data: transformedData, error: null };
   } catch (error: any) {
     console.error('Error in getUsersWithEmails function:', error);
     return { data: null, error };
