@@ -46,6 +46,15 @@ import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious,
+  PaginationEllipsis
+} from "@/components/ui/pagination";
 
 interface Programa {
   id: string;
@@ -83,6 +92,10 @@ const GerenciamentoProgramas: React.FC = () => {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [modalType, setModalType] = useState<'programa' | 'testemunhal'>('programa');
   const [selectedItem, setSelectedItem] = useState<Programa | Testemunhal | null>(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const itemsPerPage = 10;
 
   const [formData, setFormData] = useState<any>({
     nome: '',
@@ -202,8 +215,6 @@ const GerenciamentoProgramas: React.FC = () => {
       apresentador: '',
       texto: '',
       patrocinador: '',
-      horario_agendado: '',
-      programa_id: '',
       leituras: 1,
       distribuir_automaticamente: true,
       data_inicio: new Date(),
@@ -490,6 +501,59 @@ const GerenciamentoProgramas: React.FC = () => {
     }
   };
 
+  const filteredTestemunhais = testemunhais.filter(testemunhal =>
+    testemunhal.patrocinador.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    testemunhal.texto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    testemunhal.programas?.nome?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const indexOfLastTestemunhal = currentPage * itemsPerPage;
+  const indexOfFirstTestemunhal = indexOfLastTestemunhal - itemsPerPage;
+  const currentTestemunhais = filteredTestemunhais.slice(indexOfFirstTestemunhal, indexOfLastTestemunhal);
+  const totalPages = Math.ceil(filteredTestemunhais.length / itemsPerPage);
+  
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+  
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxPagesToShow = 5;
+    
+    if (totalPages <= maxPagesToShow) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(totalPages - 1, currentPage + 1);
+      
+      if (currentPage <= 2) {
+        endPage = 3;
+      } else if (currentPage >= totalPages - 1) {
+        startPage = totalPages - 2;
+      }
+      
+      if (startPage > 2) {
+        pages.push('ellipsis-start');
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+      
+      if (endPage < totalPages - 1) {
+        pages.push('ellipsis-end');
+      }
+      
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header notificationCount={notificationCount} />
@@ -571,6 +635,18 @@ const GerenciamentoProgramas: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="testemunhais" className="mt-0">
+            <div className="mb-4">
+              <Input
+                placeholder="Buscar por patrocinador, texto ou programa..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="max-w-md"
+              />
+            </div>
+            
             <Card>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -588,7 +664,7 @@ const GerenciamentoProgramas: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {Array.isArray(testemunhais) && testemunhais.map((testemunhal) => (
+                      {Array.isArray(currentTestemunhais) && currentTestemunhais.map((testemunhal) => (
                         <TableRow key={testemunhal.id}>
                           <TableCell className="font-medium max-w-xs truncate">
                             {testemunhal.texto}
@@ -649,6 +725,64 @@ const GerenciamentoProgramas: React.FC = () => {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+                
+                {totalPages > 1 && (
+                  <div className="flex justify-center py-4">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                            className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                            aria-disabled={currentPage === 1}
+                          />
+                        </PaginationItem>
+                        
+                        {getPageNumbers().map((page, index) => (
+                          <PaginationItem key={`page-${index}`}>
+                            {page === 'ellipsis-start' || page === 'ellipsis-end' ? (
+                              <PaginationEllipsis />
+                            ) : (
+                              <PaginationLink 
+                                isActive={currentPage === page} 
+                                onClick={() => typeof page === 'number' && handlePageChange(page)}
+                                className="cursor-pointer"
+                              >
+                                {page}
+                              </PaginationLink>
+                            )}
+                          </PaginationItem>
+                        ))}
+                        
+                        <PaginationItem>
+                          <PaginationNext 
+                            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                            className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                            aria-disabled={currentPage === totalPages}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center p-4 text-sm text-muted-foreground border-t">
+                  <div>
+                    Mostrando {indexOfFirstTestemunhal + 1}-{Math.min(indexOfLastTestemunhal, filteredTestemunhais.length)} de {filteredTestemunhais.length} resultados
+                  </div>
+                  {searchTerm && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        setSearchTerm('');
+                        setCurrentPage(1);
+                      }}
+                    >
+                      Limpar busca
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
