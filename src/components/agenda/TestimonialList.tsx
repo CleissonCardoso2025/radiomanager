@@ -26,6 +26,9 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
     }
   };
 
+  // Log information about the testimonials list for debugging
+  console.log('Testimonials received in TestimonialList:', testimonials.length, testimonials);
+
   return (
     <div className="container px-4 pb-8 flex-1">
       {isLoading ? (

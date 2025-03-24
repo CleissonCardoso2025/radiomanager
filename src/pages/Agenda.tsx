@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { format } from 'date-fns';
@@ -22,12 +23,17 @@ const Agenda: React.FC = () => {
   useEffect(() => {
     const fetchTestemunhais = async () => {
       try {
+        // Get the current day of week in Portuguese
+        const dayOfWeek = format(today, 'EEEE', { locale: ptBR });
+        console.log('Current day of week:', dayOfWeek);
+        
         const { data, error } = await supabase
           .from('testemunhais')
           .select('id, patrocinador, texto, horario_agendado, status, programa_id, programas!inner(id, nome, dias, apresentador)')
           .order('horario_agendado', { ascending: true });
         
         if (error) {
+          console.error('Error fetching testemunhais:', error);
           toast.error('Erro ao carregar testemunhais', {
             description: error.message,
             position: 'bottom-right',
@@ -36,18 +42,28 @@ const Agenda: React.FC = () => {
           });
           setTestemunhais([]);
         } else {
-          // Filter by today's day of week
-          const dayOfWeek = format(today, 'EEEE', { locale: ptBR });
+          console.log('Raw testemunhais data:', data);
           
+          // Filter by today's day of week - improved filtering with better logging
           const filteredData = data.filter(t => {
-            // Check if the testemunhal's program has today's day in its days array
             const programDays = t.programas?.dias || [];
-            return programDays.some((day: string) => 
-              day.toLowerCase() === dayOfWeek.toLowerCase()
-            );
+            console.log(`Testemunhal ${t.id} for program ${t.programas?.nome}:`, {
+              programDays,
+              currentDay: dayOfWeek
+            });
+            
+            // Case-insensitive comparison and normalize day names
+            return programDays.some((day: string) => {
+              const normalizedDay = day.toLowerCase().trim();
+              const normalizedCurrentDay = dayOfWeek.toLowerCase().trim();
+              console.log(`Comparing: ${normalizedDay} with ${normalizedCurrentDay}`);
+              return normalizedDay === normalizedCurrentDay;
+            });
           });
           
-          // Certifique-se de que todos os campos necessários estão presentes
+          console.log('Filtered testemunhais:', filteredData);
+          
+          // Ensure all required fields are present
           const processedData = filteredData.map(item => ({
             ...item,
             texto: item.texto || "Sem texto disponível"
@@ -88,7 +104,7 @@ const Agenda: React.FC = () => {
         
       if (error) throw error;
       
-      // Remove o testemunhal da lista local imediatamente
+      // Remove the testimonial from the local list immediately
       setTestemunhais(prevTestemunhais => 
         prevTestemunhais.filter(t => t.id !== id)
       );
