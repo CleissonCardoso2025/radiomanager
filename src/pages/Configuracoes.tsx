@@ -8,7 +8,7 @@ import { Bell, Moon, Sun, Volume2, Users, Shield, Loader2, Plus, Upload, Image, 
 import { useAuth } from '@/App';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase, createUserWithRole, getUsersWithEmails, updateUserPassword } from '@/integrations/supabase/client';
+import { supabase, createUserWithRole, getUsersWithEmails, updateUserPassword, updateUserEmailMap } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -270,9 +270,11 @@ const Configuracoes = () => {
       if (error) throw error;
       
       if (authData?.user) {
+        await updateUserEmailMap(authData.user.id, data.email);
+        
         const newUserObj: User = {
           id: authData.user.id,
-          email: authData.user.email || data.email,
+          email: data.email,
           role: data.role,
           status: 'Ativo'
         };

@@ -9,6 +9,50 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      conteudos_produzidos: {
+        Row: {
+          id: string
+          nome: string
+          conteudo: string
+          programa_id: string
+          data_programada: string
+          horario_programado: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          conteudo: string
+          programa_id: string
+          data_programada: string
+          horario_programado: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          conteudo?: string
+          programa_id?: string
+          data_programada?: string
+          horario_programado?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conteudos_produzidos_programa_id_fkey"
+            columns: ["programa_id"]
+            isOneToOne: false
+            referencedRelation: "programas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programas: {
         Row: {
           apresentador: string

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import TestimonialCard from './TestimonialCard';
@@ -17,7 +16,7 @@ import {
 interface TestimonialListProps {
   testimonials: any[];
   isLoading: boolean;
-  onMarkAsRead: (id: string) => void;
+  onMarkAsRead: (id: string, type: string) => void;
   isPending: boolean;
 }
 
@@ -138,101 +137,136 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
     };
   }, []);
 
+  // Render the testimonial cards
+  const renderTestimonials = () => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center py-12">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <p className="text-sm text-muted-foreground">Carregando testemunhais...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentTestimonials.length === 0) {
+      return (
+        <div className="flex justify-center items-center py-12">
+          <div className="flex flex-col items-center gap-2 max-w-md text-center">
+            <p className="text-lg font-semibold">Nenhum item encontrado</p>
+            <p className="text-sm text-muted-foreground">
+              Não há testemunhais ou conteúdos programados para hoje ou que correspondam à sua busca.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 gap-4"
+      >
+        <AnimatePresence>
+          {currentTestimonials.map((testimonial) => (
+            <TestimonialCard
+              key={testimonial.id}
+              testemunhal={testimonial}
+              onMarkAsRead={onMarkAsRead}
+              isPending={isPending}
+            />
+          ))}
+        </AnimatePresence>
+      </motion.div>
+    );
+  };
+
   return (
     <div 
       ref={fullscreenRef} 
       className={`container px-4 pb-8 flex-1 relative ${isFullscreen ? 'bg-white h-screen overflow-y-auto' : ''}`}
     >
-      <div className="absolute top-2 right-2 z-10">
+      <div className="flex justify-end mb-4">
         <Button 
-          variant="outline" 
-          size="icon" 
+          variant="glass" 
+          size="sm" 
+          rounded="lg"
           onClick={toggleFullscreen}
-          className="rounded-full hover:bg-primary/10"
+          className="shadow-sm backdrop-blur-sm border border-gray-200/50"
         >
-          {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+          {isFullscreen ? (
+            <>
+              <Minimize size={18} className="mr-2 text-primary" />
+              <span className="text-sm font-medium">Sair da tela cheia</span>
+            </>
+          ) : (
+            <>
+              <Maximize size={18} className="mr-2 text-primary" />
+              <span className="text-sm font-medium">Tela cheia</span>
+            </>
+          )}
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
-      ) : (
-        <AnimatePresence>
-          <motion.div 
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className="space-y-4"
-          >
-            {testimonials.length === 0 ? (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-10"
+      {renderTestimonials()}
+
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <Pagination className="mt-6">
+          <PaginationContent className="bg-white/50 backdrop-blur-sm shadow-sm rounded-lg p-1 border border-gray-100">
+            {/* Previous page button */}
+            <PaginationItem>
+              <Button
+                variant={currentPage === 1 ? "ghost" : "secondary"}
+                size="sm"
+                rounded="full"
+                onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1 h-8 px-3"
               >
-                <p className="text-lg text-muted-foreground">Não há testemunhais pendentes para hoje</p>
-                <p className="text-sm text-muted-foreground mt-2">Todos os testemunhais foram lidos ou não há agendamentos para hoje</p>
-              </motion.div>
-            ) : (
-              <>
-                {currentTestimonials.map((testemunhal) => (
-                  <AnimatePresence key={testemunhal.id} mode="wait">
-                    <TestimonialCard 
-                      key={testemunhal.id}
-                      testemunhal={testemunhal}
-                      onMarkAsRead={onMarkAsRead}
-                      isPending={isPending}
-                    />
-                  </AnimatePresence>
-                ))}
-                
-                {/* Pagination controls */}
-                {totalPages > 1 && (
-                  <Pagination className="mt-6">
-                    <PaginationContent>
-                      {/* Previous page button */}
-                      <PaginationItem>
-                        <PaginationPrevious 
-                          onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                          className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                          aria-disabled={currentPage === 1}
-                        />
-                      </PaginationItem>
-                      
-                      {/* Page numbers */}
-                      {getPageNumbers().map((page, index) => (
-                        <PaginationItem key={`page-${index}`}>
-                          {page === 'ellipsis-start' || page === 'ellipsis-end' ? (
-                            <PaginationEllipsis />
-                          ) : (
-                            <PaginationLink 
-                              isActive={currentPage === page} 
-                              onClick={() => typeof page === 'number' && handlePageChange(page)}
-                              className="cursor-pointer"
-                            >
-                              {page}
-                            </PaginationLink>
-                          )}
-                        </PaginationItem>
-                      ))}
-                      
-                      {/* Next page button */}
-                      <PaginationItem>
-                        <PaginationNext 
-                          onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                          className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                          aria-disabled={currentPage === totalPages}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
+                <ChevronLeft size={16} />
+                <span className="sr-only">Página anterior</span>
+              </Button>
+            </PaginationItem>
+            
+            {/* Page numbers */}
+            {getPageNumbers().map((page, index) => (
+              <PaginationItem key={`page-${index}`}>
+                {page === 'ellipsis-start' || page === 'ellipsis-end' ? (
+                  <PaginationEllipsis />
+                ) : (
+                  <Button
+                    variant={currentPage === page ? "default" : "ghost"}
+                    size="sm"
+                    rounded="full"
+                    onClick={() => typeof page === 'number' && handlePageChange(page)}
+                    className={`h-8 w-8 ${currentPage === page ? 'text-white' : 'text-gray-700'}`}
+                  >
+                    {page}
+                  </Button>
                 )}
-              </>
-            )}
-          </motion.div>
-        </AnimatePresence>
+              </PaginationItem>
+            ))}
+            
+            {/* Next page button */}
+            <PaginationItem>
+              <Button
+                variant={currentPage === totalPages ? "ghost" : "secondary"}
+                size="sm"
+                rounded="full"
+                onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1 h-8 px-3"
+              >
+                <ChevronRight size={16} />
+                <span className="sr-only">Próxima página</span>
+              </Button>
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       )}
     </div>
   );
