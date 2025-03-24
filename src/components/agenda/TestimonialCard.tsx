@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Check, Clock, Type, ChevronUp, ChevronDown } from 'lucide-react';
+import { Check, Clock, Type, ChevronUp, ChevronDown, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
@@ -68,6 +69,9 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
     }
   };
 
+  // Determine if this is an upcoming testimonial
+  const isUpcoming = testemunhal.isUpcoming;
+
   return (
     <motion.div 
       variants={{
@@ -84,7 +88,8 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
     >
       <Card className={cn(
         "overflow-hidden hover:shadow-lg transition-all", 
-        getRandomGradient()
+        getRandomGradient(),
+        isUpcoming && "border-2 border-amber-500 bg-amber-50"
       )}>
         <CardHeader className="p-4 pb-0">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
@@ -92,9 +97,18 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
               <Badge variant="outline" className={getStatusColor(testemunhal.status)}>
                 {getStatusText(testemunhal.status)}
               </Badge>
-              <span className="text-muted-foreground flex items-center">
-                <Clock className="mr-1 h-4 w-4" />
+              <span className={cn(
+                "text-muted-foreground flex items-center",
+                isUpcoming && "text-amber-700 font-medium"
+              )}>
+                <Clock className={cn("mr-1 h-4 w-4", isUpcoming && "text-amber-500")} />
                 {testemunhal.horario_agendado.slice(0, 5)}
+                {isUpcoming && (
+                  <span className="ml-2 flex items-center text-amber-700">
+                    <AlertCircle className="h-4 w-4 mr-1 text-amber-500" />
+                    Em breve
+                  </span>
+                )}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -128,6 +142,11 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
             )}
           </div>
           <h3 className="text-lg font-semibold">{testemunhal.patrocinador}</h3>
+          {isUpcoming && testemunhal.minutesUntil > 0 && (
+            <p className="text-sm text-amber-700 font-medium mt-1">
+              Faltam aproximadamente {testemunhal.minutesUntil} minutos para a leitura
+            </p>
+          )}
         </CardHeader>
         <CardContent className="p-4 pt-2 sm:p-6 sm:pt-2 relative">
           <div 
@@ -140,7 +159,10 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
           {testemunhal.status !== 'lido' && (
             <div className="absolute bottom-4 right-4">
               <Button
-                className="gap-2"
+                className={cn(
+                  "gap-2",
+                  isUpcoming && "bg-amber-500 hover:bg-amber-600"
+                )}
                 onClick={() => onMarkAsRead(testemunhal.id)}
                 disabled={isPending}
               >
