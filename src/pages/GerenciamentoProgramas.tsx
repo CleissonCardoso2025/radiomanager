@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,7 +39,7 @@ import {
   AlertDialogTitle 
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { BadgeCheck, Calendar, CalendarDays, Clock, Pencil, Plus, Repeat, Trash2, User, Loader2, AlertTriangle } from 'lucide-react';
+import { BadgeCheck, Calendar, CalendarDays, Clock, Pencil, Plus, Repeat, Trash2, User, Loader2, AlertTriangle, Radio, MessageSquare, FileText } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -733,6 +733,16 @@ const GerenciamentoProgramas: React.FC = () => {
     }
   };
 
+  const filteredProgramas = programas.filter(programa =>
+    programa.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    programa.apresentador.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const indexOfLastPrograma = currentPage * itemsPerPage;
+  const indexOfFirstPrograma = indexOfLastPrograma - itemsPerPage;
+  const currentProgramas = filteredProgramas.slice(indexOfFirstPrograma, indexOfLastPrograma);
+  const totalPages = Math.ceil(filteredProgramas.length / itemsPerPage);
+
   const filteredTestemunhais = testemunhais.filter(testemunhal =>
     testemunhal.patrocinador.toLowerCase().includes(searchTerm.toLowerCase()) ||
     testemunhal.texto.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -742,7 +752,7 @@ const GerenciamentoProgramas: React.FC = () => {
   const indexOfLastTestemunhal = currentPage * itemsPerPage;
   const indexOfFirstTestemunhal = indexOfLastTestemunhal - itemsPerPage;
   const currentTestemunhais = filteredTestemunhais.slice(indexOfFirstTestemunhal, indexOfLastTestemunhal);
-  const totalPages = Math.ceil(filteredTestemunhais.length / itemsPerPage);
+  const totalPagesTestemunhais = Math.ceil(filteredTestemunhais.length / itemsPerPage);
 
   const filteredConteudos = conteudosProduzidos.filter(conteudo =>
     conteudo.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -802,89 +812,196 @@ const GerenciamentoProgramas: React.FC = () => {
       <Header notificationCount={notificationCount} />
 
       <main className="container px-4 sm:px-6 pt-6 pb-16 mx-auto max-w-7xl">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Gerenciamento de Programas e Testemunhais</h1>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Gerenciamento de Programas e Testemunhais</h1>
         </div>
 
-        <Tabs defaultValue="programas" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex justify-between items-center border-b mb-6">
-            <TabsList className="bg-transparent p-0">
-              <TabsTrigger 
-                value="programas" 
-                className="py-4 px-1 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-              >
-                Programas
-              </TabsTrigger>
-              <TabsTrigger 
-                value="testemunhais" 
-                className="py-4 px-1 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-              >
-                Testemunhais
-              </TabsTrigger>
-              <TabsTrigger 
-                value="conteudos" 
-                className="py-4 px-1 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-              >
-                Produção de Conteúdo
-              </TabsTrigger>
-            </TabsList>
-            <Button 
-              className="gap-2 px-4" 
-              onClick={() => handleAdd(activeTab === 'programas' ? 'programa' : activeTab === 'testemunhais' ? 'testemunhal' : 'conteudo')}
-            >
-              <Plus size={18} />
-              <span>Adicionar Novo</span>
-            </Button>
+        <Tabs 
+          defaultValue="programas" 
+          value={activeTab} 
+          onValueChange={setActiveTab}
+          className="w-full"
+        >
+          <div className="flex flex-col gap-6 mb-6">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-1 rounded-lg shadow-sm">
+              <div className="flex flex-col sm:flex-row gap-4 justify-between">
+                <TabsList className="w-full sm:w-auto h-auto p-1 bg-transparent grid grid-cols-3 gap-2">
+                  <TabsTrigger 
+                    value="programas" 
+                    onClick={() => setActiveTab('programas')}
+                    className="py-3 px-4 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md rounded-md transition-all duration-200 hover:bg-blue-100 hover:text-blue-800 font-medium"
+                  >
+                    <Radio className="mr-2 h-4 w-4" />
+                    Programas
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="testemunhais" 
+                    onClick={() => setActiveTab('testemunhais')}
+                    className="py-3 px-4 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md rounded-md transition-all duration-200 hover:bg-blue-100 hover:text-blue-800 font-medium"
+                  >
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Testemunhais
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="conteudos" 
+                    onClick={() => setActiveTab('conteudos')}
+                    className="py-3 px-4 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md rounded-md transition-all duration-200 hover:bg-blue-100 hover:text-blue-800 font-medium"
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    Produção
+                  </TabsTrigger>
+                </TabsList>
+                
+                <Button 
+                  className="gap-2 px-4 bg-white text-blue-700 hover:bg-blue-50 shadow-md border border-blue-100 m-1" 
+                  onClick={() => handleAdd(activeTab === 'programas' ? 'programa' : activeTab === 'testemunhais' ? 'testemunhal' : 'conteudo')}
+                >
+                  <Plus size={18} />
+                  <span className="hidden sm:inline">Adicionar {activeTab === 'programas' ? 'Programa' : activeTab === 'testemunhais' ? 'Testemunhal' : 'Produção'}</span>
+                  <span className="sm:hidden">Adicionar</span>
+                </Button>
+              </div>
+            </div>
           </div>
 
           <TabsContent value="programas" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array.isArray(programas) && programas.map((programa) => (
-                <Card key={programa.id} className="opacity-0 animate-[fadeIn_0.4s_ease-out_forwards]">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-xl">{programa.nome}</CardTitle>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(programa, 'programa')}>
-                          <Pencil size={18} />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(programa)}>
-                          <Trash2 size={18} />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-center text-gray-600">
-                        <Clock className="h-4 w-4 mr-2" />
-                        <span>{programa.horario_inicio.slice(0, 5)} - {programa.horario_fim.slice(0, 5)}</span>
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <User className="h-4 w-4 mr-2" />
-                        <span>{programa.apresentador}</span>
-                      </div>
-                      {programa.dias && programa.dias.length > 0 && (
-                        <div className="flex items-start text-gray-600">
-                          <CalendarDays className="h-4 w-4 mr-2 mt-0.5" />
-                          <span className="flex flex-wrap gap-1">
-                            {programa.dias.map((dia: string) => (
-                              <span key={dia} className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
-                                {dia}
-                              </span>
-                            ))}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <Input
+                placeholder="Buscar por nome ou apresentador..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="max-w-full sm:max-w-md"
+              />
+              {searchTerm && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setCurrentPage(1);
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Limpar busca
+                </Button>
+              )}
             </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {Array.isArray(currentProgramas) && currentProgramas.length > 0 ? (
+                currentProgramas.map((programa) => (
+                  <Card 
+                    key={programa.id} 
+                    className="opacity-0 animate-[fadeIn_0.4s_ease-out_forwards] hover:shadow-lg transition-all duration-200 border-t-4 border-t-blue-500 overflow-hidden group"
+                  >
+                    <CardHeader className="pb-2 bg-gradient-to-r from-blue-50 to-transparent">
+                      <CardTitle className="text-lg sm:text-xl line-clamp-2 flex items-start gap-2">
+                        <Radio className="h-5 w-5 text-blue-600 mt-1 flex-shrink-0" />
+                        <span>{programa.nome}</span>
+                      </CardTitle>
+                      <CardDescription className="line-clamp-1 flex items-center gap-1">
+                        <User className="h-3.5 w-3.5" />
+                        {programa.apresentador}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex items-center gap-1 text-gray-600">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>{programa.horario_inicio.slice(0, 5)} - {programa.horario_fim.slice(0, 5)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-gray-600">
+                          <Calendar className="h-3.5 w-3.5" />
+                          <span>{programa.dias.join(', ')}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="pt-0 flex justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(programa, 'programa')} className="h-8 w-8 p-0" title="Editar">
+                        <Pencil size={16} />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0" onClick={() => handleDelete(programa)} title="Excluir">
+                        <Trash2 size={16} />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))
+              ) : (
+                <div className="col-span-1 sm:col-span-2 lg:col-span-3 flex flex-col items-center justify-center p-12 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                  <Radio className="h-12 w-12 text-gray-300 mb-4" />
+                  <p className="text-lg text-gray-500 mb-2">Nenhum programa encontrado</p>
+                  <p className="text-sm text-gray-400 mb-6 text-center">
+                    {searchTerm ? "Tente ajustar sua busca ou" : "Comece"} adicionando um novo programa
+                  </p>
+                  <Button 
+                    onClick={() => handleAdd('programa')}
+                    className="gap-2"
+                  >
+                    <Plus size={16} />
+                    Adicionar Programa
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="flex justify-center py-4 overflow-x-auto">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        aria-disabled={currentPage === 1}
+                      />
+                    </PaginationItem>
+                    
+                    {getPageNumbers().map((page, index) => (
+                      <PaginationItem key={`page-${index}`} className="hidden sm:block">
+                        {page === 'ellipsis-start' || page === 'ellipsis-end' ? (
+                          <PaginationEllipsis />
+                        ) : (
+                          <PaginationLink 
+                            isActive={currentPage === page} 
+                            onClick={() => typeof page === 'number' && handlePageChange(page)}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        )}
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem className="sm:hidden">
+                      <span className="px-2">{currentPage} / {totalPages}</span>
+                    </PaginationItem>
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        aria-disabled={currentPage === totalPages}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+            
+            {Array.isArray(currentProgramas) && currentProgramas.length > 0 && (
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 text-xs sm:text-sm text-muted-foreground border-t gap-2">
+                <div>
+                  Mostrando {indexOfFirstPrograma + 1}-{Math.min(indexOfLastPrograma, filteredProgramas.length)} de {filteredProgramas.length} resultados
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="testemunhais" className="mt-0">
-            <div className="mb-4">
+            <div className="mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               <Input
                 placeholder="Buscar por patrocinador, texto ou programa..."
                 value={searchTerm}
@@ -892,92 +1009,118 @@ const GerenciamentoProgramas: React.FC = () => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="max-w-md"
+                className="max-w-full sm:max-w-md"
               />
+              {searchTerm && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setCurrentPage(1);
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Limpar busca
+                </Button>
+              )}
             </div>
             
-            <Card>
+            <Card className="shadow-sm">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Texto</TableHead>
-                        <TableHead>Patrocinador</TableHead>
-                        <TableHead>Horário</TableHead>
-                        <TableHead>Programa</TableHead>
-                        <TableHead>Período</TableHead>
-                        <TableHead>Leituras</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
+                        <TableHead className="whitespace-nowrap">Patrocinador</TableHead>
+                        <TableHead className="whitespace-nowrap">Horário</TableHead>
+                        <TableHead className="whitespace-nowrap">Programa</TableHead>
+                        <TableHead className="whitespace-nowrap hidden md:table-cell">Período</TableHead>
+                        <TableHead className="whitespace-nowrap hidden sm:table-cell">Leituras</TableHead>
+                        <TableHead className="whitespace-nowrap">Status</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {Array.isArray(currentTestemunhais) && currentTestemunhais.map((testemunhal) => (
-                        <TableRow key={testemunhal.id}>
-                          <TableCell className="font-medium max-w-xs truncate">
-                            {testemunhal.texto}
-                          </TableCell>
-                          <TableCell>{testemunhal.patrocinador}</TableCell>
-                          <TableCell className={
-                            isTimeWithinProgram(testemunhal.programa_id, testemunhal.horario_agendado)
-                            ? '' : 'text-red-600'
-                          }>
-                            {testemunhal.horario_agendado.slice(0, 5)}
-                            {!isTimeWithinProgram(testemunhal.programa_id, testemunhal.horario_agendado) && (
-                              <span className="text-xs ml-1 text-red-600">(Fora do horário)</span>
-                            )}
-                          </TableCell>
-                          <TableCell>{testemunhal.programas?.nome || ''}</TableCell>
-                          <TableCell>
-                            {testemunhal.data_inicio && (
-                              <span className="text-xs">
-                                De: {formatDate(testemunhal.data_inicio)}
-                                {testemunhal.data_fim && (
-                                  <> até: {formatDate(testemunhal.data_fim)}</>
-                                )}
+                      {Array.isArray(currentTestemunhais) && currentTestemunhais.length > 0 ? (
+                        currentTestemunhais.map((testemunhal) => (
+                          <TableRow key={testemunhal.id} className="hover:bg-gray-50">
+                            <TableCell className="font-medium max-w-[200px] truncate" title={testemunhal.patrocinador}>
+                              {testemunhal.patrocinador}
+                            </TableCell>
+                            <TableCell className={
+                              isTimeWithinProgram(testemunhal.programa_id, testemunhal.horario_agendado)
+                              ? '' : 'text-red-600'
+                            }>
+                              {testemunhal.horario_agendado.slice(0, 5)}
+                              {!isTimeWithinProgram(testemunhal.programa_id, testemunhal.horario_agendado) && (
+                                <span className="text-xs ml-1 text-red-600 hidden sm:inline">(Fora do horário)</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="max-w-[150px] truncate" title={testemunhal.programas?.nome || ''}>
+                              {testemunhal.programas?.nome || ''}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {testemunhal.data_inicio && (
+                                <span className="text-xs">
+                                  De: {formatDate(testemunhal.data_inicio)}
+                                  {testemunhal.data_fim && (
+                                    <> até: {formatDate(testemunhal.data_fim)}</>
+                                  )}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell">
+                              <div className="flex items-center">
+                                <Repeat className="h-4 w-4 mr-1 text-gray-500" />
+                                <span>{testemunhal.leituras || 1}x</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                testemunhal.status === 'lido' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : testemunhal.status === 'atrasado'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {testemunhal.status === 'lido' 
+                                  ? 'Lido' 
+                                  : testemunhal.status === 'atrasado'
+                                    ? 'Atrasado'
+                                    : 'Pendente'}
                               </span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <Repeat className="h-4 w-4 mr-1 text-gray-500" />
-                              <span>{testemunhal.leituras || 1}x</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              testemunhal.status === 'lido' 
-                                ? 'bg-green-100 text-green-800' 
-                                : testemunhal.status === 'atrasado'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {testemunhal.status === 'lido' 
-                                ? 'Lido' 
-                                : testemunhal.status === 'atrasado'
-                                  ? 'Atrasado'
-                                  : 'Pendente'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => handleEdit(testemunhal, 'testemunhal')}>
-                                <Pencil size={16} />
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(testemunhal)}>
-                                <Trash2 size={16} />
-                              </Button>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1 sm:gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => handleEdit(testemunhal, 'testemunhal')} className="h-8 w-8 p-0" title="Editar">
+                                  <Pencil size={16} />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0" onClick={() => handleDelete(testemunhal)} title="Excluir">
+                                  <Trash2 size={16} />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={7} className="h-24 text-center">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <CalendarDays className="h-8 w-8 text-muted-foreground opacity-30" />
+                              <p className="text-sm text-muted-foreground">
+                                {searchTerm ? "Nenhum testemunhal encontrado para esta busca" : "Nenhum testemunhal cadastrado"}
+                              </p>
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </div>
                 
-                {totalPages > 1 && (
-                  <div className="flex justify-center py-4">
+                {totalPagesTestemunhais > 1 && (
+                  <div className="flex justify-center py-4 overflow-x-auto">
                     <Pagination>
                       <PaginationContent>
                         <PaginationItem>
@@ -989,7 +1132,7 @@ const GerenciamentoProgramas: React.FC = () => {
                         </PaginationItem>
                         
                         {getPageNumbers().map((page, index) => (
-                          <PaginationItem key={`page-${index}`}>
+                          <PaginationItem key={`page-${index}`} className="hidden sm:block">
                             {page === 'ellipsis-start' || page === 'ellipsis-end' ? (
                               <PaginationEllipsis />
                             ) : (
@@ -1004,11 +1147,15 @@ const GerenciamentoProgramas: React.FC = () => {
                           </PaginationItem>
                         ))}
                         
+                        <PaginationItem className="sm:hidden">
+                          <span className="px-2">{currentPage} / {totalPagesTestemunhais}</span>
+                        </PaginationItem>
+                        
                         <PaginationItem>
                           <PaginationNext 
-                            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                            className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                            aria-disabled={currentPage === totalPages}
+                            onClick={() => currentPage < totalPagesTestemunhais && handlePageChange(currentPage + 1)}
+                            className={currentPage === totalPagesTestemunhais ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                            aria-disabled={currentPage === totalPagesTestemunhais}
                           />
                         </PaginationItem>
                       </PaginationContent>
@@ -1016,99 +1163,125 @@ const GerenciamentoProgramas: React.FC = () => {
                   </div>
                 )}
                 
-                <div className="flex justify-between items-center p-4 text-sm text-muted-foreground border-t">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 text-xs sm:text-sm text-muted-foreground border-t gap-2">
                   <div>
                     Mostrando {indexOfFirstTestemunhal + 1}-{Math.min(indexOfLastTestemunhal, filteredTestemunhais.length)} de {filteredTestemunhais.length} resultados
                   </div>
-                  {searchTerm && (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setSearchTerm('');
-                        setCurrentPage(1);
-                      }}
-                    >
-                      Limpar busca
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="conteudos" className="mt-0">
-            <div className="mb-4">
-              <Input
-                placeholder="Buscar por nome, conteúdo ou programa..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="max-w-md"
-              />
+            <div className="mb-4 flex flex-col gap-4">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight mb-1">Produção</h2>
+                <p className="text-muted-foreground">Gerencie os conteúdos produzidos para a rádio.</p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                <Input
+                  placeholder="Buscar por nome, conteúdo ou programa..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="max-w-full sm:max-w-md"
+                />
+                {searchTerm && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setCurrentPage(1);
+                    }}
+                    className="w-full sm:w-auto"
+                  >
+                    Limpar busca
+                  </Button>
+                )}
+              </div>
             </div>
             
-            <Card>
+            <Card className="shadow-sm">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Conteúdo</TableHead>
-                        <TableHead>Programa</TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Horário</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
+                        <TableHead className="whitespace-nowrap">Nome</TableHead>
+                        <TableHead className="whitespace-nowrap">Conteúdo</TableHead>
+                        <TableHead className="whitespace-nowrap hidden sm:table-cell">Programa</TableHead>
+                        <TableHead className="whitespace-nowrap hidden md:table-cell">Data</TableHead>
+                        <TableHead className="whitespace-nowrap">Horário</TableHead>
+                        <TableHead className="whitespace-nowrap">Status</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {Array.isArray(currentConteudos) && currentConteudos.map((conteudo) => (
-                        <TableRow key={conteudo.id}>
-                          <TableCell className="font-medium">
-                            {conteudo.nome}
-                          </TableCell>
-                          <TableCell className="max-w-xs truncate">
-                            {conteudo.conteudo}
-                          </TableCell>
-                          <TableCell>{conteudo.programas?.nome || ''}</TableCell>
-                          <TableCell>{formatDate(conteudo.data_programada)}</TableCell>
-                          <TableCell>{conteudo.horario_programado.slice(0, 5)}</TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              conteudo.status === 'lido' 
-                                ? 'bg-green-100 text-green-800' 
-                                : conteudo.status === 'atrasado'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {conteudo.status === 'lido' 
-                                ? 'Lido' 
-                                : conteudo.status === 'atrasado'
-                                  ? 'Atrasado'
-                                  : 'Pendente'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => handleEdit(conteudo, 'conteudo')}>
-                                <Pencil size={16} />
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(conteudo)}>
-                                <Trash2 size={16} />
-                              </Button>
+                      {Array.isArray(currentConteudos) && currentConteudos.length > 0 ? (
+                        currentConteudos.map((conteudo) => (
+                          <TableRow key={conteudo.id} className="hover:bg-gray-50">
+                            <TableCell className="font-medium max-w-[120px] sm:max-w-[150px] truncate">
+                              <div title={conteudo.nome}>
+                                {conteudo.nome}
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-[150px] sm:max-w-xs truncate">
+                              <div title={conteudo.conteudo}>
+                                {conteudo.conteudo}
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell max-w-[150px] truncate">{conteudo.programas?.nome || ''}</TableCell>
+                            <TableCell className="hidden md:table-cell">{formatDate(conteudo.data_programada)}</TableCell>
+                            <TableCell>{conteudo.horario_programado.slice(0, 5)}</TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                conteudo.status === 'lido' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : conteudo.status === 'atrasado'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {conteudo.status === 'lido' 
+                                  ? 'Lido' 
+                                  : conteudo.status === 'atrasado'
+                                    ? 'Atrasado'
+                                    : 'Pendente'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1 sm:gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => handleEdit(conteudo, 'conteudo')} className="h-8 w-8 p-0" title="Editar">
+                                  <Pencil size={16} />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0" onClick={() => handleDelete(conteudo)} title="Excluir">
+                                  <Trash2 size={16} />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={7} className="h-24 text-center">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <CalendarDays className="h-8 w-8 text-muted-foreground opacity-30" />
+                              <p className="text-sm text-muted-foreground">
+                                {searchTerm ? "Nenhum conteúdo encontrado para esta busca" : "Nenhum conteúdo cadastrado"}
+                              </p>
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </div>
                 
                 {totalPagesConteudos > 1 && (
-                  <div className="flex justify-center py-4">
+                  <div className="flex justify-center py-4 overflow-x-auto">
                     <Pagination>
                       <PaginationContent>
                         <PaginationItem>
@@ -1120,7 +1293,7 @@ const GerenciamentoProgramas: React.FC = () => {
                         </PaginationItem>
                         
                         {getPageNumbers().map((page, index) => (
-                          <PaginationItem key={`page-${index}`}>
+                          <PaginationItem key={`page-${index}`} className="hidden sm:block">
                             {page === 'ellipsis-start' || page === 'ellipsis-end' ? (
                               <PaginationEllipsis />
                             ) : (
@@ -1134,6 +1307,10 @@ const GerenciamentoProgramas: React.FC = () => {
                             )}
                           </PaginationItem>
                         ))}
+                        
+                        <PaginationItem className="sm:hidden">
+                          <span className="px-2">{currentPage} / {totalPagesConteudos}</span>
+                        </PaginationItem>
                         
                         <PaginationItem>
                           <PaginationNext 
@@ -1147,21 +1324,10 @@ const GerenciamentoProgramas: React.FC = () => {
                   </div>
                 )}
                 
-                <div className="flex justify-between items-center p-4 text-sm text-muted-foreground border-t">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 text-xs sm:text-sm text-muted-foreground border-t gap-2">
                   <div>
                     Mostrando {indexOfFirstConteudo + 1}-{Math.min(indexOfLastConteudo, filteredConteudos.length)} de {filteredConteudos.length} resultados
                   </div>
-                  {searchTerm && (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setSearchTerm('');
-                        setCurrentPage(1);
-                      }}
-                    >
-                      Limpar busca
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1169,7 +1335,7 @@ const GerenciamentoProgramas: React.FC = () => {
         </Tabs>
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {selectedItem ? 'Editar' : 'Adicionar'} {modalType === 'programa' ? 'Programa' : modalType === 'testemunhal' ? 'Testemunhal' : 'Conteúdo'}
@@ -1178,19 +1344,19 @@ const GerenciamentoProgramas: React.FC = () => {
             
             {modalType === 'programa' ? (
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="nome" className="text-right">
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="nome" className="sm:text-right">
                     Nome
                   </Label>
                   <Input
                     id="nome"
                     value={formData.nome}
                     onChange={(e) => handleFormChange('nome', e.target.value)}
-                    className="col-span-3"
+                    className="col-span-1 sm:col-span-3"
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="horario_inicio" className="text-right">
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="horario_inicio" className="sm:text-right">
                     Horário Início
                   </Label>
                   <Input
@@ -1198,11 +1364,11 @@ const GerenciamentoProgramas: React.FC = () => {
                     type="time"
                     value={formData.horario_inicio}
                     onChange={(e) => handleFormChange('horario_inicio', e.target.value)}
-                    className="col-span-3"
+                    className="col-span-1 sm:col-span-3"
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="horario_fim" className="text-right">
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="horario_fim" className="sm:text-right">
                     Horário Fim
                   </Label>
                   <Input
@@ -1210,26 +1376,26 @@ const GerenciamentoProgramas: React.FC = () => {
                     type="time"
                     value={formData.horario_fim}
                     onChange={(e) => handleFormChange('horario_fim', e.target.value)}
-                    className="col-span-3"
+                    className="col-span-1 sm:col-span-3"
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="apresentador" className="text-right">
-                    Apresentadores
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="apresentador" className="sm:text-right">
+                    Apresentador
                   </Label>
                   <Input
                     id="apresentador"
                     value={formData.apresentador}
                     onChange={(e) => handleFormChange('apresentador', e.target.value)}
-                    className="col-span-3"
+                    className="col-span-1 sm:col-span-3"
                   />
                 </div>
-                <div className="grid grid-cols-4 items-start gap-4">
-                  <Label className="text-right pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-2 sm:gap-4">
+                  <Label className="sm:text-right mt-2">
                     Dias da Semana
                   </Label>
-                  <div className="col-span-3 flex flex-wrap gap-2">
-                    {diasSemana.map((dia) => (
+                  <div className="flex flex-wrap gap-2 col-span-1 sm:col-span-3">
+                    {diasSemana.map(dia => (
                       <div key={dia} className="flex items-center space-x-2">
                         <Checkbox 
                           id={`dia-${dia}`} 
@@ -1249,195 +1415,37 @@ const GerenciamentoProgramas: React.FC = () => {
               </div>
             ) : modalType === 'testemunhal' ? (
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="texto" className="text-right">
-                    Texto
-                  </Label>
-                  <Textarea
-                    id="texto"
-                    value={formData.texto}
-                    onChange={(e) => handleFormChange('texto', e.target.value)}
-                    className="col-span-3"
-                    rows={3}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="patrocinador" className="text-right">
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="patrocinador" className="sm:text-right">
                     Patrocinador
                   </Label>
                   <Input
                     id="patrocinador"
                     value={formData.patrocinador}
                     onChange={(e) => handleFormChange('patrocinador', e.target.value)}
-                    className="col-span-3"
+                    className="col-span-1 sm:col-span-3"
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="programa_id" className="text-right">
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="texto" className="sm:text-right">
+                    Texto
+                  </Label>
+                  <Textarea
+                    id="texto"
+                    value={formData.texto}
+                    onChange={(e) => handleFormChange('texto', e.target.value)}
+                    className="col-span-1 sm:col-span-3 min-h-[100px]"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="programa_id" className="sm:text-right">
                     Programa
                   </Label>
-                  <Select 
-                    value={formData.programa_id} 
-                    onValueChange={(value) => handleFormChange('programa_id', value)}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Selecione um programa" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.isArray(programas) && programas.map((programa) => (
-                        <SelectItem key={programa.id} value={programa.id}>
-                          {programa.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="leituras" className="text-right">
-                    Qtd. Leituras
-                  </Label>
-                  <div className="col-span-3 flex items-center">
-                    <Input
-                      id="leituras"
-                      type="number"
-                      min="1"
-                      value={formData.leituras}
-                      onChange={(e) => handleFormChange('leituras', parseInt(e.target.value) || 1)}
-                      className="w-24"
-                    />
-                    <span className="ml-2 text-gray-500">vezes durante o programa</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">
-                    Distribuição
-                  </Label>
-                  <div className="col-span-3 flex items-center space-x-2">
-                    <Checkbox 
-                      id="distribuir_automaticamente" 
-                      checked={formData.distribuir_automaticamente} 
-                      onCheckedChange={(checked) => handleFormChange('distribuir_automaticamente', !!checked)}
-                    />
-                    <label
-                      htmlFor="distribuir_automaticamente"
-                      className="text-sm font-medium leading-none"
-                    >
-                      Distribuir leituras automaticamente no horário do programa
-                    </label>
-                  </div>
-                </div>
-                {!formData.distribuir_automaticamente && (
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="horario_agendado" className="text-right">
-                      Horário
-                    </Label>
-                    <Input
-                      id="horario_agendado"
-                      type="time"
-                      value={formData.horario_agendado}
-                      onChange={(e) => handleFormChange('horario_agendado', e.target.value)}
-                      className="col-span-3"
-                    />
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="data_inicio" className="text-right">
-                    Data Início
-                  </Label>
-                  <div className="col-span-3">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {formData.data_inicio ? (
-                            format(formData.data_inicio, "dd/MM/yyyy", { locale: ptBR })
-                          ) : (
-                            <span>Selecione a data de início</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={formData.data_inicio}
-                          onSelect={(date) => handleFormChange('data_inicio', date)}
-                          initialFocus
-                          locale={ptBR}
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="data_fim" className="text-right">
-                    Data Fim
-                  </Label>
-                  <div className="col-span-3">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {formData.data_fim ? (
-                            format(formData.data_fim, "dd/MM/yyyy", { locale: ptBR })
-                          ) : (
-                            <span>Selecione a data de fim (opcional)</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={formData.data_fim}
-                          onSelect={(date) => handleFormChange('data_fim', date)}
-                          initialFocus
-                          locale={ptBR}
-                          disabled={(date) => formData.data_inicio ? date < formData.data_inicio : false}
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="nome">Nome do Conteúdo</Label>
-                  <Input
-                    id="nome"
-                    value={formData.nome}
-                    onChange={(e) => handleFormChange('nome', e.target.value)}
-                    placeholder="Nome do conteúdo"
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="conteudo">Conteúdo</Label>
-                  <Textarea
-                    id="conteudo"
-                    value={formData.conteudo}
-                    onChange={(e) => handleFormChange('conteudo', e.target.value)}
-                    placeholder="Digite o conteúdo aqui..."
-                    rows={5}
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="programa">Programa</Label>
                   <Select
                     value={formData.programa_id}
                     onValueChange={(value) => handleFormChange('programa_id', value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="col-span-1 sm:col-span-3">
                       <SelectValue placeholder="Selecione um programa" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1449,52 +1457,209 @@ const GerenciamentoProgramas: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                
-                <div className="grid gap-2">
-                  <Label>Data Programada</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="justify-start text-left font-normal"
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {formData.data_programada ? (
-                          format(formData.data_programada, 'PPP', { locale: ptBR })
-                        ) : (
-                          <span>Selecione uma data</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <CalendarComponent
-                        mode="single"
-                        selected={formData.data_programada}
-                        onSelect={(date) => handleFormChange('data_programada', date)}
-                        initialFocus
-                        locale={ptBR}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="data_inicio" className="sm:text-right">
+                    Data Início
+                  </Label>
+                  <div className="col-span-1 sm:col-span-3">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          {formData.data_inicio ? (
+                            format(formData.data_inicio, 'PPP', { locale: ptBR })
+                          ) : (
+                            <span>Selecione uma data</span>
+                          )}
+                          <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={formData.data_inicio}
+                          onSelect={(date) => handleFormChange('data_inicio', date)}
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="horario">Horário Programado</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="data_fim" className="sm:text-right">
+                    Data Fim (opcional)
+                  </Label>
+                  <div className="col-span-1 sm:col-span-3">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          {formData.data_fim ? (
+                            format(formData.data_fim, 'PPP', { locale: ptBR })
+                          ) : (
+                            <span>Selecione uma data</span>
+                          )}
+                          <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={formData.data_fim}
+                          onSelect={(date) => handleFormChange('data_fim', date)}
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="leituras" className="sm:text-right">
+                    Quantidade de Leituras
+                  </Label>
                   <Input
-                    id="horario"
+                    id="leituras"
+                    type="number"
+                    min="1"
+                    value={formData.leituras}
+                    onChange={(e) => handleFormChange('leituras', parseInt(e.target.value) || 1)}
+                    className="col-span-1 sm:col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <div className="sm:text-right">
+                    <Label>Distribuição</Label>
+                  </div>
+                  <div className="col-span-1 sm:col-span-3 flex items-center space-x-2">
+                    <Checkbox 
+                      id="distribuir_automaticamente" 
+                      checked={formData.distribuir_automaticamente} 
+                      onCheckedChange={(checked) => handleFormChange('distribuir_automaticamente', checked)}
+                    />
+                    <label
+                      htmlFor="distribuir_automaticamente"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Distribuir automaticamente durante o programa
+                    </label>
+                  </div>
+                </div>
+                {!formData.distribuir_automaticamente && (
+                  <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                    <Label htmlFor="horario_agendado" className="sm:text-right">
+                      Horário Agendado
+                    </Label>
+                    <Input
+                      id="horario_agendado"
+                      type="time"
+                      value={formData.horario_agendado}
+                      onChange={(e) => handleFormChange('horario_agendado', e.target.value)}
+                      className="col-span-1 sm:col-span-3"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="nome" className="sm:text-right">
+                    Nome
+                  </Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => handleFormChange('nome', e.target.value)}
+                    className="col-span-1 sm:col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="conteudo" className="sm:text-right">
+                    Conteúdo
+                  </Label>
+                  <Textarea
+                    id="conteudo"
+                    value={formData.conteudo}
+                    onChange={(e) => handleFormChange('conteudo', e.target.value)}
+                    className="col-span-1 sm:col-span-3 min-h-[100px]"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="programa_id" className="sm:text-right">
+                    Programa
+                  </Label>
+                  <Select
+                    value={formData.programa_id}
+                    onValueChange={(value) => handleFormChange('programa_id', value)}
+                  >
+                    <SelectTrigger className="col-span-1 sm:col-span-3">
+                      <SelectValue placeholder="Selecione um programa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {programas.map((programa) => (
+                        <SelectItem key={programa.id} value={programa.id}>
+                          {programa.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="data_programada" className="sm:text-right">
+                    Data Programada
+                  </Label>
+                  <div className="col-span-1 sm:col-span-3">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          {formData.data_programada ? (
+                            format(formData.data_programada, 'PPP', { locale: ptBR })
+                          ) : (
+                            <span>Selecione uma data</span>
+                          )}
+                          <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={formData.data_programada}
+                          onSelect={(date) => handleFormChange('data_programada', date)}
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="horario_programado" className="sm:text-right">
+                    Horário Programado
+                  </Label>
+                  <Input
+                    id="horario_programado"
                     type="time"
                     value={formData.horario_programado}
                     onChange={(e) => handleFormChange('horario_programado', e.target.value)}
+                    className="col-span-1 sm:col-span-3"
                   />
                 </div>
               </div>
             )}
             
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+            <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto">
                 Cancelar
               </Button>
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} className="w-full sm:w-auto">
                 Salvar
               </Button>
             </DialogFooter>

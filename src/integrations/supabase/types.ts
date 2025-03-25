@@ -20,6 +20,8 @@ export type Database = {
           status: string
           created_at: string
           updated_at: string
+          recorrente: boolean | null
+          lido_por: string[] | null
         }
         Insert: {
           id?: string
@@ -31,6 +33,8 @@ export type Database = {
           status?: string
           created_at?: string
           updated_at?: string
+          recorrente?: boolean | null
+          lido_por?: string[] | null
         }
         Update: {
           id?: string
@@ -42,6 +46,8 @@ export type Database = {
           status?: string
           created_at?: string
           updated_at?: string
+          recorrente?: boolean | null
+          lido_por?: string[] | null
         }
         Relationships: [
           {

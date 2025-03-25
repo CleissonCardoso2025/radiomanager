@@ -1,5 +1,7 @@
 /* postcss-preset-env stage 1 */
 /* CSS: ignore */
+/* stylelint-disable */
+/* VS Code: ignore the next 3 lines */
 /* @tailwind directives are valid in this project because it uses Tailwind CSS and PostCSS */
 @tailwind base;
 @tailwind components;
@@ -84,10 +86,12 @@
   }
 
   * {
+    /* IDE-IGNORE-NEXT-LINE */
     @apply border-border;
   }
 
   body {
+    /* IDE-IGNORE-NEXT-LINE */
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
@@ -138,6 +142,7 @@
 
   /* Font settings */
   h1, h2, h3, h4, h5, h6 {
+    /* IDE-IGNORE-NEXT-LINE */
     @apply font-light tracking-tight;
   }
 

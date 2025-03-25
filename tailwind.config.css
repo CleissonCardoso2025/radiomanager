@@ -1,0 +1,10 @@
+/* Este arquivo é usado apenas para configurar o VS Code para reconhecer as diretivas do Tailwind CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .example {
+    @apply text-center;
+  }
+}
