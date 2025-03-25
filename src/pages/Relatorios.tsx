@@ -45,6 +45,8 @@ import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
 
 // Interfaces para os dados
 interface Testemunhal {
@@ -212,10 +214,33 @@ const Relatorios: React.FC = () => {
   };
 
   const handleExport = (format: 'pdf' | 'excel') => {
-    toast({
-      title: `Relatório exportado com sucesso`,
-      description: `O arquivo foi exportado no formato ${format.toUpperCase()}.`,
-    });
+    if (format === 'pdf') {
+      const doc = new jsPDF();
+      doc.text('Relatório de Testemunhais', 10, 10);
+      doc.text(`Data: ${format(new Date(), 'dd/MM/yyyy')}`, 10, 20);
+      doc.text(`Total de Testemunhais: ${stats.total}`, 10, 30);
+      doc.text(`Testemunhais Lidos: ${stats.read}`, 10, 40);
+      doc.text(`Testemunhais Pendentes: ${stats.pending}`, 10, 50);
+      doc.text(`Testemunhais Atrasados: ${stats.late}`, 10, 60);
+      doc.save('relatorio.pdf');
+    } else if (format === 'excel') {
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet([
+        ['ID', 'Texto', 'Patrocinador', 'Programa', 'Horário Agendado', 'Horário de Leitura', 'Status', 'Data'],
+        ...testimonials.map(t => [
+          t.id,
+          t.texto,
+          t.patrocinador,
+          t.programa?.nome,
+          t.horario_agendado,
+          t.timestamp_leitura,
+          t.status,
+          format(new Date(t.created_at), 'dd/MM/yyyy')
+        ])
+      ]);
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatório');
+      XLSX.writeFile(workbook, 'relatorio.xlsx');
+    }
   };
 
   const filteredTestimonials = testimonials.filter(item => {
