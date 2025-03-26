@@ -67,18 +67,39 @@ const Login = () => {
             console.error('Error fetching user role:', roleError);
             // If the user exists but doesn't have a role, assign a default role
             if (roleError.code === 'PGRST116') {
-              const { error: insertError } = await supabase
+              // Check if a role for this user already exists before inserting
+              const { data: existingRole, error: checkError } = await supabase
                 .from('user_roles')
-                .insert({
-                  user_id: data.user.id,
-                  role: 'locutor'
-                });
+                .select('role')
+                .eq('user_id', data.user.id);
                 
-              if (insertError) {
-                throw new Error('Erro ao atribuir permissões ao usuário: ' + insertError.message);
+              if (checkError) {
+                console.error('Error checking existing role:', checkError);
               }
               
-              // Set default role after insertion
+              // Only insert if no role exists
+              if (!existingRole || existingRole.length === 0) {
+                const { error: insertError } = await supabase
+                  .from('user_roles')
+                  .insert({
+                    user_id: data.user.id,
+                    role: 'locutor'
+                  });
+                  
+                if (insertError) {
+                  console.error('Error inserting role:', insertError);
+                  if (insertError.code === '23505') {
+                    // This is a duplicate key error, but we can proceed since the role already exists
+                    console.log('Role already exists for user, continuing...');
+                  } else {
+                    throw new Error('Erro ao atribuir permissões ao usuário: ' + insertError.message);
+                  }
+                }
+              } else {
+                console.log('User already has a role, no need to insert');
+              }
+              
+              // Set default role after checking/insertion
               toast.success('Login realizado com sucesso! Atribuindo permissões de locutor.', {
                 position: 'bottom-right',
                 closeButton: true,

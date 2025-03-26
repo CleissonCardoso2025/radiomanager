@@ -1,3 +1,4 @@
+
 -- Criar políticas de segurança para a tabela user_roles
 -- Esta migração adiciona políticas RLS (Row Level Security) para permitir operações na tabela user_roles
 
