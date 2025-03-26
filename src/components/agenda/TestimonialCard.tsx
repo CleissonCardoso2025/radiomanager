@@ -72,6 +72,7 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
 
   // Determine if this is an upcoming testimonial
   const isUpcoming = testemunhal.isUpcoming;
+  const isExactTime = testemunhal.isExactTime;
   const isConteudo = testemunhal.tipo === 'conteudo';
   const minutesUntil = testemunhal.minutesUntil;
 
@@ -92,12 +93,16 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
       }}
       whileHover={{ scale: 1.01 }}
       transition={{ type: "spring", stiffness: 300 }}
-      className={isUpcoming ? "animate-pulse-slow" : ""}
+      className={cn(
+        isUpcoming && "animate-pulse-slow",
+        isExactTime && "animate-pulse"
+      )}
     >
       <Card className={cn(
         "overflow-hidden hover:shadow-lg transition-all", 
         getRandomGradient(),
         isUpcoming && "border-2 border-amber-500 bg-amber-50",
+        isExactTime && "border-2 border-red-500 bg-red-50 shadow-lg",
         isConteudo && "border-l-4 border-l-blue-500"
       )}>
         <CardHeader className="p-4 pb-0">
@@ -106,15 +111,23 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
               <Badge variant="outline" className={cn(
                 getStatusColor(testemunhal.status),
                 isConteudo && "bg-blue-100 text-blue-800 border-blue-200",
-                isUpcoming && "bg-amber-100 text-amber-800 border-amber-200"
+                isUpcoming && !isExactTime && "bg-amber-100 text-amber-800 border-amber-200",
+                isExactTime && "bg-red-100 text-red-800 border-red-200 animate-pulse"
               )}>
-                {isUpcoming ? 'Em breve' : (isConteudo ? 'Conteúdo' : getStatusText(testemunhal.status))}
+                {isExactTime ? 'AGORA!' : (isUpcoming ? 'Em breve' : (isConteudo ? 'Conteúdo' : getStatusText(testemunhal.status)))}
               </Badge>
               <span className="text-muted-foreground flex items-center">
-                <Clock className={`h-3.5 w-3.5 mr-1 ${isUpcoming ? 'text-amber-600' : ''}`} />
+                <Clock className={cn(
+                  "h-3.5 w-3.5 mr-1",
+                  isUpcoming && !isExactTime && "text-amber-600",
+                  isExactTime && "text-red-600"
+                )} />
                 {testemunhal.horario_agendado}
-                {isUpcoming && minutesUntil !== undefined && (
+                {isUpcoming && minutesUntil !== undefined && minutesUntil > 0 && (
                   <span className="ml-1 text-amber-700 font-medium">(em {minutesUntil} min)</span>
+                )}
+                {isExactTime && (
+                  <span className="ml-1 text-red-700 font-bold animate-pulse"> (HORÁRIO EXATO!)</span>
                 )}
               </span>
             </div>
@@ -158,7 +171,10 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
                 </Button>
               </div>
             </div>
-            <p style={{ fontSize: `${fontSize}px` }} className="whitespace-pre-wrap break-words">
+            <p style={{ fontSize: `${fontSize}px` }} className={cn(
+              "whitespace-pre-wrap break-words",
+              isExactTime && "font-semibold bg-red-50 p-2 rounded-md border border-red-200"
+            )}>
               {testemunhal.texto}
             </p>
           </div>
@@ -169,7 +185,10 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
               disabled={isPending}
               variant="success"
               size="sm"
-              className="shadow-sm"
+              className={cn(
+                "shadow-sm",
+                isExactTime && "bg-red-600 hover:bg-red-700"
+              )}
               isLoading={isPending}
             >
               {!isPending && <Check className="h-4 w-4 mr-1" />}

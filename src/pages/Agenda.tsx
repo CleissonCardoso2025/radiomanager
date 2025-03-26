@@ -40,8 +40,10 @@ const Agenda: React.FC = () => {
   const [connectionError, setConnectionError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
+  const [exactTimeTestimonials, setExactTimeTestimonials] = useState<any[]>([]);
   const today = new Date();
   
+  // Verificar se o aplicativo está online/offline
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -57,6 +59,7 @@ const Agenda: React.FC = () => {
     };
   }, []);
   
+  // Gerenciar reconexão automática em caso de erro
   useEffect(() => {
     if (connectionError) {
       const retryTimeout = setTimeout(() => {
@@ -68,6 +71,7 @@ const Agenda: React.FC = () => {
     }
   }, [connectionError, retryCount]);
 
+  // Efeito principal para carregar testemunhais e conteúdos programados
   useEffect(() => {
     checkConnection();
     
@@ -197,12 +201,19 @@ const Agenda: React.FC = () => {
               const minutesUntil = differenceInMinutes(scheduledDate, now);
               
               const isUpcoming = minutesUntil >= 0 && minutesUntil <= 30;
+              const isExactTime = minutesUntil === 0;
+              
+              if (isExactTime && isMobileDevice()) {
+                // Guardar testemunhais para o exato momento para notificação especial
+                console.log('Testemunhal no horário exato detectado:', item);
+              }
               
               return {
                 ...item,
                 id: item.id || `temp-${Date.now()}-${Math.random()}`,
                 texto: item.texto || "Sem texto disponível",
                 isUpcoming,
+                isExactTime,
                 minutesUntil,
                 tipo: 'testemunhal'
               };
@@ -212,7 +223,11 @@ const Agenda: React.FC = () => {
             }
           }).filter(Boolean);
           
-          console.log('Filtered testemunhais:', filteredData);
+          // Identificar testemunhais que estão no horário exato para notificação especial
+          const exactTimeItems = processedData.filter(item => item.isExactTime);
+          setExactTimeTestimonials(exactTimeItems);
+          
+          console.log('Filtered testemunhais:', processedData);
           
           const sortedData = processedData.sort((a, b) => {
             if (!a || !b) return 0;
@@ -378,6 +393,7 @@ const Agenda: React.FC = () => {
     fetchTestemunhais();
     fetchConteudosProduzidos();
     
+    // Intervalo para buscar novos dados a cada 5 minutos
     const intervalId = setInterval(() => {
       if (navigator.onLine) {
         fetchTestemunhais();
@@ -385,11 +401,57 @@ const Agenda: React.FC = () => {
       }
     }, 5 * 60 * 1000);
     
+    // Intervalo mais frequente (a cada 15 segundos) para verificar testemunhais no horário exato
+    const exactTimeCheckInterval = setInterval(() => {
+      if (navigator.onLine && testemunhais.length > 0) {
+        // Verificar todos os testemunhais para ver se algum está no exato momento atual
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTimeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+        
+        const exactTimeItems = testemunhais.filter(t => 
+          t.horario_agendado === currentTimeString && t.status !== 'lido'
+        );
+        
+        if (exactTimeItems.length > 0) {
+          console.log('Testemunhais no horário exato detectados:', exactTimeItems);
+          
+          // Ativar notificação especial para testemunhais no horário exato
+          notifyUpcomingTestimonial(exactTimeItems.length, true);
+          
+          // Vibrar com padrão mais intenso para indicar urgência
+          if (isMobileDevice() && window.navigator.vibrate) {
+            window.navigator.vibrate([300, 100, 300, 100, 500]);
+          }
+        }
+      }
+    }, 15 * 1000);
+    
     return () => {
       clearInterval(intervalId);
+      clearInterval(exactTimeCheckInterval);
       window.removeEventListener('connectionStatusChanged', handleConnectionChange as EventListener);
+      
+      // Liberar WakeLock ao desmontar o componente
+      releaseScreenWakeLock();
     };
   }, []);
+
+  // Effeito para notificar quando testemunhais no horário exato são detectados
+  useEffect(() => {
+    if (exactTimeTestimonials.length > 0) {
+      console.log('Notificando sobre testemunhais no horário exato:', exactTimeTestimonials);
+      
+      // Notificar com prioridade máxima - isso acorda a tela
+      notifyUpcomingTestimonial(exactTimeTestimonials.length, true);
+      
+      // Vibrar com padrão mais intenso para indicar urgência
+      if (isMobileDevice() && window.navigator.vibrate) {
+        window.navigator.vibrate([300, 100, 300, 100, 500]);
+      }
+    }
+  }, [exactTimeTestimonials]);
 
   const handleMarkAsRead = async (id: string, tipo: string = 'testemunhal') => {
     setIsMarkingAsRead(true);
