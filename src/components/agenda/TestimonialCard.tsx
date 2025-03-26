@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,10 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
   // Determine if this is an upcoming testimonial
   const isUpcoming = testemunhal.isUpcoming;
   const isConteudo = testemunhal.tipo === 'conteudo';
+
+  const handleMarkAsRead = () => {
+    onMarkAsRead(testemunhal.id, testemunhal.tipo);
+  };
 
   return (
     <motion.div 
@@ -156,7 +161,7 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
           
           <div className="mt-4 flex justify-end">
             <Button 
-              onClick={() => onMarkAsRead(testemunhal.id, testemunhal.tipo)}
+              onClick={handleMarkAsRead}
               disabled={isPending}
               variant="success"
               size="sm"

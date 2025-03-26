@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { format, differenceInMinutes, isWithinInterval, parseISO } from 'date-fns';
@@ -92,7 +93,7 @@ const Agenda: React.FC = () => {
         
         const { data, error } = await supabase
           .from('testemunhais')
-          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, programas!inner(id, nome, dias, apresentador)')
+          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, programas!inner(id, nome, dias, apresentador), timestamp_leitura')
           .order('horario_agendado', { ascending: true });
         
         if (error) {
@@ -157,13 +158,19 @@ const Agenda: React.FC = () => {
                 isWithinDateRange
               });
             }
-            // If neither is set, no date range filtering is applied
             
-            // Return true only if both conditions are met
-            return isCorrectDay && isWithinDateRange;
+            // Check if the testimonial was read today
+            let wasReadToday = false;
+            if (t.status === 'lido' && t.timestamp_leitura) {
+              const readDate = format(new Date(t.timestamp_leitura), 'yyyy-MM-dd');
+              wasReadToday = readDate === currentDate;
+            }
+            
+            // Return true only if all conditions are met and it wasn't read today
+            return isCorrectDay && isWithinDateRange && !wasReadToday;
           }) : [];
           
-          console.log('Filtered testemunhais by day and date range:', filteredData);
+          console.log('Filtered testemunhais by day, date range, and read status:', filteredData);
           
           // Helper function to check if current date is within a range
           function isCurrentDateInRange(currentDate: string, startDate: string, endDate: string): boolean {
