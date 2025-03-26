@@ -143,7 +143,7 @@ const Relatorios: React.FC = () => {
       // Processar os dados
       const formattedTestimonials = testemunhaisData?.map(item => ({
         id: item.id,
-        texto: item.texto,
+        texto: `${item.patrocinador} - ${typeof item.texto === 'string' ? item.texto.substring(0, 30) + '...' : 'Sem texto'}`,
         patrocinador: item.patrocinador,
         programa: item.programas,
         horario_agendado: item.horario_agendado,
@@ -239,7 +239,8 @@ const Relatorios: React.FC = () => {
         ])
       ]);
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatório');
-      XLSX.writeFile(workbook, 'relatorio.xlsx');
+      const fileName = `relatorio_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
     }
   };
 
