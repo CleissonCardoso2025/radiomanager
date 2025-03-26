@@ -11,43 +11,43 @@ export type Database = {
     Tables: {
       conteudos_produzidos: {
         Row: {
-          id: string
-          nome: string
           conteudo: string
-          programa_id: string
+          created_at: string | null
           data_programada: string
           horario_programado: string
-          status: string
-          created_at: string
-          updated_at: string
-          recorrente: boolean | null
+          id: string
           lido_por: string[] | null
+          nome: string
+          programa_id: string | null
+          recorrente: boolean | null
+          status: string | null
+          updated_at: string | null
         }
         Insert: {
-          id?: string
-          nome: string
           conteudo: string
-          programa_id: string
+          created_at?: string | null
           data_programada: string
           horario_programado: string
-          status?: string
-          created_at?: string
-          updated_at?: string
-          recorrente?: boolean | null
+          id?: string
           lido_por?: string[] | null
+          nome: string
+          programa_id?: string | null
+          recorrente?: boolean | null
+          status?: string | null
+          updated_at?: string | null
         }
         Update: {
-          id?: string
-          nome?: string
           conteudo?: string
-          programa_id?: string
+          created_at?: string | null
           data_programada?: string
           horario_programado?: string
-          status?: string
-          created_at?: string
-          updated_at?: string
-          recorrente?: boolean | null
+          id?: string
           lido_por?: string[] | null
+          nome?: string
+          programa_id?: string | null
+          recorrente?: boolean | null
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {

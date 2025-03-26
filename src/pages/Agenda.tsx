@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
-import { format, differenceInMinutes } from 'date-fns';
+import { format, differenceInMinutes, isWithinInterval, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase, connectionStatus, isConnectionError, checkConnection } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -86,9 +86,13 @@ const Agenda: React.FC = () => {
         const dayOfWeek = format(today, 'EEEE', { locale: ptBR });
         console.log('Current day of week:', dayOfWeek);
         
+        // Get the current date in ISO format (YYYY-MM-DD)
+        const currentDate = format(today, 'yyyy-MM-dd');
+        console.log('Current date:', currentDate);
+        
         const { data, error } = await supabase
           .from('testemunhais')
-          .select('id, patrocinador, texto, horario_agendado, status, programa_id, programas!inner(id, nome, dias, apresentador)')
+          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, programas!inner(id, nome, dias, apresentador)')
           .order('horario_agendado', { ascending: true });
         
         if (error) {
@@ -109,19 +113,62 @@ const Agenda: React.FC = () => {
         } else {
           console.log('Raw testemunhais data:', data);
           
-          // Filter by today's day of week - improved filtering with better logging
+          // Filter by today's day of week AND date range
           const filteredData = data && Array.isArray(data) ? data.filter(t => {
             if (!t || !t.programas) return false;
             
             const programDays = t.programas?.dias || [];
+            const isCorrectDay = programDays.includes(dayOfWeek);
+            
             console.log(`Testemunhal ${t.id} for program ${t.programas?.nome}:`, {
               programDays,
               currentDay: dayOfWeek,
-              includes: programDays.includes(dayOfWeek)
+              includes: isCorrectDay
             });
             
-            return programDays.includes(dayOfWeek);
+            // Check if the current date is within the date range, if date range is specified
+            let isWithinDateRange = true;
+            
+            // If both data_inicio and data_fim are set, check if current date is within range
+            if (t.data_inicio && t.data_fim) {
+              isWithinDateRange = isCurrentDateInRange(currentDate, t.data_inicio, t.data_fim);
+              console.log(`Date range check for testemunhal ${t.id}:`, {
+                data_inicio: t.data_inicio,
+                data_fim: t.data_fim,
+                currentDate,
+                isWithinDateRange
+              });
+            } 
+            // If only data_inicio is set, check if current date is after or equal to start date
+            else if (t.data_inicio) {
+              isWithinDateRange = currentDate >= t.data_inicio;
+              console.log(`Start date check for testemunhal ${t.id}:`, {
+                data_inicio: t.data_inicio,
+                currentDate,
+                isWithinDateRange
+              });
+            } 
+            // If only data_fim is set, check if current date is before or equal to end date
+            else if (t.data_fim) {
+              isWithinDateRange = currentDate <= t.data_fim;
+              console.log(`End date check for testemunhal ${t.id}:`, {
+                data_fim: t.data_fim,
+                currentDate,
+                isWithinDateRange
+              });
+            }
+            // If neither is set, no date range filtering is applied
+            
+            // Return true only if both conditions are met
+            return isCorrectDay && isWithinDateRange;
           }) : [];
+          
+          console.log('Filtered testemunhais by day and date range:', filteredData);
+          
+          // Helper function to check if current date is within a range
+          function isCurrentDateInRange(currentDate: string, startDate: string, endDate: string): boolean {
+            return currentDate >= startDate && currentDate <= endDate;
+          }
           
           // Ensure all required fields are present
           const processedData = filteredData.map(item => {
