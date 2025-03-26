@@ -55,32 +55,65 @@ const Login = () => {
         
         if (error) throw error;
         
-        // Fetch user role from user_roles table
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', data.user.id)
-          .single();
+        try {
+          // Fetch user role from user_roles table
+          const { data: roleData, error: roleError } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', data.user.id)
+            .single();
+            
+          if (roleError) {
+            console.error('Error fetching user role:', roleError);
+            // If the user exists but doesn't have a role, assign a default role
+            if (roleError.code === 'PGRST116') {
+              const { error: insertError } = await supabase
+                .from('user_roles')
+                .insert({
+                  user_id: data.user.id,
+                  role: 'locutor'
+                });
+                
+              if (insertError) {
+                throw new Error('Erro ao atribuir permissões ao usuário: ' + insertError.message);
+              }
+              
+              // Set default role after insertion
+              toast.success('Login realizado com sucesso! Atribuindo permissões de locutor.', {
+                position: 'bottom-right',
+                closeButton: true,
+                duration: 5000
+              });
+              navigate('/agenda');
+              return;
+            } else {
+              throw new Error('Erro ao verificar permissões do usuário: ' + roleError.message);
+            }
+          }
           
-        if (roleError) {
-          console.error('Error fetching user role:', roleError);
-          throw new Error('Erro ao verificar permissões do usuário');
-        }
-        
-        const userRole = roleData?.role;
-        
-        if (userRole === 'admin') {
-          toast.success('Login realizado com sucesso!', {
+          const userRole = roleData?.role;
+          
+          if (userRole === 'admin') {
+            toast.success('Login realizado com sucesso!', {
+              position: 'bottom-right',
+              closeButton: true,
+              duration: 5000
+            });
+            navigate('/');
+          } else if (userRole === 'locutor') {
+            // Locutor: redirecionar diretamente para agenda sem avisos
+            navigate('/agenda');
+          } else {
+            throw new Error('Tipo de usuário não reconhecido');
+          }
+        } catch (roleError: any) {
+          console.error('Erro ao verificar papel do usuário:', roleError);
+          toast.error('Erro de Permissão', {
+            description: roleError.message || 'Erro ao verificar permissões do usuário',
             position: 'bottom-right',
             closeButton: true,
             duration: 5000
           });
-          navigate('/');
-        } else if (userRole === 'locutor') {
-          // Locutor: redirecionar diretamente para agenda sem avisos
-          navigate('/agenda');
-        } else {
-          throw new Error('Tipo de usuário não reconhecido');
         }
       }
     } catch (error: any) {
