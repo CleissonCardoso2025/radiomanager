@@ -73,6 +73,7 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
   // Determine if this is an upcoming testimonial
   const isUpcoming = testemunhal.isUpcoming;
   const isConteudo = testemunhal.tipo === 'conteudo';
+  const minutesUntil = testemunhal.minutesUntil;
 
   const handleMarkAsRead = () => {
     onMarkAsRead(testemunhal.id, testemunhal.tipo);
@@ -91,6 +92,7 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
       }}
       whileHover={{ scale: 1.01 }}
       transition={{ type: "spring", stiffness: 300 }}
+      className={isUpcoming ? "animate-pulse-slow" : ""}
     >
       <Card className={cn(
         "overflow-hidden hover:shadow-lg transition-all", 
@@ -103,13 +105,17 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={cn(
                 getStatusColor(testemunhal.status),
-                isConteudo && "bg-blue-100 text-blue-800 border-blue-200"
+                isConteudo && "bg-blue-100 text-blue-800 border-blue-200",
+                isUpcoming && "bg-amber-100 text-amber-800 border-amber-200"
               )}>
-                {isConteudo ? 'Conteúdo' : getStatusText(testemunhal.status)}
+                {isUpcoming ? 'Em breve' : (isConteudo ? 'Conteúdo' : getStatusText(testemunhal.status))}
               </Badge>
               <span className="text-muted-foreground flex items-center">
-                <Clock className="h-3.5 w-3.5 mr-1" />
+                <Clock className={`h-3.5 w-3.5 mr-1 ${isUpcoming ? 'text-amber-600' : ''}`} />
                 {testemunhal.horario_agendado}
+                {isUpcoming && minutesUntil !== undefined && (
+                  <span className="ml-1 text-amber-700 font-medium">(em {minutesUntil} min)</span>
+                )}
               </span>
             </div>
           </div>
@@ -132,7 +138,6 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  rounded="full"
                   onClick={decreaseFontSize} 
                   className="h-8 w-8 text-gray-600 hover:bg-gray-200/70"
                   title="Diminuir texto"
@@ -144,7 +149,6 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  rounded="full"
                   onClick={increaseFontSize} 
                   className="h-8 w-8 text-gray-600 hover:bg-gray-200/70"
                   title="Aumentar texto"
@@ -165,7 +169,6 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
               disabled={isPending}
               variant="success"
               size="sm"
-              rounded="lg"
               className="shadow-sm"
               isLoading={isPending}
             >

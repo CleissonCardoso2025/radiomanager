@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { format, differenceInMinutes, isWithinInterval, parseISO } from 'date-fns';
@@ -28,7 +27,6 @@ const Agenda: React.FC = () => {
   const [isOnline, setIsOnline] = useState(true);
   const today = new Date();
   
-  // Monitor online status
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -36,7 +34,6 @@ const Agenda: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    // Set initial state
     setIsOnline(navigator.onLine);
     
     return () => {
@@ -45,23 +42,20 @@ const Agenda: React.FC = () => {
     };
   }, []);
   
-  // Retry mechanism for connection errors
   useEffect(() => {
     if (connectionError) {
       const retryTimeout = setTimeout(() => {
         console.log(`Tentativa automática de reconexão #${retryCount + 1}`);
         window.location.reload();
-      }, 10000); // Tentar reconectar após 10 segundos
+      }, 10000);
       
       return () => clearTimeout(retryTimeout);
     }
   }, [connectionError, retryCount]);
 
   useEffect(() => {
-    // Verificar a conexão ao carregar a página
     checkConnection();
     
-    // Adicionar listener para mudanças no status da conexão
     const handleConnectionChange = (event: CustomEvent) => {
       const { isOnline, error, retryCount } = event.detail;
       setIsOnline(isOnline);
@@ -69,7 +63,6 @@ const Agenda: React.FC = () => {
       setRetryCount(retryCount);
       
       if (isOnline && !error) {
-        // Se a conexão foi restaurada, recarregar os dados
         fetchTestemunhais();
         fetchConteudosProduzidos();
       }
@@ -77,17 +70,14 @@ const Agenda: React.FC = () => {
     
     window.addEventListener('connectionStatusChanged', handleConnectionChange as EventListener);
     
-    // Função para carregar testemunhais
     const fetchTestemunhais = async () => {
       try {
         setIsLoading(true);
         setConnectionError(false);
         
-        // Get the current day of week in Portuguese
         const dayOfWeek = format(today, 'EEEE', { locale: ptBR });
         console.log('Current day of week:', dayOfWeek);
         
-        // Get the current date in ISO format (YYYY-MM-DD)
         const currentDate = format(today, 'yyyy-MM-dd');
         console.log('Current date:', currentDate);
         
@@ -99,7 +89,6 @@ const Agenda: React.FC = () => {
         if (error) {
           console.error('Error fetching testemunhais:', error);
           
-          // Check if it's a network error
           if (error.message.includes('Failed to fetch')) {
             setConnectionError(true);
           }
@@ -114,7 +103,6 @@ const Agenda: React.FC = () => {
         } else {
           console.log('Raw testemunhais data:', data);
           
-          // Filter by today's day of week AND date range
           const filteredData = data && Array.isArray(data) ? data.filter(t => {
             if (!t || !t.programas) return false;
             
@@ -127,10 +115,8 @@ const Agenda: React.FC = () => {
               includes: isCorrectDay
             });
             
-            // Check if the current date is within the date range, if date range is specified
             let isWithinDateRange = true;
             
-            // If both data_inicio and data_fim are set, check if current date is within range
             if (t.data_inicio && t.data_fim) {
               isWithinDateRange = isCurrentDateInRange(currentDate, t.data_inicio, t.data_fim);
               console.log(`Date range check for testemunhal ${t.id}:`, {
@@ -140,7 +126,6 @@ const Agenda: React.FC = () => {
                 isWithinDateRange
               });
             } 
-            // If only data_inicio is set, check if current date is after or equal to start date
             else if (t.data_inicio) {
               isWithinDateRange = currentDate >= t.data_inicio;
               console.log(`Start date check for testemunhal ${t.id}:`, {
@@ -149,7 +134,6 @@ const Agenda: React.FC = () => {
                 isWithinDateRange
               });
             } 
-            // If only data_fim is set, check if current date is before or equal to end date
             else if (t.data_fim) {
               isWithinDateRange = currentDate <= t.data_fim;
               console.log(`End date check for testemunhal ${t.id}:`, {
@@ -159,25 +143,17 @@ const Agenda: React.FC = () => {
               });
             }
             
-            // Check if the testimonial was read today
             let wasReadToday = false;
             if (t.status === 'lido' && t.timestamp_leitura) {
               const readDate = format(new Date(t.timestamp_leitura), 'yyyy-MM-dd');
               wasReadToday = readDate === currentDate;
             }
             
-            // Return true only if all conditions are met and it wasn't read today
             return isCorrectDay && isWithinDateRange && !wasReadToday;
           }) : [];
           
           console.log('Filtered testemunhais by day, date range, and read status:', filteredData);
           
-          // Helper function to check if current date is within a range
-          function isCurrentDateInRange(currentDate: string, startDate: string, endDate: string): boolean {
-            return currentDate >= startDate && currentDate <= endDate;
-          }
-          
-          // Ensure all required fields are present
           const processedData = filteredData.map(item => {
             try {
               if (!item || !item.horario_agendado || typeof item.horario_agendado !== 'string') {
@@ -185,7 +161,6 @@ const Agenda: React.FC = () => {
                 return null;
               }
               
-              // Create a date object for today with the scheduled time
               const scheduledTimeParts = item.horario_agendado.split(':');
               if (scheduledTimeParts.length < 2) {
                 console.warn('Formato de horário inválido:', item.horario_agendado);
@@ -203,12 +178,10 @@ const Agenda: React.FC = () => {
               const scheduledDate = new Date();
               scheduledDate.setHours(scheduledHour, scheduledMinute, 0);
               
-              // Calculate minutes until scheduled time
               const now = new Date();
               const minutesUntil = differenceInMinutes(scheduledDate, now);
               
-              // Add isUpcoming flag based on time proximity (10-30 minutes)
-              const isUpcoming = minutesUntil >= 10 && minutesUntil <= 30;
+              const isUpcoming = minutesUntil >= 0 && minutesUntil <= 30;
               
               return {
                 ...item,
@@ -226,16 +199,12 @@ const Agenda: React.FC = () => {
           
           console.log('Filtered testemunhais:', filteredData);
           
-          // Sort to show upcoming testimonials first, then by scheduled time
           const sortedData = processedData.sort((a, b) => {
-            // Verificar se os objetos são válidos
             if (!a || !b) return 0;
             
-            // First by upcoming status (upcoming first)
             if (a.isUpcoming && !b.isUpcoming) return -1;
             if (!a.isUpcoming && b.isUpcoming) return 1;
             
-            // Then by scheduled time
             if (a.horario_agendado && b.horario_agendado) {
               return a.horario_agendado.localeCompare(b.horario_agendado);
             }
@@ -259,10 +228,8 @@ const Agenda: React.FC = () => {
       }
     };
     
-    // Função para carregar conteúdos produzidos
     const fetchConteudosProduzidos = async () => {
       try {
-        // Verificar se a tabela existe
         const { error: checkError } = await supabase
           .from('conteudos_produzidos')
           .select('count')
@@ -274,10 +241,8 @@ const Agenda: React.FC = () => {
           return;
         }
         
-        // Obter a data atual formatada como string YYYY-MM-DD
         const dataAtual = format(today, 'yyyy-MM-dd');
         
-        // Obter o usuário atual
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
@@ -285,7 +250,6 @@ const Agenda: React.FC = () => {
           return;
         }
         
-        // Buscar conteúdos programados para a data atual
         const { data, error } = await supabase
           .from('conteudos_produzidos')
           .select('*, programas(id, nome, apresentador)')
@@ -295,7 +259,6 @@ const Agenda: React.FC = () => {
         if (error) {
           console.error('Erro ao carregar conteúdos produzidos:', error);
           
-          // Verificar se é um erro de conexão
           if (error.message.includes('Failed to fetch')) {
             setConnectionError(true);
           }
@@ -312,33 +275,22 @@ const Agenda: React.FC = () => {
         
         console.log('Conteúdos produzidos para hoje:', data);
         
-        // Filtrar conteúdos já lidos (a menos que sejam recorrentes)
         const filteredData = data && Array.isArray(data) ? data.filter(item => {
-          // Se o status não for 'lido', mostrar o conteúdo
           if (item.status !== 'lido') return true;
-          
-          // Se o conteúdo for recorrente, mostrar mesmo que já tenha sido lido
           if (item.recorrente) return true;
-          
-          // Se o usuário atual não estiver no array lido_por, mostrar o conteúdo
           if (item.lido_por && Array.isArray(item.lido_por) && !item.lido_por.includes(user.id)) {
             return true;
           }
-          
-          // Caso contrário, não mostrar o conteúdo
           return false;
         }) : [];
         
-        // Processar os dados para o formato esperado pelo componente TestimonialList
         const processedData = filteredData.map(item => {
           try {
-            // Verificar se o item tem as propriedades necessárias
             if (!item || !item.horario_programado || typeof item.horario_programado !== 'string') {
               console.warn('Item inválido ou sem horário programado:', item);
               return null;
             }
             
-            // Criar um objeto de data para hoje com o horário programado
             const scheduledTimeParts = item.horario_programado.split(':');
             if (scheduledTimeParts.length < 2) {
               console.warn('Formato de horário inválido:', item.horario_programado);
@@ -356,14 +308,11 @@ const Agenda: React.FC = () => {
             const scheduledDate = new Date();
             scheduledDate.setHours(scheduledHour, scheduledMinute, 0);
             
-            // Calcular minutos até o horário programado
             const now = new Date();
             const minutesUntil = differenceInMinutes(scheduledDate, now);
             
-            // Adicionar flag isUpcoming com base na proximidade do horário (10-30 minutos)
-            const isUpcoming = minutesUntil >= 10 && minutesUntil <= 30;
+            const isUpcoming = minutesUntil >= 0 && minutesUntil <= 30;
             
-            // Se o item estiver próximo e estivermos em um dispositivo móvel, tocar som de notificação
             if (isUpcoming && isMobileDevice()) {
               playNotificationSound('alert');
             }
@@ -386,16 +335,12 @@ const Agenda: React.FC = () => {
           }
         }).filter(Boolean);
         
-        // Ordenar para mostrar conteúdos próximos primeiro, depois por horário programado
         const sortedData = processedData.sort((a, b) => {
-          // Verificar se os objetos são válidos
           if (!a || !b) return 0;
           
-          // Primeiro por status de proximidade (próximos primeiro)
           if (a.isUpcoming && !b.isUpcoming) return -1;
           if (!a.isUpcoming && b.isUpcoming) return 1;
           
-          // Depois por horário programado
           if (a.horario_programado && b.horario_programado) {
             return a.horario_programado.localeCompare(b.horario_programado);
           }
@@ -418,7 +363,6 @@ const Agenda: React.FC = () => {
     fetchTestemunhais();
     fetchConteudosProduzidos();
     
-    // Configurar intervalo para atualizar os dados a cada 5 minutos
     const intervalId = setInterval(() => {
       if (navigator.onLine) {
         fetchTestemunhais();
@@ -432,12 +376,10 @@ const Agenda: React.FC = () => {
     };
   }, []);
 
-  // Function to mark a testemunhal as read
   const handleMarkAsRead = async (id: string, tipo: string = 'testemunhal') => {
     setIsMarkingAsRead(true);
     
     try {
-      // Obter o usuário atual
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -458,12 +400,10 @@ const Agenda: React.FC = () => {
           
         if (error) throw error;
         
-        // Remove the testimonial from the local list immediately
         setTestemunhais(prevTestemunhais => 
           prevTestemunhais.filter(t => t.id !== id)
         );
         
-        // Reproduzir som de sucesso em dispositivos móveis
         if (isMobileDevice()) {
           playNotificationSound('success');
         }
@@ -474,7 +414,6 @@ const Agenda: React.FC = () => {
           duration: 5000
         });
       } else if (tipo === 'conteudo') {
-        // Primeiro, verificar se o conteúdo é recorrente
         const { data: conteudoData, error: conteudoError } = await supabase
           .from('conteudos_produzidos')
           .select('recorrente, lido_por')
@@ -483,21 +422,17 @@ const Agenda: React.FC = () => {
           
         if (conteudoError) throw conteudoError;
         
-        // Preparar o array lido_por atualizado
         let lido_por = [];
         
         if (conteudoData.lido_por && Array.isArray(conteudoData.lido_por)) {
-          // Se o array já existe, adicionar o usuário atual se ainda não estiver presente
           lido_por = [...conteudoData.lido_por];
           if (!lido_por.includes(user.id)) {
             lido_por.push(user.id);
           }
         } else {
-          // Se o array não existe, criar um novo com o usuário atual
           lido_por = [user.id];
         }
         
-        // Atualizar o conteúdo
         const { data, error } = await supabase
           .from('conteudos_produzidos')
           .update({ 
@@ -510,13 +445,11 @@ const Agenda: React.FC = () => {
           
         if (error) throw error;
         
-        // Se o conteúdo não for recorrente, remover da lista local
         if (!conteudoData.recorrente) {
           setConteudos(prevConteudos => 
             prevConteudos.filter(c => c.id !== id)
           );
         } else {
-          // Se for recorrente, apenas atualizar o status na lista local
           setConteudos(prevConteudos => 
             prevConteudos.map(c => 
               c.id === id ? { ...c, status: 'lido' } : c
@@ -524,7 +457,6 @@ const Agenda: React.FC = () => {
           );
         }
         
-        // Reproduzir som de sucesso em dispositivos móveis
         if (isMobileDevice()) {
           playNotificationSound('success');
         }
@@ -547,7 +479,6 @@ const Agenda: React.FC = () => {
     }
   };
 
-  // Filter testimonials based on search text
   const filteredTestimonials = [...(testemunhais || []), ...(conteudos || [])].filter(item => {
     if (!item) return false;
     
