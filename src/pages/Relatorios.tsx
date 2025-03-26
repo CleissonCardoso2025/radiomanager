@@ -218,10 +218,10 @@ const Relatorios: React.FC = () => {
       const doc = new jsPDF();
       doc.text('Relatório de Testemunhais', 10, 10);
       doc.text(`Data: ${format(new Date(), 'dd/MM/yyyy')}`, 10, 20);
-      doc.text(`Total de Testemunhais: ${stats.total}`, 10, 30);
+      doc.text(`Total de Testemunhais: ${stats.total.toString()}`, 10, 30);
       doc.text(`Testemunhais Lidos: ${stats.read}`, 10, 40);
       doc.text(`Testemunhais Pendentes: ${stats.pending}`, 10, 50);
-      doc.text(`Testemunhais Atrasados: ${stats.late}`, 10, 60);
+      doc.text(`Testemunhais Atrasados: ${stats.late.toString()}`, 10, 60);
       doc.save('relatorio.pdf');
     } else if (format === 'excel') {
       const workbook = XLSX.utils.book_new();
@@ -790,3 +790,4 @@ const Relatorios: React.FC = () => {
 };
 
 export default Relatorios;
+
