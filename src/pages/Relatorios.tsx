@@ -790,4 +790,3 @@ const Relatorios: React.FC = () => {
 };
 
 export default Relatorios;
-
