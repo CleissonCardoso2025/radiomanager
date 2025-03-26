@@ -16,6 +16,21 @@ import SearchBar from '@/components/agenda/SearchBar';
 import TestimonialList from '@/components/agenda/TestimonialList';
 import Footer from '@/components/agenda/Footer';
 
+// Helper function to check if current date is within a date range
+const isCurrentDateInRange = (currentDate: string, startDate: string | null, endDate: string | null): boolean => {
+  if (!startDate && !endDate) return true;
+  
+  if (startDate && endDate) {
+    return currentDate >= startDate && currentDate <= endDate;
+  } else if (startDate) {
+    return currentDate >= startDate;
+  } else if (endDate) {
+    return currentDate <= endDate;
+  }
+  
+  return true;
+};
+
 const Agenda: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [testemunhais, setTestemunhais] = useState([]);
