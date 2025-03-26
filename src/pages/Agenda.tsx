@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { format, differenceInMinutes, isWithinInterval, parseISO } from 'date-fns';
@@ -125,6 +126,8 @@ const Agenda: React.FC = () => {
           const filteredData = data && Array.isArray(data) ? data.filter(t => {
             if (!t || !t.programas) return false;
             
+            // Verificar se o dia da semana está incluído nos dias do programa
+            // Os dias na lista devem ser em português, precisamos garantir isso
             const programDays = t.programas?.dias || [];
             const isCorrectDay = programDays.includes(dayOfWeek);
             
@@ -134,41 +137,39 @@ const Agenda: React.FC = () => {
               includes: isCorrectDay
             });
             
+            // Verificar se está dentro do período de datas (caso exista)
             let isWithinDateRange = true;
             
-            if (t.data_inicio && t.data_fim) {
-              isWithinDateRange = isCurrentDateInRange(currentDate, t.data_inicio, t.data_fim);
-              console.log(`Date range check for testemunhal ${t.id}:`, {
-                data_inicio: t.data_inicio,
-                data_fim: t.data_fim,
-                currentDate,
-                isWithinDateRange
-              });
-            } 
-            else if (t.data_inicio) {
-              isWithinDateRange = currentDate >= t.data_inicio;
-              console.log(`Start date check for testemunhal ${t.id}:`, {
-                data_inicio: t.data_inicio,
-                currentDate,
-                isWithinDateRange
-              });
-            } 
-            else if (t.data_fim) {
-              isWithinDateRange = currentDate <= t.data_fim;
-              console.log(`End date check for testemunhal ${t.id}:`, {
-                data_fim: t.data_fim,
-                currentDate,
-                isWithinDateRange
-              });
+            // Correção na verificação de datas - certifique-se de que as datas estão em formato string
+            if (t.data_inicio || t.data_fim) {
+              // Se data_inicio existe, verificar se a data atual é maior ou igual
+              if (t.data_inicio) {
+                const startDateStr = t.data_inicio.toString();
+                isWithinDateRange = isWithinDateRange && (currentDate >= startDateStr);
+                console.log(`Start date check for ${t.id}:`, { currentDate, startDate: startDateStr, result: (currentDate >= startDateStr) });
+              }
+              
+              // Se data_fim existe, verificar se a data atual é menor ou igual
+              if (t.data_fim) {
+                const endDateStr = t.data_fim.toString();
+                isWithinDateRange = isWithinDateRange && (currentDate <= endDateStr);
+                console.log(`End date check for ${t.id}:`, { currentDate, endDate: endDateStr, result: (currentDate <= endDateStr) });
+              }
             }
             
+            // Verificar se já foi lido hoje
             let wasReadToday = false;
             if (t.status === 'lido' && t.timestamp_leitura) {
               const readDate = format(new Date(t.timestamp_leitura), 'yyyy-MM-dd');
               wasReadToday = readDate === currentDate;
+              console.log(`Read status check for ${t.id}:`, { readDate, currentDate, wasReadToday });
             }
             
-            return isCorrectDay && isWithinDateRange && !wasReadToday;
+            // Para depuração, registre o resultado da filtragem
+            const shouldInclude = isCorrectDay && isWithinDateRange && !wasReadToday;
+            console.log(`Final decision for testemunhal ${t.id}:`, { shouldInclude, isCorrectDay, isWithinDateRange, wasReadToday });
+            
+            return shouldInclude;
           }) : [];
           
           console.log('Filtered testemunhais by day, date range, and read status:', filteredData);
