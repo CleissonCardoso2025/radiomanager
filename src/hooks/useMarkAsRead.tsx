@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -20,10 +19,30 @@ export function useMarkAsRead() {
       }
       
       if (tipo === 'testemunhal') {
+        const { data: testemunhalData, error: testemunhalError } = await supabase
+          .from('testemunhais')
+          .select('recorrente, lido_por')
+          .eq('id', id)
+          .single();
+          
+        if (testemunhalError) throw testemunhalError;
+        
+        let lido_por = [];
+        
+        if (testemunhalData.lido_por && Array.isArray(testemunhalData.lido_por)) {
+          lido_por = [...testemunhalData.lido_por];
+          if (!lido_por.includes(user.id)) {
+            lido_por.push(user.id);
+          }
+        } else {
+          lido_por = [user.id];
+        }
+        
         const { data, error } = await supabase
           .from('testemunhais')
           .update({ 
             status: 'lido',
+            lido_por: lido_por,
             timestamp_leitura: new Date().toISOString()
           })
           .eq('id', id)
@@ -41,7 +60,7 @@ export function useMarkAsRead() {
           duration: 5000
         });
         
-        return true;
+        return testemunhalData.recorrente ? 'recorrente' : true;
       } else if (tipo === 'conteudo') {
         const { data: conteudoData, error: conteudoError } = await supabase
           .from('conteudos_produzidos')

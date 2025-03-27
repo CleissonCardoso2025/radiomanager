@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -25,7 +24,7 @@ export function useTestimonials() {
         
         const { data, error } = await supabase
           .from('testemunhais')
-          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, programas!inner(id, nome, dias, apresentador), timestamp_leitura')
+          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, programas!inner(id, nome, dias, apresentador), timestamp_leitura, recorrente, lido_por')
           .order('horario_agendado', { ascending: true });
         
         if (error) {
@@ -54,6 +53,9 @@ export function useTestimonials() {
               includes: isCorrectDay
             });
             
+            // Se não corresponder ao dia atual, não mostrar
+            if (!isCorrectDay) return false;
+            
             // Verificar se está dentro do período de datas (caso exista)
             let isWithinDateRange = true;
             
@@ -73,19 +75,30 @@ export function useTestimonials() {
               }
             }
             
-            // Verificar se já foi lido hoje
-            let wasReadToday = false;
-            if (t.status === 'lido' && t.timestamp_leitura) {
-              const readDate = format(new Date(t.timestamp_leitura), 'yyyy-MM-dd');
-              wasReadToday = readDate === currentDate;
-              console.log(`Read status check for ${t.id}:`, { readDate, currentDate, wasReadToday });
+            // Se não estiver dentro do período de datas, não mostrar
+            if (!isWithinDateRange) return false;
+            
+            // Obter o usuário atual
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+              console.error('Usuário não autenticado');
+              return false;
             }
             
-            // Para depuração, registre o resultado da filtragem
-            const shouldInclude = isCorrectDay && isWithinDateRange && !wasReadToday;
-            console.log(`Final decision for testemunhal ${t.id}:`, { shouldInclude, isCorrectDay, isWithinDateRange, wasReadToday });
+            // Se o status não for 'lido', mostrar o testemunhal
+            if (t.status !== 'lido') return true;
             
-            return shouldInclude;
+            // Se o testemunhal for recorrente, mostrar mesmo que já tenha sido lido
+            if (t.recorrente) return true;
+            
+            // Se o usuário atual não estiver no array lido_por, mostrar o testemunhal
+            if (t.lido_por && Array.isArray(t.lido_por) && !t.lido_por.includes(user.id)) {
+              return true;
+            }
+            
+            // Caso contrário, não mostrar o testemunhal
+            return false;
           }) : [];
           
           console.log('Filtered testemunhais by day, date range, and read status:', filteredData);
