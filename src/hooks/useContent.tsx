@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -152,7 +151,7 @@ export function useContent() {
     };
   }, []);
 
-  return { conteudos };
+  return { conteudos, setConteudos };
 }
 
 // Helper function for calculating minutes difference

@@ -19,10 +19,30 @@ export function useMarkAsRead() {
       }
       
       if (tipo === 'testemunhal') {
+        const { data: testemunhalData, error: testemunhalError } = await supabase
+          .from('testemunhais')
+          .select('recorrente, lido_por')
+          .eq('id', id)
+          .single();
+          
+        if (testemunhalError) throw testemunhalError;
+        
+        let lido_por = [];
+        
+        if (testemunhalData.lido_por && Array.isArray(testemunhalData.lido_por)) {
+          lido_por = [...testemunhalData.lido_por];
+          if (!lido_por.includes(user.id)) {
+            lido_por.push(user.id);
+          }
+        } else {
+          lido_por = [user.id];
+        }
+        
         const { data, error } = await supabase
           .from('testemunhais')
           .update({ 
             status: 'lido',
+            lido_por: lido_por,
             timestamp_leitura: new Date().toISOString()
           })
           .eq('id', id)
@@ -40,12 +60,32 @@ export function useMarkAsRead() {
           duration: 5000
         });
         
-        return true;
+        return testemunhalData.recorrente ? 'recorrente' : true;
       } else if (tipo === 'conteudo') {
+        const { data: conteudoData, error: conteudoError } = await supabase
+          .from('conteudos_produzidos')
+          .select('recorrente, lido_por')
+          .eq('id', id)
+          .single();
+          
+        if (conteudoError) throw conteudoError;
+        
+        let lido_por = [];
+        
+        if (conteudoData.lido_por && Array.isArray(conteudoData.lido_por)) {
+          lido_por = [...conteudoData.lido_por];
+          if (!lido_por.includes(user.id)) {
+            lido_por.push(user.id);
+          }
+        } else {
+          lido_por = [user.id];
+        }
+        
         const { data, error } = await supabase
           .from('conteudos_produzidos')
           .update({ 
             status: 'lido',
+            lido_por: lido_por,
             updated_at: new Date().toISOString()
           })
           .eq('id', id)
@@ -63,7 +103,7 @@ export function useMarkAsRead() {
           duration: 5000
         });
         
-        return true;
+        return conteudoData.recorrente ? 'recorrente' : true;
       }
       
       return false;

@@ -24,7 +24,7 @@ export function useTestimonials() {
         
         const { data, error } = await supabase
           .from('testemunhais')
-          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, programas!inner(id, nome, dias, apresentador), timestamp_leitura')
+          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, programas!inner(id, nome, dias, apresentador), timestamp_leitura, recorrente, lido_por')
           .order('horario_agendado', { ascending: true });
         
         if (error) {
@@ -40,7 +40,7 @@ export function useTestimonials() {
         } else {
           console.log('Raw testemunhais data:', data);
           
-          const filteredData = data && Array.isArray(data) ? data.filter(t => {
+          const filteredData = data && Array.isArray(data) ? data.filter(async t => {
             if (!t || !t.programas) return false;
             
             // Verificar se o dia da semana está incluído nos dias do programa
@@ -78,24 +78,32 @@ export function useTestimonials() {
             // Se não estiver dentro do período de datas, não mostrar
             if (!isWithinDateRange) return false;
             
-            // Verificar se já foi lido hoje
-            let wasReadToday = false;
-            if (t.status === 'lido' && t.timestamp_leitura) {
-              const readDate = format(new Date(t.timestamp_leitura), 'yyyy-MM-dd');
-              wasReadToday = readDate === currentDate;
-              console.log(`Read status check for ${t.id}:`, { readDate, currentDate, wasReadToday });
+            // Obter o usuário atual
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+              console.error('Usuário não autenticado');
+              return false;
             }
             
-            // Para depuração, registre o resultado da filtragem
-            const shouldInclude = isCorrectDay && isWithinDateRange && !wasReadToday;
-            console.log(`Final decision for testemunhal ${t.id}:`, { shouldInclude, isCorrectDay, isWithinDateRange, wasReadToday });
+            // Se o status não for 'lido', mostrar o testemunhal
+            if (t.status !== 'lido') return true;
             
-            return shouldInclude;
+            // Se o testemunhal for recorrente, mostrar mesmo que já tenha sido lido
+            if (t.recorrente) return true;
+            
+            // Se o usuário atual não estiver no array lido_por, mostrar o testemunhal
+            if (t.lido_por && Array.isArray(t.lido_por) && !t.lido_por.includes(user.id)) {
+              return true;
+            }
+            
+            // Caso contrário, não mostrar o testemunhal
+            return false;
           }) : [];
           
           console.log('Filtered testemunhais by day, date range, and read status:', filteredData);
           
-          const processedData = filteredData.map(item => {
+          const processedData = await Promise.all(filteredData.map(async item => {
             try {
               if (!item || !item.horario_agendado || typeof item.horario_agendado !== 'string') {
                 console.warn('Item inválido ou sem horário agendado:', item);
@@ -143,15 +151,17 @@ export function useTestimonials() {
               console.error('Erro ao processar testemunhal:', err, item);
               return null;
             }
-          }).filter(Boolean);
+          }));
+          
+          const filteredProcessedData = processedData.filter(Boolean);
           
           // Identificar testemunhais que estão no horário exato para notificação especial
-          const exactTimeItems = processedData.filter(item => item.isExactTime);
+          const exactTimeItems = filteredProcessedData.filter(item => item.isExactTime);
           setExactTimeTestimonials(exactTimeItems);
           
-          console.log('Filtered testemunhais:', processedData);
+          console.log('Filtered testemunhais:', filteredProcessedData);
           
-          const sortedData = processedData.sort((a, b) => {
+          const sortedData = filteredProcessedData.sort((a, b) => {
             if (!a || !b) return 0;
             
             if (a.isUpcoming && !b.isUpcoming) return -1;
@@ -240,7 +250,7 @@ export function useTestimonials() {
     return () => clearInterval(exactTimeCheckInterval);
   }, [testemunhais]);
 
-  return { testemunhais, isLoading, exactTimeTestimonials };
+  return { testemunhais, isLoading, exactTimeTestimonials, setTestemunhais };
 }
 
 // Helper function for calculating minutes difference

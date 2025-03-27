@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import { releaseScreenWakeLock, keepScreenAwake } from '@/services/notificationService';
 import { useConnectionStatus } from '@/hooks/useConnectionStatus';
@@ -17,8 +17,8 @@ import Footer from '@/components/agenda/Footer';
 
 const Agenda: React.FC = () => {
   const { isOnline, connectionError, retryCount } = useConnectionStatus();
-  const { testemunhais, isLoading, exactTimeTestimonials } = useTestimonials();
-  const { conteudos } = useContent();
+  const { testemunhais, isLoading, exactTimeTestimonials, setTestemunhais } = useTestimonials();
+  const { conteudos, setConteudos } = useContent();
   const { markAsRead, isMarkingAsRead } = useMarkAsRead();
   const { filteredItems, searchText, setSearchText } = useFilteredItems(testemunhais, conteudos);
 
@@ -39,14 +39,18 @@ const Agenda: React.FC = () => {
     const result = await markAsRead(id, tipo);
     
     if (result === true) {
+      // Se não for recorrente, remover completamente da lista
       if (tipo === 'testemunhal') {
-        testemunhais.filter(t => t.id !== id);
+        setTestemunhais(prev => prev.filter(t => t.id !== id));
       } else {
-        conteudos.filter(c => c.id !== id);
+        setConteudos(prev => prev.filter(c => c.id !== id));
       }
     } else if (result === 'recorrente') {
-      if (tipo === 'conteudo') {
-        conteudos.map(c => c.id === id ? { ...c, status: 'lido' } : c);
+      // Se for recorrente, apenas atualizar o status para 'lido'
+      if (tipo === 'testemunhal') {
+        setTestemunhais(prev => prev.map(t => t.id === id ? { ...t, status: 'lido' } : t));
+      } else if (tipo === 'conteudo') {
+        setConteudos(prev => prev.map(c => c.id === id ? { ...c, status: 'lido' } : c));
       }
     }
   };
