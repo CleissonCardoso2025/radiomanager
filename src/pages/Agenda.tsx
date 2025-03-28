@@ -38,14 +38,15 @@ const Agenda: React.FC = () => {
   const handleMarkAsRead = async (id: string, tipo: string = 'testemunhal') => {
     const result = await markAsRead(id, tipo);
     
-    if (result === true || result === 'recorrente') {
-      // Sempre remover da lista quando marcado como lido, independente de ser recorrente ou não
+    if (result === true) {
+      // Remover da lista apenas quando não for recorrente
       if (tipo === 'testemunhal') {
         setTestemunhais(prev => prev.filter(t => t.id !== id));
       } else {
         setConteudos(prev => prev.filter(c => c.id !== id));
       }
     }
+    // Se for recorrente (result === 'recorrente'), não remover da lista
   };
 
   if (connectionError) {

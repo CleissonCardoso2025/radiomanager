@@ -24,7 +24,7 @@ export function useTestimonials(selectedProgram) {
         
         const { data, error } = await supabase
           .from('testemunhais')
-          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, programas!inner(id, nome, dias, apresentador), timestamp_leitura')
+          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, recorrente, lido_por, programas!inner(id, nome, dias, apresentador), timestamp_leitura')
           .order('horario_agendado', { ascending: true });
         
         if (error) {
@@ -103,11 +103,9 @@ export function useTestimonials(selectedProgram) {
             
             // Verificar se o testemunhal já foi lido pelo usuário atual
             if (user) {
-              // Como lido_por e recorrente não existem mais na consulta, 
-              // assumimos que o testemunhal não foi lido e não é recorrente
-              // Quando as colunas forem adicionadas ao banco, este código deve ser revisado
-              const lidoPor = [];
-              const recorrente = false;
+              // Verificar se o testemunhal já foi lido pelo usuário atual
+              const lidoPor = t.lido_por || [];
+              const recorrente = t.recorrente || false;
               
               if (lidoPor.includes(user.id) && !recorrente) {
                 return false;
@@ -196,8 +194,8 @@ export function useTestimonials(selectedProgram) {
                   isExactTime,
                   minutesUntil,
                   tipo: 'testemunhal',
-                  lido_por: [],
-                  recorrente: false
+                  lido_por: item.lido_por || [],
+                  recorrente: item.recorrente || false
                 };
               } else {
                 return null;
