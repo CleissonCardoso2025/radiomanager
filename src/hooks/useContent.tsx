@@ -33,7 +33,7 @@ export function useContent() {
         
         const { data, error } = await supabase
           .from('conteudos_produzidos')
-          .select('*, programas(id, nome, apresentador)')
+          .select('*, programas(id, nome, apresentador, dias)')
           .eq('data_programada', dataAtual)
           .order('horario_programado', { ascending: true });
         
@@ -53,6 +53,35 @@ export function useContent() {
         console.log('Conteúdos produzidos para hoje:', data);
         
         const filteredData = data && Array.isArray(data) ? data.filter(item => {
+          if (!item || !item.programas) return false;
+          
+          // Verificar se hoje é um dia em que o programa é transmitido
+          const today = new Date();
+          const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+          const diasPrograma = item.programas.dias || [];
+          
+          // Mapear nomes dos dias para números
+          const daysMap = {
+            'domingo': 0,
+            'segunda': 1,
+            'terca': 2,
+            'quarta': 3,
+            'quinta': 4,
+            'sexta': 5,
+            'sabado': 6
+          };
+          
+          // Converter os dias do programa para números e verificar se hoje é um desses dias
+          const diasProgramaNumeros = diasPrograma.map(dia => 
+            typeof dia === 'string' ? (daysMap[dia.toLowerCase()] || -1) : -1
+          );
+          
+          if (!diasProgramaNumeros.includes(dayOfWeek)) {
+            // Se hoje não for um dia em que o programa é transmitido, não mostrar
+            return false;
+          }
+          
+          // Verificar status e recorrência
           if (item.status !== 'lido') return true;
           if (item.recorrente) return true;
           if (item.lido_por && Array.isArray(item.lido_por) && !item.lido_por.includes(user.id)) {

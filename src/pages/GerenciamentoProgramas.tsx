@@ -95,6 +95,7 @@ interface ConteudoProduzido {
   created_at: string;
   updated_at: string;
   programas?: { nome: string };
+  recorrente?: boolean;
 }
 
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
@@ -129,6 +130,7 @@ const GerenciamentoProgramas: React.FC = () => {
     conteudo: '',
     data_programada: new Date(),
     horario_programado: '',
+    recorrente: false,
   });
 
   const [programas, setProgramas] = useState<Programa[]>([]);
@@ -356,6 +358,7 @@ const GerenciamentoProgramas: React.FC = () => {
       conteudo: '',
       data_programada: new Date(),
       horario_programado: '',
+      recorrente: false,
     });
     setIsModalOpen(true);
   };
@@ -393,6 +396,7 @@ const GerenciamentoProgramas: React.FC = () => {
         programa_id: conteudo.programa_id,
         data_programada: conteudo.data_programada ? new Date(conteudo.data_programada) : new Date(),
         horario_programado: conteudo.horario_programado,
+        recorrente: conteudo.recorrente || false,
       });
     }
     
@@ -528,9 +532,53 @@ const GerenciamentoProgramas: React.FC = () => {
       setTestemunhais(prev => [...prev, ...novosTestemunhais]);
       setIsModalOpen(false);
     } else if (modalType === 'conteudo') {
-      if (!formData.nome || !formData.conteudo || !formData.programa_id || !formData.data_programada || !formData.horario_programado) {
-        toast.error('Preencha todos os campos obrigatórios', {
-          description: 'Nome do conteúdo, conteúdo, programa, data e horário são obrigatórios.',
+      console.log('Dados do formulário:', {
+        nome: formData.nome,
+        conteudo: formData.conteudo,
+        programa_id: formData.programa_id,
+        data_programada: formData.data_programada,
+        horario_programado: formData.horario_programado,
+        recorrente: formData.recorrente,
+      });
+      
+      if (!formData.nome) {
+        toast.error('Nome do conteúdo é obrigatório', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+        return;
+      }
+      
+      if (!formData.conteudo) {
+        toast.error('Conteúdo é obrigatório', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+        return;
+      }
+      
+      if (!formData.programa_id) {
+        toast.error('Programa é obrigatório', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+        return;
+      }
+      
+      if (!formData.data_programada) {
+        toast.error('Data programada é obrigatória', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+        return;
+      }
+      
+      if (!formData.horario_programado) {
+        toast.error('Horário programado é obrigatório', {
           position: 'bottom-right',
           closeButton: true,
           duration: 5000
@@ -539,7 +587,6 @@ const GerenciamentoProgramas: React.FC = () => {
       }
       
       try {
-        // Verificar se a tabela existe
         const { error: checkError } = await supabase
           .from('conteudos_produzidos')
           .select('count')
@@ -555,6 +602,12 @@ const GerenciamentoProgramas: React.FC = () => {
           return;
         }
         
+        const dataFormatada = formData.data_programada instanceof Date 
+          ? formData.data_programada.toISOString().split('T')[0]
+          : typeof formData.data_programada === 'string' 
+            ? formData.data_programada
+            : new Date().toISOString().split('T')[0];
+        
         const { data, error } = await supabase
           .from('conteudos_produzidos')
           .upsert({
@@ -562,9 +615,11 @@ const GerenciamentoProgramas: React.FC = () => {
             nome: formData.nome,
             conteudo: formData.conteudo,
             programa_id: formData.programa_id,
-            data_programada: formData.data_programada.toISOString().split('T')[0],
+            data_programada: dataFormatada,
             horario_programado: formData.horario_programado,
             status: 'pendente',
+            recorrente: formData.recorrente,
+            lido_por: []
           })
           .select('*, programas(nome)');
           
@@ -666,22 +721,6 @@ const GerenciamentoProgramas: React.FC = () => {
         });
       } else if ('conteudo' in selectedItem) {
         // É um conteúdo produzido
-        // Verificar se a tabela existe
-        const { error: checkError } = await supabase
-          .from('conteudos_produzidos')
-          .select('count')
-          .limit(1);
-          
-        if (checkError && checkError.code === '42P01') {
-          toast.error('Funcionalidade indisponível', {
-            description: 'A funcionalidade de produção de conteúdo ainda está sendo implementada. Por favor, tente novamente mais tarde.',
-            position: 'bottom-right',
-            closeButton: true,
-            duration: 5000
-          });
-          return;
-        }
-        
         const { error } = await supabase
           .from('conteudos_produzidos')
           .delete()
@@ -1651,6 +1690,24 @@ const GerenciamentoProgramas: React.FC = () => {
                     onChange={(e) => handleFormChange('horario_programado', e.target.value)}
                     className="col-span-1 sm:col-span-3"
                   />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <div className="sm:text-right">
+                    <Label>Recorrente</Label>
+                  </div>
+                  <div className="col-span-1 sm:col-span-3 flex items-center space-x-2">
+                    <Checkbox 
+                      id="recorrente" 
+                      checked={formData.recorrente} 
+                      onCheckedChange={(checked) => handleFormChange('recorrente', checked)}
+                    />
+                    <label
+                      htmlFor="recorrente"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Conteúdo recorrente (aparecerá novamente mesmo após ser marcado como lido)
+                    </label>
+                  </div>
                 </div>
               </div>
             )}

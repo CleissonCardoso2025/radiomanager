@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -94,8 +93,8 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
       whileHover={{ scale: 1.01 }}
       transition={{ type: "spring", stiffness: 300 }}
       className={cn(
-        isUpcoming && "animate-pulse-slow",
-        isExactTime && "animate-pulse"
+        isUpcoming && "",
+        isExactTime && ""
       )}
     >
       <Card className={cn(

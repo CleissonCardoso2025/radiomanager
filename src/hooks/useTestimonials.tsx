@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { isMobileDevice, notifyUpcomingTestimonial, playNotificationSound } from '@/services/notificationService';
 
-export function useTestimonials() {
+export function useTestimonials(selectedProgram) {
   const [testemunhais, setTestemunhais] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [exactTimeTestimonials, setExactTimeTestimonials] = useState<any[]>([]);
@@ -24,7 +24,7 @@ export function useTestimonials() {
         
         const { data, error } = await supabase
           .from('testemunhais')
-          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, programas!inner(id, nome, dias, apresentador), timestamp_leitura, recorrente, lido_por')
+          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, programas!inner(id, nome, dias, apresentador), timestamp_leitura')
           .order('horario_agendado', { ascending: true });
         
         if (error) {
@@ -43,20 +43,35 @@ export function useTestimonials() {
           const filteredData = data && Array.isArray(data) ? data.filter(async t => {
             if (!t || !t.programas) return false;
             
-            // Verificar se o dia da semana está incluído nos dias do programa
-            const programDays = t.programas?.dias || [];
-            const isCorrectDay = programDays.includes(dayOfWeek);
+            // Se o programa não for o selecionado e tivermos um programa selecionado, não mostrar
+            if (selectedProgram && t.programa_id !== selectedProgram.id) {
+              return false;
+            }
             
-            console.log(`Testemunhal ${t.id} for program ${t.programas?.nome}:`, {
-              programDays,
-              currentDay: dayOfWeek,
-              includes: isCorrectDay
-            });
+            // Verificar se hoje é um dia em que o programa é transmitido
+            const today = new Date();
+            const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+            const diasPrograma = t.programas.dias || [];
             
-            // Se não corresponder ao dia atual, não mostrar
-            if (!isCorrectDay) return false;
+            // Mapear nomes dos dias para números
+            const daysMap = {
+              'domingo': 0,
+              'segunda': 1,
+              'terca': 2,
+              'quarta': 3,
+              'quinta': 4,
+              'sexta': 5,
+              'sabado': 6
+            };
             
-            // Verificar se está dentro do período de datas (caso exista)
+            // Converter os dias do programa para números e verificar se hoje é um desses dias
+            const diasProgramaNumeros = diasPrograma.map(dia => daysMap[dia.toLowerCase()] || -1);
+            if (!diasProgramaNumeros.includes(dayOfWeek)) {
+              // Se hoje não for um dia em que o programa é transmitido, não mostrar
+              return false;
+            }
+            
+            // Verificar se o testemunhal está dentro do período de exibição
             let isWithinDateRange = true;
             
             if (t.data_inicio || t.data_fim) {
@@ -87,10 +102,17 @@ export function useTestimonials() {
             }
             
             // Verificar se o testemunhal já foi lido pelo usuário atual
-            const isReadByCurrentUser = t.lido_por && Array.isArray(t.lido_por) && t.lido_por.includes(user.id);
-            
-            // Se o testemunhal já foi lido pelo usuário atual, não mostrar
-            if (isReadByCurrentUser) return false;
+            if (user) {
+              // Como lido_por e recorrente não existem mais na consulta, 
+              // assumimos que o testemunhal não foi lido e não é recorrente
+              // Quando as colunas forem adicionadas ao banco, este código deve ser revisado
+              const lidoPor = [];
+              const recorrente = false;
+              
+              if (lidoPor.includes(user.id) && !recorrente) {
+                return false;
+              }
+            }
             
             // Verificar se o horário agendado está dentro de 30 minutos
             if (t.horario_agendado) {
@@ -105,6 +127,19 @@ export function useTestimonials() {
                   
                   const now = new Date();
                   const minutesUntil = differenceInMinutes(scheduledDate, now);
+                  
+                  // Verificar se é para hoje ou se é para amanhã (caso já tenha passado o horário hoje)
+                  if (minutesUntil < 0) {
+                    // Se já passou o horário hoje, verificar se é para amanhã
+                    const tomorrowDate = new Date();
+                    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+                    tomorrowDate.setHours(scheduledHour, scheduledMinute, 0);
+                    
+                    const minutesUntilTomorrow = differenceInMinutes(tomorrowDate, now);
+                    
+                    // Não mostrar testemunhais de amanhã, mesmo que o programa seja o mesmo
+                    return false;
+                  }
                   
                   // Mostrar apenas se estiver dentro dos próximos 30 minutos
                   return minutesUntil >= 0 && minutesUntil <= 30;
@@ -152,15 +187,21 @@ export function useTestimonials() {
                 console.log('Testemunhal no horário exato detectado:', item);
               }
               
-              return {
-                ...item,
-                id: item.id || `temp-${Date.now()}-${Math.random()}`,
-                texto: item.texto || "Sem texto disponível",
-                isUpcoming,
-                isExactTime,
-                minutesUntil,
-                tipo: 'testemunhal'
-              };
+              if (typeof item === 'object' && item !== null) {
+                return {
+                  ...item,
+                  id: item.id || `temp-${Date.now()}-${Math.random()}`,
+                  texto: item.texto || "Sem texto disponível",
+                  isUpcoming,
+                  isExactTime,
+                  minutesUntil,
+                  tipo: 'testemunhal',
+                  lido_por: [],
+                  recorrente: false
+                };
+              } else {
+                return null;
+              }
             } catch (err) {
               console.error('Erro ao processar testemunhal:', err, item);
               return null;
