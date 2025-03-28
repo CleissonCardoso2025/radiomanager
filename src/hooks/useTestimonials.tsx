@@ -86,18 +86,32 @@ export function useTestimonials() {
               return false;
             }
             
-            // Se o status não for 'lido', mostrar o testemunhal
-            if (t.status !== 'lido') return true;
+            // Verificar se o testemunhal já foi lido pelo usuário atual
+            const isReadByCurrentUser = t.lido_por && Array.isArray(t.lido_por) && t.lido_por.includes(user.id);
             
-            // Se o testemunhal for recorrente, mostrar mesmo que já tenha sido lido
-            if (t.recorrente) return true;
+            // Se o testemunhal já foi lido pelo usuário atual, não mostrar
+            if (isReadByCurrentUser) return false;
             
-            // Se o usuário atual não estiver no array lido_por, mostrar o testemunhal
-            if (t.lido_por && Array.isArray(t.lido_por) && !t.lido_por.includes(user.id)) {
-              return true;
+            // Verificar se o horário agendado está dentro de 30 minutos
+            if (t.horario_agendado) {
+              const scheduledTimeParts = t.horario_agendado.split(':');
+              if (scheduledTimeParts.length >= 2) {
+                const scheduledHour = parseInt(scheduledTimeParts[0], 10);
+                const scheduledMinute = parseInt(scheduledTimeParts[1], 10);
+                
+                if (!isNaN(scheduledHour) && !isNaN(scheduledMinute)) {
+                  const scheduledDate = new Date();
+                  scheduledDate.setHours(scheduledHour, scheduledMinute, 0);
+                  
+                  const now = new Date();
+                  const minutesUntil = differenceInMinutes(scheduledDate, now);
+                  
+                  // Mostrar apenas se estiver dentro dos próximos 30 minutos
+                  return minutesUntil >= 0 && minutesUntil <= 30;
+                }
+              }
             }
             
-            // Caso contrário, não mostrar o testemunhal
             return false;
           }) : [];
           

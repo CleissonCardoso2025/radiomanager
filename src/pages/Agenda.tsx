@@ -38,19 +38,12 @@ const Agenda: React.FC = () => {
   const handleMarkAsRead = async (id: string, tipo: string = 'testemunhal') => {
     const result = await markAsRead(id, tipo);
     
-    if (result === true) {
-      // Se não for recorrente, remover completamente da lista
+    if (result === true || result === 'recorrente') {
+      // Sempre remover da lista quando marcado como lido, independente de ser recorrente ou não
       if (tipo === 'testemunhal') {
         setTestemunhais(prev => prev.filter(t => t.id !== id));
       } else {
         setConteudos(prev => prev.filter(c => c.id !== id));
-      }
-    } else if (result === 'recorrente') {
-      // Se for recorrente, apenas atualizar o status para 'lido'
-      if (tipo === 'testemunhal') {
-        setTestemunhais(prev => prev.map(t => t.id === id ? { ...t, status: 'lido' } : t));
-      } else if (tipo === 'conteudo') {
-        setConteudos(prev => prev.map(c => c.id === id ? { ...c, status: 'lido' } : c));
       }
     }
   };
