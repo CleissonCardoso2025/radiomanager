@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -40,7 +41,7 @@ export function useTestimonials(selectedProgram = null) {
         } else {
           console.log('Raw testemunhais data:', data);
           
-          const filteredData = data && Array.isArray(data) ? data.filter(async t => {
+          const filteredData = data && Array.isArray(data) ? data.filter(t => {
             if (!t || !t.programas) return false;
             
             // Se o programa não for o selecionado e tivermos um programa selecionado, não mostrar
@@ -51,7 +52,6 @@ export function useTestimonials(selectedProgram = null) {
             // Verificar se hoje é um dia em que o programa é transmitido
             const today = new Date();
             const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
-            const diasPrograma = t.programas.dias || [];
             
             // Mapear nomes dos dias para números
             const daysMap = {
@@ -65,9 +65,18 @@ export function useTestimonials(selectedProgram = null) {
             };
             
             // Converter os dias do programa para números e verificar se hoje é um desses dias
-            const diasProgramaNumeros = diasPrograma.map(dia => daysMap[dia.toLowerCase()] || -1);
+            const diasPrograma = t.programas.dias || [];
+            const diasProgramaNumeros = diasPrograma.map(dia => {
+              if (typeof dia !== 'string') return -1;
+              return daysMap[dia.toLowerCase()] || -1;
+            });
+            
+            console.log(`Programa: ${t.programas.nome}, Dias: ${diasPrograma}, Hoje: ${dayOfWeek}`);
+            console.log(`Dias em números: ${diasProgramaNumeros}`);
+            
+            // Verificar se hoje é um dia válido para o programa
             if (!diasProgramaNumeros.includes(dayOfWeek)) {
-              // Se hoje não for um dia em que o programa é transmitido, não mostrar
+              console.log(`Testemunhal de ${t.programas.nome} não será exibido hoje (dia incorreto)`);
               return false;
             }
             
@@ -93,14 +102,6 @@ export function useTestimonials(selectedProgram = null) {
             // Se não estiver dentro do período de datas, não mostrar
             if (!isWithinDateRange) return false;
             
-            // Obter o usuário atual
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) {
-              console.error('Usuário não autenticado');
-              return false;
-            }
-            
             // Verificar se o horário está dentro do período do programa
             if (t.programas.horario_inicio && t.programas.horario_fim && t.horario_agendado) {
               const now = new Date();
@@ -119,6 +120,8 @@ export function useTestimonials(selectedProgram = null) {
             }
             
             // Verificar se o testemunhal já foi lido pelo usuário atual
+            const { data: { user } } = supabase.auth.getUser();
+            
             if (user) {
               // Verificar se o testemunhal já foi lido pelo usuário atual
               const lidoPor = t.lido_por || [];
@@ -134,7 +137,7 @@ export function useTestimonials(selectedProgram = null) {
           
           console.log('Filtered testemunhais by day, date range, program time, and read status:', filteredData);
           
-          const processedData = await Promise.all(filteredData.map(async item => {
+          const processedData = filteredData.map(item => {
             try {
               if (!item || !item.horario_agendado || typeof item.horario_agendado !== 'string') {
                 console.warn('Item inválido ou sem horário agendado:', item);
@@ -188,7 +191,7 @@ export function useTestimonials(selectedProgram = null) {
               console.error('Erro ao processar testemunhal:', err, item);
               return null;
             }
-          }));
+          }).filter(Boolean);
           
           const filteredProcessedData = processedData.filter(Boolean);
           

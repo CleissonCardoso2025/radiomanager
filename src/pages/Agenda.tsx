@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import { releaseScreenWakeLock, keepScreenAwake } from '@/services/notificationService';
@@ -18,7 +17,7 @@ import Footer from '@/components/agenda/Footer';
 
 const Agenda: React.FC = () => {
   const { isOnline, connectionError, retryCount } = useConnectionStatus();
-  const { testemunhais, isLoading, exactTimeTestimonials, setTestemunhais } = useTestimonials(null); // Pass null explicitly
+  const { testemunhais, isLoading, exactTimeTestimonials, setTestemunhais } = useTestimonials();
   const { conteudos, setConteudos } = useContent();
   const { markAsRead, isMarkingAsRead } = useMarkAsRead();
   const { filteredItems, searchText, setSearchText } = useFilteredItems(testemunhais, conteudos);

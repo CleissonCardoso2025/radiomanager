@@ -77,8 +77,12 @@ export function useContent() {
             typeof dia === 'string' ? (daysMap[dia.toLowerCase()] || -1) : -1
           );
           
+          console.log(`Conteúdo para programa: ${item.programas.nome}, Dias: ${diasPrograma}, Hoje: ${dayOfWeek}`);
+          console.log(`Dias em números: ${diasProgramaNumeros}`);
+          
           if (!diasProgramaNumeros.includes(dayOfWeek)) {
             // Se hoje não for um dia em que o programa é transmitido, não mostrar
+            console.log(`Conteúdo de ${item.programas.nome} não será exibido hoje (dia incorreto)`);
             return false;
           }
           
