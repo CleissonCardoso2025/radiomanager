@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -119,113 +118,123 @@ export function useTestimonials(selectedProgram = null) {
               }
             }
             
-            // Verificar se o testemunhal já foi lido pelo usuário atual
-            // Fix: We need to await the Promise before accessing the data property
-            let userId = null;
-            try {
-              // Use the synchronous method to get the current user (no await needed)
-              const { data: authData } = supabase.auth.getUser();
-              userId = authData?.user?.id;
-            } catch (err) {
-              console.error('Error getting user:', err);
-            }
-            
-            if (userId) {
-              // Verificar se o testemunhal já foi lido pelo usuário atual
-              const lidoPor = t.lido_por || [];
-              const recorrente = t.recorrente || false;
-              
-              if (lidoPor.includes(userId) && !recorrente) {
-                return false;
+            // Get the current user data immediately prior to using it
+            const getUserInfo = async () => {
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                return user?.id;
+              } catch (err) {
+                console.error('Error getting user:', err);
+                return null;
               }
-            }
+            };
             
+            // We need to check the user synchronously, so we'll have to do this check
+            // after filtering in a separate step
             return true;
           }) : [];
           
-          console.log('Filtered testemunhais by day, date range, program time, and read status:', filteredData);
+          console.log('Filtered testemunhais by day, date range, program time:', filteredData);
           
-          const processedData = filteredData.map(item => {
-            try {
-              if (!item || !item.horario_agendado || typeof item.horario_agendado !== 'string') {
-                console.warn('Item inválido ou sem horário agendado:', item);
-                return null;
-              }
-              
-              const scheduledTimeParts = item.horario_agendado.split(':');
-              if (scheduledTimeParts.length < 2) {
-                console.warn('Formato de horário inválido:', item.horario_agendado);
-                return null;
-              }
-              
-              const scheduledHour = parseInt(scheduledTimeParts[0], 10);
-              const scheduledMinute = parseInt(scheduledTimeParts[1], 10);
-              
-              if (isNaN(scheduledHour) || isNaN(scheduledMinute)) {
-                console.warn('Horário não numérico:', scheduledHour, scheduledMinute);
-                return null;
-              }
-              
-              const scheduledDate = new Date();
-              scheduledDate.setHours(scheduledHour, scheduledMinute, 0);
-              
-              const now = new Date();
-              const minutesUntil = differenceInMinutes(scheduledDate, now);
-              
-              const isUpcoming = minutesUntil >= 0 && minutesUntil <= 30;
-              const isExactTime = minutesUntil === 0;
-              
-              if (isExactTime && isMobileDevice()) {
-                // Guardar testemunhais para o exato momento para notificação especial
-                console.log('Testemunhal no horário exato detectado:', item);
-              }
-              
-              if (typeof item === 'object' && item !== null) {
-                return {
-                  ...item,
-                  id: item.id || `temp-${Date.now()}-${Math.random()}`,
-                  texto: item.texto || "Sem texto disponível",
-                  isUpcoming,
-                  isExactTime,
-                  minutesUntil,
-                  tipo: 'testemunhal',
-                  lido_por: item.lido_por || [],
-                  recorrente: item.recorrente || false
-                };
-              } else {
-                return null;
-              }
-            } catch (err) {
-              console.error('Erro ao processar testemunhal:', err, item);
-              return null;
-            }
-          }).filter(Boolean);
-          
-          const filteredProcessedData = processedData.filter(Boolean);
-          
-          // Identificar testemunhais que estão no horário exato para notificação especial
-          const exactTimeItems = filteredProcessedData.filter(item => item.isExactTime);
-          setExactTimeTestimonials(exactTimeItems);
-          
-          console.log('Filtered testemunhais:', filteredProcessedData);
-          
-          const sortedData = filteredProcessedData.sort((a, b) => {
-            if (!a || !b) return 0;
+          // Now do a separate async operation to filter by read status
+          const filterByReadStatus = async (items) => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return items;
             
-            if (a.isUpcoming && !b.isUpcoming) return -1;
-            if (!a.isUpcoming && b.isUpcoming) return 1;
+            return items.filter(t => {
+              const lidoPor = t.lido_por || [];
+              const recorrente = t.recorrente || false;
+              
+              // Keep item if it's recurrent or not read by this user
+              return recorrente || !lidoPor.includes(user.id);
+            });
+          };
+          
+          // Apply the second filter and then process the data
+          filterByReadStatus(filteredData).then(readFilteredData => {
+            console.log('Filtered testemunhais by read status:', readFilteredData);
             
-            if (a.horario_agendado && b.horario_agendado) {
-              return a.horario_agendado.localeCompare(b.horario_agendado);
-            }
+            const processedData = readFilteredData.map(item => {
+              try {
+                if (!item || !item.horario_agendado || typeof item.horario_agendado !== 'string') {
+                  console.warn('Item inválido ou sem horário agendado:', item);
+                  return null;
+                }
+                
+                const scheduledTimeParts = item.horario_agendado.split(':');
+                if (scheduledTimeParts.length < 2) {
+                  console.warn('Formato de horário inválido:', item.horario_agendado);
+                  return null;
+                }
+                
+                const scheduledHour = parseInt(scheduledTimeParts[0], 10);
+                const scheduledMinute = parseInt(scheduledTimeParts[1], 10);
+                
+                if (isNaN(scheduledHour) || isNaN(scheduledMinute)) {
+                  console.warn('Horário não numérico:', scheduledHour, scheduledMinute);
+                  return null;
+                }
+                
+                const scheduledDate = new Date();
+                scheduledDate.setHours(scheduledHour, scheduledMinute, 0);
+                
+                const now = new Date();
+                const minutesUntil = differenceInMinutes(scheduledDate, now);
+                
+                const isUpcoming = minutesUntil >= 0 && minutesUntil <= 30;
+                const isExactTime = minutesUntil === 0;
+                
+                if (isExactTime && isMobileDevice()) {
+                  // Guardar testemunhais para o exato momento para notificação especial
+                  console.log('Testemunhal no horário exato detectado:', item);
+                }
+                
+                if (typeof item === 'object' && item !== null) {
+                  return {
+                    ...item,
+                    id: item.id || `temp-${Date.now()}-${Math.random()}`,
+                    texto: item.texto || "Sem texto disponível",
+                    isUpcoming,
+                    isExactTime,
+                    minutesUntil,
+                    tipo: 'testemunhal',
+                    lido_por: item.lido_por || [],
+                    recorrente: item.recorrente || false
+                  };
+                } else {
+                  return null;
+                }
+              } catch (err) {
+                console.error('Erro ao processar testemunhal:', err, item);
+                return null;
+              }
+            }).filter(Boolean);
             
-            return 0;
+            const filteredProcessedData = processedData.filter(Boolean);
+            
+            // Identificar testemunhais que estão no horário exato para notificação especial
+            const exactTimeItems = filteredProcessedData.filter(item => item.isExactTime);
+            setExactTimeTestimonials(exactTimeItems);
+            
+            console.log('Filtered testemunhais:', filteredProcessedData);
+            
+            const sortedData = filteredProcessedData.sort((a, b) => {
+              if (!a || !b) return 0;
+              
+              if (a.isUpcoming && !b.isUpcoming) return -1;
+              if (!a.isUpcoming && b.isUpcoming) return 1;
+              
+              if (a.horario_agendado && b.horario_agendado) {
+                return a.horario_agendado.localeCompare(b.horario_agendado);
+              }
+              
+              return 0;
+            });
+            
+            setTestemunhais(sortedData);
+            setIsLoading(false);
           });
-          
-          setTestemunhais(sortedData);
         }
-        
-        setIsLoading(false);
       } catch (error) {
         console.error('Erro ao carregar testemunhais:', error);
         toast.error('Erro ao carregar testemunhais', {
