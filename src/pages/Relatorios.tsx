@@ -48,7 +48,6 @@ import { supabase } from '@/integrations/supabase/client';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 
-// Interfaces para os dados
 interface Testemunhal {
   id: string;
   texto: string;
@@ -69,7 +68,6 @@ interface ProgramStats {
   pending: number;
 }
 
-// Estatísticas iniciais vazias
 const initialStats = {
   total: 0,
   read: 0,
@@ -79,7 +77,6 @@ const initialStats = {
   programs: [] as ProgramStats[]
 };
 
-// Configurações de paginação
 const ITEMS_PER_PAGE = 10;
 
 const Relatorios: React.FC = () => {
@@ -95,7 +92,6 @@ const Relatorios: React.FC = () => {
   const [stats, setStats] = useState(initialStats);
   const [programas, setProgramas] = useState<{id: string, nome: string}[]>([]);
   
-  // Estados para paginação
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -106,11 +102,9 @@ const Relatorios: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Formatar datas para a consulta
       const startDateStr = startDate ? format(startDate, 'yyyy-MM-dd') : undefined;
       const endDateStr = endDate ? format(endDate, 'yyyy-MM-dd') : undefined;
 
-      // Buscar testemunhais
       const { data: testemunhaisData, error: testemunhaisError } = await supabase
         .from('testemunhais')
         .select('id, texto, patrocinador, horario_agendado, timestamp_leitura, status, created_at, programas(id, nome)')
@@ -128,7 +122,6 @@ const Relatorios: React.FC = () => {
         return;
       }
 
-      // Buscar programas para o filtro
       const { data: programasData, error: programasError } = await supabase
         .from('programas')
         .select('id, nome')
@@ -140,7 +133,6 @@ const Relatorios: React.FC = () => {
         setProgramas(programasData || []);
       }
 
-      // Processar os dados
       const formattedTestimonials = testemunhaisData?.map(item => ({
         id: item.id,
         texto: `${item.patrocinador} - ${typeof item.texto === 'string' ? item.texto.substring(0, 30) + '...' : 'Sem texto'}`,
@@ -154,7 +146,6 @@ const Relatorios: React.FC = () => {
 
       setTestimonials(formattedTestimonials);
 
-      // Calcular estatísticas
       const total = formattedTestimonials.length;
       const read = formattedTestimonials.filter(t => t.status === 'lido').length;
       const pending = formattedTestimonials.filter(t => t.status === 'pendente').length;
@@ -166,7 +157,6 @@ const Relatorios: React.FC = () => {
       ).length;
       const onTime = read - late;
 
-      // Estatísticas por programa
       const programStats: Record<string, ProgramStats> = {};
       
       formattedTestimonials.forEach(t => {
@@ -218,10 +208,10 @@ const Relatorios: React.FC = () => {
       const doc = new jsPDF();
       doc.text('Relatório de Testemunhais', 10, 10);
       doc.text(`Data: ${format(new Date(), 'dd/MM/yyyy')}`, 10, 20);
-      doc.text(`Total de Testemunhais: ${stats.total.toString()}`, 10, 30);
+      doc.text(`Total de Testemunhais: ${stats.total}`, 10, 30);
       doc.text(`Testemunhais Lidos: ${stats.read}`, 10, 40);
       doc.text(`Testemunhais Pendentes: ${stats.pending}`, 10, 50);
-      doc.text(`Testemunhais Atrasados: ${stats.late.toString()}`, 10, 60);
+      doc.text(`Testemunhais Atrasados: ${stats.late}`, 10, 60);
       doc.save('relatorio.pdf');
     } else if (format === 'excel') {
       const workbook = XLSX.utils.book_new();
@@ -256,35 +246,29 @@ const Relatorios: React.FC = () => {
     return matchesSearch && matchesStatus && matchesProgram;
   });
 
-  // Calcular total de páginas com base nos itens filtrados
   useEffect(() => {
     setTotalPages(Math.max(1, Math.ceil(filteredTestimonials.length / ITEMS_PER_PAGE)));
-    // Resetar para a primeira página quando os filtros mudam
     setCurrentPage(1);
   }, [filteredTestimonials.length]);
 
-  // Obter os itens da página atual
   const getCurrentPageItems = () => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     return filteredTestimonials.slice(startIndex, endIndex);
   };
 
-  // Navegar para a próxima página
   const nextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
     }
   };
 
-  // Navegar para a página anterior
   const prevPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
     }
   };
 
-  // Ir para uma página específica
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
@@ -331,7 +315,6 @@ const Relatorios: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatCard 
             title="Total de Testemunhais" 
@@ -355,7 +338,6 @@ const Relatorios: React.FC = () => {
           />
         </div>
         
-        {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Card>
             <CardHeader>
@@ -382,7 +364,6 @@ const Relatorios: React.FC = () => {
           </Card>
         </div>
 
-        {/* Tabs and Filters */}
         <Tabs 
           defaultValue="execucao" 
           value={activeTab} 
@@ -406,7 +387,6 @@ const Relatorios: React.FC = () => {
             </TabsList>
             
             <div className="flex flex-wrap gap-2">
-              {/* Date Range Picker */}
               <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
@@ -445,7 +425,6 @@ const Relatorios: React.FC = () => {
                 </Popover>
               </div>
 
-              {/* Search */}
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
@@ -529,7 +508,6 @@ const Relatorios: React.FC = () => {
                   </TableBody>
                 </Table>
                 
-                {/* Paginação */}
                 {filteredTestimonials.length > 0 && (
                   <div className="flex items-center justify-between mt-4">
                     <div className="text-sm text-gray-500">
@@ -545,7 +523,6 @@ const Relatorios: React.FC = () => {
                         Anterior
                       </Button>
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        // Lógica para mostrar páginas ao redor da página atual
                         let pageToShow;
                         if (totalPages <= 5) {
                           pageToShow = i + 1;
@@ -632,7 +609,6 @@ const Relatorios: React.FC = () => {
                   </TableBody>
                 </Table>
                 
-                {/* Paginação */}
                 {filteredTestimonials.filter(item => item.status === 'pendente' || item.status === 'atrasado').length > 0 && (
                   <div className="flex items-center justify-between mt-4">
                     <div className="text-sm text-gray-500">
@@ -732,7 +708,6 @@ const Relatorios: React.FC = () => {
                   </TableBody>
                 </Table>
                 
-                {/* Paginação */}
                 {filteredTestimonials.length > 0 && (
                   <div className="flex items-center justify-between mt-4">
                     <div className="text-sm text-gray-500">

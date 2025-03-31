@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -6,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { isMobileDevice, notifyUpcomingTestimonial, playNotificationSound } from '@/services/notificationService';
 
-export function useTestimonials(selectedProgram) {
+export function useTestimonials(selectedProgram = null) {
   const [testemunhais, setTestemunhais] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [exactTimeTestimonials, setExactTimeTestimonials] = useState<any[]>([]);
@@ -240,7 +239,7 @@ export function useTestimonials(selectedProgram) {
     return () => {
       clearInterval(intervalId);
     };
-  }, []);
+  }, [selectedProgram]);
 
   // Efeito para notificar quando testemunhais no horário exato são detectados
   useEffect(() => {
