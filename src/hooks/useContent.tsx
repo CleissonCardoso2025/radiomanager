@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,7 +34,7 @@ export function useContent() {
         
         const { data, error } = await supabase
           .from('conteudos_produzidos')
-          .select('*, programas(id, nome, apresentador, dias)')
+          .select('*, programas(id, nome, apresentador, dias, horario_inicio, horario_fim)')
           .eq('data_programada', dataAtual)
           .order('horario_programado', { ascending: true });
         
@@ -79,6 +80,23 @@ export function useContent() {
           if (!diasProgramaNumeros.includes(dayOfWeek)) {
             // Se hoje não for um dia em que o programa é transmitido, não mostrar
             return false;
+          }
+          
+          // Verificar se o horário atual está dentro do período do programa
+          if (item.programas.horario_inicio && item.programas.horario_fim && item.horario_programado) {
+            const now = new Date();
+            const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
+            
+            // Verificar se o horário atual está dentro do período do programa
+            const isProgramActive = currentTime >= item.programas.horario_inicio && currentTime <= item.programas.horario_fim;
+            
+            // Verificar se o horário programado do conteúdo está dentro do período do programa
+            const isContentWithinProgram = item.horario_programado >= item.programas.horario_inicio && item.horario_programado <= item.programas.horario_fim;
+            
+            // Só mostrar se o programa estiver ativo e o conteúdo estiver dentro do período do programa
+            if (!isProgramActive || !isContentWithinProgram) {
+              return false;
+            }
           }
           
           // Verificar status e recorrência

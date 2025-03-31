@@ -103,8 +103,10 @@ export type Database = {
           horario_agendado: string
           id: string
           leituras: number | null
+          lido_por: string[] | null
           patrocinador: string
           programa_id: string | null
+          recorrente: boolean | null
           status: string | null
           texto: string
           timestamp_leitura: string | null
@@ -117,8 +119,10 @@ export type Database = {
           horario_agendado: string
           id?: string
           leituras?: number | null
+          lido_por?: string[] | null
           patrocinador: string
           programa_id?: string | null
+          recorrente?: boolean | null
           status?: string | null
           texto: string
           timestamp_leitura?: string | null
@@ -131,8 +135,10 @@ export type Database = {
           horario_agendado?: string
           id?: string
           leituras?: number | null
+          lido_por?: string[] | null
           patrocinador?: string
           programa_id?: string | null
+          recorrente?: boolean | null
           status?: string | null
           texto?: string
           timestamp_leitura?: string | null

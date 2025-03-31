@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -24,7 +25,7 @@ export function useTestimonials(selectedProgram) {
         
         const { data, error } = await supabase
           .from('testemunhais')
-          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, recorrente, lido_por, programas!inner(id, nome, dias, apresentador), timestamp_leitura')
+          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_inicio, data_fim, recorrente, lido_por, programas!inner(id, nome, dias, apresentador, horario_inicio, horario_fim), timestamp_leitura')
           .order('horario_agendado', { ascending: true });
         
         if (error) {
@@ -101,6 +102,23 @@ export function useTestimonials(selectedProgram) {
               return false;
             }
             
+            // Verificar se o horário está dentro do período do programa
+            if (t.programas.horario_inicio && t.programas.horario_fim && t.horario_agendado) {
+              const now = new Date();
+              const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
+              
+              // Verificar se o horário atual está dentro do período do programa
+              const isProgramActive = currentTime >= t.programas.horario_inicio && currentTime <= t.programas.horario_fim;
+              
+              // Verificar se o horário agendado do testemunhal está dentro do período do programa
+              const isTestimonialWithinProgram = t.horario_agendado >= t.programas.horario_inicio && t.horario_agendado <= t.programas.horario_fim;
+              
+              // Só mostrar se o programa estiver ativo e o testemunhal estiver dentro do período do programa
+              if (!isProgramActive || !isTestimonialWithinProgram) {
+                return false;
+              }
+            }
+            
             // Verificar se o testemunhal já foi lido pelo usuário atual
             if (user) {
               // Verificar se o testemunhal já foi lido pelo usuário atual
@@ -112,43 +130,10 @@ export function useTestimonials(selectedProgram) {
               }
             }
             
-            // Verificar se o horário agendado está dentro de 30 minutos
-            if (t.horario_agendado) {
-              const scheduledTimeParts = t.horario_agendado.split(':');
-              if (scheduledTimeParts.length >= 2) {
-                const scheduledHour = parseInt(scheduledTimeParts[0], 10);
-                const scheduledMinute = parseInt(scheduledTimeParts[1], 10);
-                
-                if (!isNaN(scheduledHour) && !isNaN(scheduledMinute)) {
-                  const scheduledDate = new Date();
-                  scheduledDate.setHours(scheduledHour, scheduledMinute, 0);
-                  
-                  const now = new Date();
-                  const minutesUntil = differenceInMinutes(scheduledDate, now);
-                  
-                  // Verificar se é para hoje ou se é para amanhã (caso já tenha passado o horário hoje)
-                  if (minutesUntil < 0) {
-                    // Se já passou o horário hoje, verificar se é para amanhã
-                    const tomorrowDate = new Date();
-                    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-                    tomorrowDate.setHours(scheduledHour, scheduledMinute, 0);
-                    
-                    const minutesUntilTomorrow = differenceInMinutes(tomorrowDate, now);
-                    
-                    // Não mostrar testemunhais de amanhã, mesmo que o programa seja o mesmo
-                    return false;
-                  }
-                  
-                  // Mostrar apenas se estiver dentro dos próximos 30 minutos
-                  return minutesUntil >= 0 && minutesUntil <= 30;
-                }
-              }
-            }
-            
-            return false;
+            return true;
           }) : [];
           
-          console.log('Filtered testemunhais by day, date range, and read status:', filteredData);
+          console.log('Filtered testemunhais by day, date range, program time, and read status:', filteredData);
           
           const processedData = await Promise.all(filteredData.map(async item => {
             try {
