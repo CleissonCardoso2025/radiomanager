@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import { releaseScreenWakeLock, keepScreenAwake } from '@/services/notificationService';
@@ -15,7 +16,7 @@ import SearchBar from '@/components/agenda/SearchBar';
 import TestimonialList from '@/components/agenda/TestimonialList';
 import Footer from '@/components/agenda/Footer';
 
-const Agenda: React.FC = () => {
+const Relatorios: React.FC = () => {
   const { isOnline, connectionError, retryCount } = useConnectionStatus();
   const { testemunhais, isLoading, exactTimeTestimonials, setTestemunhais } = useTestimonials();
   const { conteudos, setConteudos } = useContent();
@@ -80,4 +81,4 @@ const Agenda: React.FC = () => {
   );
 };
 
-export default Agenda;
+export default Relatorios;

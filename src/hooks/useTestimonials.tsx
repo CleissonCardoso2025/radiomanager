@@ -120,14 +120,22 @@ export function useTestimonials(selectedProgram = null) {
             }
             
             // Verificar se o testemunhal já foi lido pelo usuário atual
-            const { data: { user } } = supabase.auth.getUser();
+            // Fix: We need to await the Promise before accessing the data property
+            let userId = null;
+            try {
+              // Use the synchronous method to get the current user (no await needed)
+              const { data: authData } = supabase.auth.getUser();
+              userId = authData?.user?.id;
+            } catch (err) {
+              console.error('Error getting user:', err);
+            }
             
-            if (user) {
+            if (userId) {
               // Verificar se o testemunhal já foi lido pelo usuário atual
               const lidoPor = t.lido_por || [];
               const recorrente = t.recorrente || false;
               
-              if (lidoPor.includes(user.id) && !recorrente) {
+              if (lidoPor.includes(userId) && !recorrente) {
                 return false;
               }
             }
