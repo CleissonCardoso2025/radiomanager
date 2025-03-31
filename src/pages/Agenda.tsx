@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useRef } from 'react';
 import Header from '@/components/Header';
 import { releaseScreenWakeLock, keepScreenAwake } from '@/services/notificationService';
 import { useConnectionStatus } from '@/hooks/useConnectionStatus';
@@ -8,6 +9,7 @@ import { useMarkAsRead } from '@/hooks/useMarkAsRead';
 import { useFilteredItems } from '@/hooks/useFilteredItems';
 import ConnectionStatus from '@/components/ConnectionStatus';
 import ConnectionErrorScreen from '@/components/agenda/ConnectionErrorScreen';
+import { useAuth } from '@/App';
 
 // Imported Components
 import PageHeader from '@/components/agenda/PageHeader';
@@ -21,6 +23,9 @@ const Agenda: React.FC = () => {
   const { conteudos, setConteudos } = useContent();
   const { markAsRead, isMarkingAsRead } = useMarkAsRead();
   const { filteredItems, searchText, setSearchText } = useFilteredItems(testemunhais, conteudos);
+  const { userRole } = useAuth();
+  const fullscreenRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Effect to manage screen wake lock
   useEffect(() => {
@@ -34,6 +39,38 @@ const Agenda: React.FC = () => {
       releaseScreenWakeLock();
     };
   }, [testemunhais.length, conteudos.length]);
+
+  // Effect to automatically enter fullscreen for non-admin users
+  useEffect(() => {
+    // Only enter fullscreen automatically for non-admin users
+    if (userRole === 'locutor' && fullscreenRef.current && !isFullscreen) {
+      // Use a small timeout to ensure the component is fully mounted
+      const timer = setTimeout(() => {
+        if (fullscreenRef.current?.requestFullscreen && !document.fullscreenElement) {
+          fullscreenRef.current.requestFullscreen().then(() => {
+            setIsFullscreen(true);
+          }).catch(err => {
+            console.error(`Error attempting to enable fullscreen: ${err.message}`);
+          });
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [userRole, isFullscreen]);
+
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   const handleMarkAsRead = async (id: string, tipo: string = 'testemunhal') => {
     const result = await markAsRead(id, tipo);
@@ -59,7 +96,7 @@ const Agenda: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div ref={fullscreenRef} className="min-h-screen bg-background">
       <Header />
       <ConnectionStatus isOnline={isOnline} connectionError={connectionError} retryCount={retryCount} />
       <div className="container py-6">
