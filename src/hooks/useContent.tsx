@@ -144,13 +144,22 @@ export function useContent() {
               }
             }
             
-            // Verificar status e recorrência
-            if (item.status !== 'lido') return true;
-            if (item.recorrente) return true;
-            if (item.lido_por && Array.isArray(item.lido_por) && !item.lido_por.includes(user.id)) {
-              return true;
+            // Verificar status e recorrência - FIX: Corrigindo esta parte
+            if (item.status === 'lido') {
+              // Se foi lido pelo usuário atual e não é recorrente, não mostrar
+              if (!item.recorrente) {
+                console.log(`Conteúdo ${item.id} já foi lido e não é recorrente, não exibindo`);
+                return false;
+              }
+              
+              // Se é recorrente mas já foi lido pelo usuário atual, verificar array lido_por
+              if (item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id)) {
+                console.log(`Conteúdo ${item.id} é recorrente mas já foi lido pelo usuário atual, não exibindo`);
+                return false;
+              }
             }
-            return false;
+            
+            return true;
           }) : [];
           
           const processedData = filteredData.map(item => {

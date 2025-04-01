@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -62,13 +63,20 @@ export function useMarkAsRead() {
         
         return testemunhalData.recorrente ? 'recorrente' : true;
       } else if (tipo === 'conteudo') {
+        console.log(`Marcando conteúdo ${id} como lido`);
+        
         const { data: conteudoData, error: conteudoError } = await supabase
           .from('conteudos_produzidos')
           .select('recorrente, lido_por')
           .eq('id', id)
           .single();
           
-        if (conteudoError) throw conteudoError;
+        if (conteudoError) {
+          console.error('Erro ao buscar dados do conteúdo:', conteudoError);
+          throw conteudoError;
+        }
+        
+        console.log('Dados do conteúdo recuperados:', conteudoData);
         
         let lido_por = [];
         
@@ -81,6 +89,8 @@ export function useMarkAsRead() {
           lido_por = [user.id];
         }
         
+        console.log(`Atualizando conteúdo ${id} com lido_por:`, lido_por);
+        
         const { data, error } = await supabase
           .from('conteudos_produzidos')
           .update({ 
@@ -91,7 +101,10 @@ export function useMarkAsRead() {
           .eq('id', id)
           .select();
           
-        if (error) throw error;
+        if (error) {
+          console.error('Erro ao atualizar conteúdo:', error);
+          throw error;
+        }
         
         if (isMobileDevice()) {
           playNotificationSound('success');
@@ -103,6 +116,7 @@ export function useMarkAsRead() {
           duration: 5000
         });
         
+        console.log('Conteúdo atualizado, recorrente:', conteudoData.recorrente);
         return conteudoData.recorrente ? 'recorrente' : true;
       }
       

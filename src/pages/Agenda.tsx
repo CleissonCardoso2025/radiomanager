@@ -75,15 +75,29 @@ const Agenda: React.FC = () => {
   const handleMarkAsRead = async (id: string, tipo: string = 'testemunhal') => {
     const result = await markAsRead(id, tipo);
     
+    console.log('Mark as read result:', result, 'Type:', tipo, 'ID:', id);
+    
     if (result === true) {
-      // Remover da lista apenas quando não for recorrente
+      // Item should be removed if not recurrent
       if (tipo === 'testemunhal') {
         setTestemunhais(prev => prev.filter(t => t.id !== id));
-      } else {
+      } else if (tipo === 'conteudo') {
         setConteudos(prev => prev.filter(c => c.id !== id));
       }
+    } else if (result === 'recorrente') {
+      console.log('Item is recurrent, updating state to reflect read status');
+      // For recurrent items, we should update their status to reflect they've been read
+      // by the current user without removing them from the list
+      if (tipo === 'testemunhal') {
+        setTestemunhais(prev => 
+          prev.map(t => t.id === id ? { ...t, status: 'lido' } : t)
+        );
+      } else if (tipo === 'conteudo') {
+        setConteudos(prev => 
+          prev.map(c => c.id === id ? { ...c, status: 'lido' } : c)
+        );
+      }
     }
-    // Se for recorrente (result === 'recorrente'), não remover da lista
   };
 
   if (connectionError) {
