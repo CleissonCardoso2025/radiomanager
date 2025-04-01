@@ -102,35 +102,61 @@ export function useTestimonials(selectedProgram = null) {
             if (!isWithinDateRange) return false;
             
             // Verificar se o horário está dentro do período do programa
-            if (t.programas.horario_inicio && t.programas.horario_fim && t.horario_agendado) {
+            if (t.programas.horario_inicio && t.programas.horario_fim) {
               const now = new Date();
-              const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
+              const currentHour = now.getHours();
+              const currentMinute = now.getMinutes();
+              const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
+              
+              // Extrair horas e minutos do horário do programa
+              const [progStartHour, progStartMinute] = t.programas.horario_inicio.split(':').map(Number);
+              const [progEndHour, progEndMinute] = t.programas.horario_fim.split(':').map(Number);
+              
+              // Extrair horas e minutos do horário agendado do testemunhal
+              const [testHour, testMinute] = t.horario_agendado.split(':').map(Number);
+              
+              // Converter para minutos desde meia-noite para facilitar a comparação
+              const currentTotalMinutes = currentHour * 60 + currentMinute;
+              const progStartTotalMinutes = progStartHour * 60 + progStartMinute;
+              const progEndTotalMinutes = progEndHour * 60 + progEndMinute;
+              const testTotalMinutes = testHour * 60 + testMinute;
               
               // Verificar se o horário atual está dentro do período do programa
-              const isProgramActive = currentTime >= t.programas.horario_inicio && currentTime <= t.programas.horario_fim;
+              const isProgramActive = currentTotalMinutes >= progStartTotalMinutes && 
+                                     currentTotalMinutes <= progEndTotalMinutes;
               
               // Verificar se o horário agendado do testemunhal está dentro do período do programa
-              const isTestimonialWithinProgram = t.horario_agendado >= t.programas.horario_inicio && t.horario_agendado <= t.programas.horario_fim;
+              const isTestimonialWithinProgram = testTotalMinutes >= progStartTotalMinutes && 
+                                               testTotalMinutes <= progEndTotalMinutes;
               
-              // Só mostrar se o programa estiver ativo e o testemunhal estiver dentro do período do programa
-              if (!isProgramActive || !isTestimonialWithinProgram) {
+              console.log(`Verificando horários para ${t.patrocinador}:`, {
+                currentTime,
+                programHorario: `${t.programas.horario_inicio} - ${t.programas.horario_fim}`,
+                testimonialHorario: t.horario_agendado,
+                isProgramActive,
+                isTestimonialWithinProgram
+              });
+              
+              // Mostrar somente testemunhais durante o período do programa ou próximos de iniciar
+              if (!isTestimonialWithinProgram) {
+                console.log(`Testemunhal ${t.id} não será exibido (fora do horário do programa)`);
                 return false;
+              }
+              
+              // Se o programa não estiver ativo agora, verificar se está prestes a começar (30 minutos antes)
+              if (!isProgramActive) {
+                const minutesUntilProgram = progStartTotalMinutes - currentTotalMinutes;
+                // Se o programa começar em até 30 minutos, mostrar os testemunhais
+                if (minutesUntilProgram > 0 && minutesUntilProgram <= 30) {
+                  console.log(`Programa ${t.programas.nome} começará em ${minutesUntilProgram} minutos, exibindo testemunhal`);
+                  // Continuar e mostrar
+                } else {
+                  console.log(`Testemunhal ${t.id} não será exibido (programa não está ativo e não começa em breve)`);
+                  return false;
+                }
               }
             }
             
-            // Get the current user data immediately prior to using it
-            const getUserInfo = async () => {
-              try {
-                const { data: { user } } = await supabase.auth.getUser();
-                return user?.id;
-              } catch (err) {
-                console.error('Error getting user:', err);
-                return null;
-              }
-            };
-            
-            // We need to check the user synchronously, so we'll have to do this check
-            // after filtering in a separate step
             return true;
           }) : [];
           
@@ -138,16 +164,21 @@ export function useTestimonials(selectedProgram = null) {
           
           // Now do a separate async operation to filter by read status
           const filterByReadStatus = async (items) => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return items;
-            
-            return items.filter(t => {
-              const lidoPor = t.lido_por || [];
-              const recorrente = t.recorrente || false;
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (!user) return items;
               
-              // Keep item if it's recurrent or not read by this user
-              return recorrente || !lidoPor.includes(user.id);
-            });
+              return items.filter(t => {
+                const lidoPor = t.lido_por || [];
+                const recorrente = t.recorrente || false;
+                
+                // Keep item if it's recurrent or not read by this user
+                return recorrente || !lidoPor.includes(user.id);
+              });
+            } catch (err) {
+              console.error('Error checking user auth status:', err);
+              return items;
+            }
           };
           
           // Apply the second filter and then process the data

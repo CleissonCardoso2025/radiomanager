@@ -25,158 +25,203 @@ export function useContent() {
         
         const dataAtual = format(today, 'yyyy-MM-dd');
         
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          console.error('Usuário não autenticado');
-          return;
-        }
-        
-        const { data, error } = await supabase
-          .from('conteudos_produzidos')
-          .select('*, programas(id, nome, apresentador, dias, horario_inicio, horario_fim)')
-          .eq('data_programada', dataAtual)
-          .order('horario_programado', { ascending: true });
-        
-        if (error) {
-          console.error('Erro ao carregar conteúdos produzidos:', error);
+        // Obter usuário atual de forma assíncrona
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
           
-          toast.error('Erro ao carregar conteúdos produzidos', {
-            description: error.message,
-            position: 'bottom-right',
-            closeButton: true,
-            duration: 5000
-          });
-          setConteudos([]);
-          return;
-        }
-        
-        console.log('Conteúdos produzidos para hoje:', data);
-        
-        const filteredData = data && Array.isArray(data) ? data.filter(item => {
-          if (!item || !item.programas) return false;
-          
-          // Verificar se hoje é um dia em que o programa é transmitido
-          const today = new Date();
-          const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
-          const diasPrograma = item.programas.dias || [];
-          
-          // Mapear nomes dos dias para números
-          const daysMap = {
-            'domingo': 0,
-            'segunda': 1,
-            'terca': 2,
-            'quarta': 3,
-            'quinta': 4,
-            'sexta': 5,
-            'sabado': 6
-          };
-          
-          // Converter os dias do programa para números e verificar se hoje é um desses dias
-          const diasProgramaNumeros = diasPrograma.map(dia => 
-            typeof dia === 'string' ? (daysMap[dia.toLowerCase()] || -1) : -1
-          );
-          
-          console.log(`Conteúdo para programa: ${item.programas.nome}, Dias: ${diasPrograma}, Hoje: ${dayOfWeek}`);
-          console.log(`Dias em números: ${diasProgramaNumeros}`);
-          
-          if (!diasProgramaNumeros.includes(dayOfWeek)) {
-            // Se hoje não for um dia em que o programa é transmitido, não mostrar
-            console.log(`Conteúdo de ${item.programas.nome} não será exibido hoje (dia incorreto)`);
-            return false;
+          if (!user) {
+            console.error('Usuário não autenticado');
+            return;
           }
           
-          // Verificar se o horário atual está dentro do período do programa
-          if (item.programas.horario_inicio && item.programas.horario_fim && item.horario_programado) {
-            const now = new Date();
-            const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
+          const { data, error } = await supabase
+            .from('conteudos_produzidos')
+            .select('*, programas(id, nome, apresentador, dias, horario_inicio, horario_fim)')
+            .eq('data_programada', dataAtual)
+            .order('horario_programado', { ascending: true });
+          
+          if (error) {
+            console.error('Erro ao carregar conteúdos produzidos:', error);
             
-            // Verificar se o horário atual está dentro do período do programa
-            const isProgramActive = currentTime >= item.programas.horario_inicio && currentTime <= item.programas.horario_fim;
+            toast.error('Erro ao carregar conteúdos produzidos', {
+              description: error.message,
+              position: 'bottom-right',
+              closeButton: true,
+              duration: 5000
+            });
+            setConteudos([]);
+            return;
+          }
+          
+          console.log('Conteúdos produzidos para hoje:', data);
+          
+          const filteredData = data && Array.isArray(data) ? data.filter(item => {
+            if (!item || !item.programas) return false;
             
-            // Verificar se o horário programado do conteúdo está dentro do período do programa
-            const isContentWithinProgram = item.horario_programado >= item.programas.horario_inicio && item.horario_programado <= item.programas.horario_fim;
+            // Verificar se hoje é um dia em que o programa é transmitido
+            const today = new Date();
+            const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+            const diasPrograma = item.programas.dias || [];
             
-            // Só mostrar se o programa estiver ativo e o conteúdo estiver dentro do período do programa
-            if (!isProgramActive || !isContentWithinProgram) {
+            // Mapear nomes dos dias para números
+            const daysMap = {
+              'domingo': 0,
+              'segunda': 1,
+              'terca': 2,
+              'quarta': 3,
+              'quinta': 4,
+              'sexta': 5,
+              'sabado': 6
+            };
+            
+            // Converter os dias do programa para números e verificar se hoje é um desses dias
+            const diasProgramaNumeros = diasPrograma.map(dia => 
+              typeof dia === 'string' ? (daysMap[dia.toLowerCase()] || -1) : -1
+            );
+            
+            console.log(`Conteúdo para programa: ${item.programas.nome}, Dias: ${diasPrograma}, Hoje: ${dayOfWeek}`);
+            console.log(`Dias em números: ${diasProgramaNumeros}`);
+            
+            if (!diasProgramaNumeros.includes(dayOfWeek)) {
+              // Se hoje não for um dia em que o programa é transmitido, não mostrar
+              console.log(`Conteúdo de ${item.programas.nome} não será exibido hoje (dia incorreto)`);
               return false;
             }
-          }
+            
+            // Verificar se o horário atual está dentro do período do programa
+            if (item.programas.horario_inicio && item.programas.horario_fim && item.horario_programado) {
+              const now = new Date();
+              const currentHour = now.getHours();
+              const currentMinute = now.getMinutes();
+              const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
+              
+              // Extrair horas e minutos do horário do programa
+              const [progStartHour, progStartMinute] = item.programas.horario_inicio.split(':').map(Number);
+              const [progEndHour, progEndMinute] = item.programas.horario_fim.split(':').map(Number);
+              
+              // Extrair horas e minutos do horário programado do conteúdo
+              const [contentHour, contentMinute] = item.horario_programado.split(':').map(Number);
+              
+              // Converter para minutos desde meia-noite para facilitar a comparação
+              const currentTotalMinutes = currentHour * 60 + currentMinute;
+              const progStartTotalMinutes = progStartHour * 60 + progStartMinute;
+              const progEndTotalMinutes = progEndHour * 60 + progEndMinute;
+              const contentTotalMinutes = contentHour * 60 + contentMinute;
+              
+              // Verificar se o horário atual está dentro do período do programa
+              const isProgramActive = currentTotalMinutes >= progStartTotalMinutes && 
+                                    currentTotalMinutes <= progEndTotalMinutes;
+              
+              // Verificar se o horário programado do conteúdo está dentro do período do programa
+              const isContentWithinProgram = contentTotalMinutes >= progStartTotalMinutes && 
+                                           contentTotalMinutes <= progEndTotalMinutes;
+              
+              console.log(`Verificando horários para conteúdo ${item.nome}:`, {
+                currentTime,
+                programHorario: `${item.programas.horario_inicio} - ${item.programas.horario_fim}`,
+                contentHorario: item.horario_programado,
+                isProgramActive,
+                isContentWithinProgram
+              });
+              
+              // Mostrar somente conteúdos que estão dentro do período do programa
+              if (!isContentWithinProgram) {
+                console.log(`Conteúdo ${item.id} não será exibido (fora do horário do programa)`);
+                return false;
+              }
+              
+              // Se o programa não estiver ativo agora, verificar se está prestes a começar (30 minutos antes)
+              if (!isProgramActive) {
+                const minutesUntilProgram = progStartTotalMinutes - currentTotalMinutes;
+                // Se o programa começar em até 30 minutos, mostrar os conteúdos
+                if (minutesUntilProgram > 0 && minutesUntilProgram <= 30) {
+                  console.log(`Programa ${item.programas.nome} começará em ${minutesUntilProgram} minutos, exibindo conteúdo`);
+                  // Continuar e mostrar
+                } else {
+                  console.log(`Conteúdo ${item.id} não será exibido (programa não está ativo e não começa em breve)`);
+                  return false;
+                }
+              }
+            }
+            
+            // Verificar status e recorrência
+            if (item.status !== 'lido') return true;
+            if (item.recorrente) return true;
+            if (item.lido_por && Array.isArray(item.lido_por) && !item.lido_por.includes(user.id)) {
+              return true;
+            }
+            return false;
+          }) : [];
           
-          // Verificar status e recorrência
-          if (item.status !== 'lido') return true;
-          if (item.recorrente) return true;
-          if (item.lido_por && Array.isArray(item.lido_por) && !item.lido_por.includes(user.id)) {
-            return true;
-          }
-          return false;
-        }) : [];
-        
-        const processedData = filteredData.map(item => {
-          try {
-            if (!item || !item.horario_programado || typeof item.horario_programado !== 'string') {
-              console.warn('Item inválido ou sem horário programado:', item);
+          const processedData = filteredData.map(item => {
+            try {
+              if (!item || !item.horario_programado || typeof item.horario_programado !== 'string') {
+                console.warn('Item inválido ou sem horário programado:', item);
+                return null;
+              }
+              
+              const scheduledTimeParts = item.horario_programado.split(':');
+              if (scheduledTimeParts.length < 2) {
+                console.warn('Formato de horário inválido:', item.horario_programado);
+                return null;
+              }
+              
+              const scheduledHour = parseInt(scheduledTimeParts[0], 10);
+              const scheduledMinute = parseInt(scheduledTimeParts[1], 10);
+              
+              if (isNaN(scheduledHour) || isNaN(scheduledMinute)) {
+                console.warn('Horário não numérico:', scheduledHour, scheduledMinute);
+                return null;
+              }
+              
+              const scheduledDate = new Date();
+              scheduledDate.setHours(scheduledHour, scheduledMinute, 0);
+              
+              const now = new Date();
+              const minutesUntil = differenceInMinutes(scheduledDate, now);
+              
+              const isUpcoming = minutesUntil >= 0 && minutesUntil <= 30;
+              
+              if (isUpcoming && isMobileDevice()) {
+                playNotificationSound('alert');
+              }
+              
+              return {
+                ...item,
+                id: item.id || `temp-${Date.now()}-${Math.random()}`,
+                texto: item.conteudo || "Sem conteúdo disponível",
+                patrocinador: item.nome || "Sem nome",
+                horario_agendado: item.horario_programado,
+                status: item.status || 'pendente',
+                isUpcoming,
+                minutesUntil,
+                tipo: 'conteudo',
+                recorrente: item.recorrente || false
+              };
+            } catch (err) {
+              console.error('Erro ao processar conteúdo:', err, item);
               return null;
             }
+          }).filter(Boolean);
+          
+          const sortedData = processedData.sort((a, b) => {
+            if (!a || !b) return 0;
             
-            const scheduledTimeParts = item.horario_programado.split(':');
-            if (scheduledTimeParts.length < 2) {
-              console.warn('Formato de horário inválido:', item.horario_programado);
-              return null;
+            if (a.isUpcoming && !b.isUpcoming) return -1;
+            if (!a.isUpcoming && b.isUpcoming) return 1;
+            
+            if (a.horario_programado && b.horario_programado) {
+              return a.horario_programado.localeCompare(b.horario_programado);
             }
             
-            const scheduledHour = parseInt(scheduledTimeParts[0], 10);
-            const scheduledMinute = parseInt(scheduledTimeParts[1], 10);
-            
-            if (isNaN(scheduledHour) || isNaN(scheduledMinute)) {
-              console.warn('Horário não numérico:', scheduledHour, scheduledMinute);
-              return null;
-            }
-            
-            const scheduledDate = new Date();
-            scheduledDate.setHours(scheduledHour, scheduledMinute, 0);
-            
-            const now = new Date();
-            const minutesUntil = differenceInMinutes(scheduledDate, now);
-            
-            const isUpcoming = minutesUntil >= 0 && minutesUntil <= 30;
-            
-            if (isUpcoming && isMobileDevice()) {
-              playNotificationSound('alert');
-            }
-            
-            return {
-              ...item,
-              id: item.id || `temp-${Date.now()}-${Math.random()}`,
-              texto: item.conteudo || "Sem conteúdo disponível",
-              patrocinador: item.nome || "Sem nome",
-              horario_agendado: item.horario_programado,
-              status: item.status || 'pendente',
-              isUpcoming,
-              minutesUntil,
-              tipo: 'conteudo',
-              recorrente: item.recorrente || false
-            };
-          } catch (err) {
-            console.error('Erro ao processar conteúdo:', err, item);
-            return null;
-          }
-        }).filter(Boolean);
-        
-        const sortedData = processedData.sort((a, b) => {
-          if (!a || !b) return 0;
+            return 0;
+          });
           
-          if (a.isUpcoming && !b.isUpcoming) return -1;
-          if (!a.isUpcoming && b.isUpcoming) return 1;
-          
-          if (a.horario_programado && b.horario_programado) {
-            return a.horario_programado.localeCompare(b.horario_programado);
-          }
-          
-          return 0;
-        });
-        
-        setConteudos(sortedData);
+          setConteudos(sortedData);
+        } catch (authError) {
+          console.error('Erro ao obter usuário:', authError);
+          setConteudos([]);
+        }
       } catch (error) {
         console.error('Erro ao carregar conteúdos produzidos:', error);
         toast.error('Erro ao carregar conteúdos produzidos', {
