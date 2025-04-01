@@ -67,7 +67,7 @@ export function useMarkAsRead() {
         
         const { data: conteudoData, error: conteudoError } = await supabase
           .from('conteudos_produzidos')
-          .select('recorrente, lido_por')
+          .select('recorrente, lido_por, data_fim')
           .eq('id', id)
           .single();
           

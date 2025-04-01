@@ -90,6 +90,7 @@ interface ConteudoProduzido {
   conteudo: string;
   programa_id: string;
   data_programada: string;
+  data_fim: string | null;
   horario_programado: string;
   status: string;
   created_at: string;
@@ -395,6 +396,7 @@ const GerenciamentoProgramas: React.FC = () => {
         conteudo: conteudo.conteudo,
         programa_id: conteudo.programa_id,
         data_programada: conteudo.data_programada ? new Date(conteudo.data_programada) : new Date(),
+        data_fim: conteudo.data_fim ? new Date(conteudo.data_fim) : undefined,
         horario_programado: conteudo.horario_programado,
         recorrente: conteudo.recorrente || false,
       });
@@ -537,6 +539,7 @@ const GerenciamentoProgramas: React.FC = () => {
         conteudo: formData.conteudo,
         programa_id: formData.programa_id,
         data_programada: formData.data_programada,
+        data_fim: formData.data_fim,
         horario_programado: formData.horario_programado,
         recorrente: formData.recorrente,
       });
@@ -608,6 +611,12 @@ const GerenciamentoProgramas: React.FC = () => {
             ? formData.data_programada
             : new Date().toISOString().split('T')[0];
         
+        const dataFimFormatada = formData.data_fim instanceof Date
+          ? formData.data_fim.toISOString().split('T')[0]
+          : typeof formData.data_fim === 'string'
+            ? formData.data_fim
+            : null;
+            
         const { data, error } = await supabase
           .from('conteudos_produzidos')
           .upsert({
@@ -616,6 +625,7 @@ const GerenciamentoProgramas: React.FC = () => {
             conteudo: formData.conteudo,
             programa_id: formData.programa_id,
             data_programada: dataFormatada,
+            data_fim: dataFimFormatada,
             horario_programado: formData.horario_programado,
             status: 'pendente',
             recorrente: formData.recorrente,
@@ -769,6 +779,16 @@ const GerenciamentoProgramas: React.FC = () => {
       return format(new Date(dateStr), 'dd/MM/yyyy', { locale: ptBR });
     } catch (e) {
       return '';
+    }
+  };
+
+  // Add this function to display the end date in the table
+  const formatEndDate = (dateStr: string | null) => {
+    if (!dateStr) return 'Sem data fim';
+    try {
+      return format(new Date(dateStr), 'dd/MM/yyyy', { locale: ptBR });
+    } catch (e) {
+      return 'Sem data fim';
     }
   };
 
@@ -1679,6 +1699,40 @@ const GerenciamentoProgramas: React.FC = () => {
                     </Popover>
                   </div>
                 </div>
+                
+                {/* Add data_fim field */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                  <Label htmlFor="data_fim" className="sm:text-right">
+                    Data Final (opcional)
+                  </Label>
+                  <div className="col-span-1 sm:col-span-3">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          {formData.data_fim ? (
+                            format(formData.data_fim, 'PPP', { locale: ptBR })
+                          ) : (
+                            <span>Selecione uma data</span>
+                          )}
+                          <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={formData.data_fim}
+                          onSelect={(date) => handleFormChange('data_fim', date)}
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
                   <Label htmlFor="horario_programado" className="sm:text-right">
                     Horário Programado

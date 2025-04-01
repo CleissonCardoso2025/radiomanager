@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,6 +56,18 @@ export function useContent() {
           
           const filteredData = data && Array.isArray(data) ? data.filter(item => {
             if (!item || !item.programas) return false;
+            
+            // Verificar se data_fim está definida e se a data atual está dentro do intervalo
+            if (item.data_fim) {
+              const dataFim = new Date(item.data_fim);
+              const dataAtualObj = new Date(dataAtual);
+              
+              // Se a data atual for posterior à data_fim, não mostrar o conteúdo
+              if (dataAtualObj > dataFim) {
+                console.log(`Conteúdo ${item.id} não será exibido (fora do período de validade)`);
+                return false;
+              }
+            }
             
             // Verificar se hoje é um dia em que o programa é transmitido
             const today = new Date();
@@ -144,7 +155,7 @@ export function useContent() {
               }
             }
             
-            // Verificar status e recorrência - FIX: Corrigindo esta parte
+            // Verificar status e recorrência
             if (item.status === 'lido') {
               // Se foi lido pelo usuário atual e não é recorrente, não mostrar
               if (!item.recorrente) {

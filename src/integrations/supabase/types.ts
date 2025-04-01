@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           conteudo: string
           created_at: string | null
+          data_fim: string | null
           data_programada: string
           horario_programado: string
           id: string
@@ -26,6 +27,7 @@ export type Database = {
         Insert: {
           conteudo: string
           created_at?: string | null
+          data_fim?: string | null
           data_programada: string
           horario_programado: string
           id?: string
@@ -39,6 +41,7 @@ export type Database = {
         Update: {
           conteudo?: string
           created_at?: string | null
+          data_fim?: string | null
           data_programada?: string
           horario_programado?: string
           id?: string
@@ -204,6 +207,13 @@ export type Database = {
         Args: {
           _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
+      is_content_within_date_range: {
+        Args: {
+          content_row: unknown
+          check_date: string
         }
         Returns: boolean
       }
