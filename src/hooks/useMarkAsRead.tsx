@@ -67,7 +67,7 @@ export function useMarkAsRead() {
         
         const { data: conteudoData, error: conteudoError } = await supabase
           .from('conteudos_produzidos')
-          .select('recorrente, lido_por, data_fim')
+          .select('recorrente, lido_por')
           .eq('id', id)
           .single();
           
@@ -80,7 +80,7 @@ export function useMarkAsRead() {
         
         let lido_por = [];
         
-        if (conteudoData.lido_por && Array.isArray(conteudoData.lido_por)) {
+        if (conteudoData && conteudoData.lido_por && Array.isArray(conteudoData.lido_por)) {
           lido_por = [...conteudoData.lido_por];
           if (!lido_por.includes(user.id)) {
             lido_por.push(user.id);
@@ -116,8 +116,8 @@ export function useMarkAsRead() {
           duration: 5000
         });
         
-        console.log('Conteúdo atualizado, recorrente:', conteudoData.recorrente);
-        return conteudoData.recorrente ? 'recorrente' : true;
+        console.log('Conteúdo atualizado, recorrente:', conteudoData && conteudoData.recorrente);
+        return conteudoData && conteudoData.recorrente ? 'recorrente' : true;
       }
       
       return false;

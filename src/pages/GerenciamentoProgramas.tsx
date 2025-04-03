@@ -210,7 +210,8 @@ const GerenciamentoProgramas: React.FC = () => {
         
         const conteudosFormatados = data.map(item => ({
           ...item,
-          programas: item.programas || { nome: '' }
+          programas: item.programas || { nome: '' },
+          data_fim: item.data_fim || null
         })) as ConteudoProduzido[];
         
         setConteudosProduzidos(conteudosFormatados);
@@ -639,7 +640,8 @@ const GerenciamentoProgramas: React.FC = () => {
         
         const novoConteudo = {
           ...data[0],
-          programas: data[0].programas || { nome: '' }
+          programas: data[0].programas || { nome: '' },
+          data_fim: data[0].data_fim || null
         } as ConteudoProduzido;
         
         if (selectedItem) {

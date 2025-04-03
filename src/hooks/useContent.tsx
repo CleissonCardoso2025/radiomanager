@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -216,7 +217,8 @@ export function useContent() {
                 isUpcoming,
                 minutesUntil,
                 tipo: 'conteudo',
-                recorrente: item.recorrente || false
+                recorrente: item.recorrente || false,
+                data_fim: item.data_fim || null
               };
             } catch (err) {
               console.error('Erro ao processar conteúdo:', err, item);
