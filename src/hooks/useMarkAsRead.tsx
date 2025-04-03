@@ -30,7 +30,7 @@ export function useMarkAsRead() {
         
         let lido_por = [];
         
-        if (testemunhalData.lido_por && Array.isArray(testemunhalData.lido_por)) {
+        if (testemunhalData && testemunhalData.lido_por && Array.isArray(testemunhalData.lido_por)) {
           lido_por = [...testemunhalData.lido_por];
           if (!lido_por.includes(user.id)) {
             lido_por.push(user.id);
@@ -61,7 +61,7 @@ export function useMarkAsRead() {
           duration: 5000
         });
         
-        return testemunhalData.recorrente ? 'recorrente' : true;
+        return testemunhalData && testemunhalData.recorrente ? 'recorrente' : true;
       } else if (tipo === 'conteudo') {
         console.log(`Marcando conteúdo ${id} como lido`);
         

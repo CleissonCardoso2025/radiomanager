@@ -26,6 +26,7 @@ const Agenda: React.FC = () => {
   const { userRole } = useAuth();
   const fullscreenRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [attemptedFullscreen, setAttemptedFullscreen] = useState(false);
 
   // Effect to manage screen wake lock
   useEffect(() => {
@@ -42,27 +43,74 @@ const Agenda: React.FC = () => {
 
   // Effect to automatically enter fullscreen for non-admin users
   useEffect(() => {
-    // Only enter fullscreen automatically for non-admin users
-    if (userRole === 'locutor' && fullscreenRef.current && !isFullscreen) {
-      // Use a small timeout to ensure the component is fully mounted
+    // Only enter fullscreen automatically for non-admin users and if we haven't tried yet
+    if (userRole === 'locutor' && fullscreenRef.current && !isFullscreen && !attemptedFullscreen) {
+      // Set flag to prevent multiple attempts
+      setAttemptedFullscreen(true);
+      
+      console.log('Attempting to enter fullscreen for locutor user');
+      
+      // Try to request fullscreen with a delay to ensure component is mounted
       const timer = setTimeout(() => {
         if (fullscreenRef.current?.requestFullscreen && !document.fullscreenElement) {
-          fullscreenRef.current.requestFullscreen().then(() => {
-            setIsFullscreen(true);
-          }).catch(err => {
-            console.error(`Error attempting to enable fullscreen: ${err.message}`);
-          });
+          fullscreenRef.current.requestFullscreen()
+            .then(() => {
+              console.log('Successfully entered fullscreen mode');
+              setIsFullscreen(true);
+            })
+            .catch(err => {
+              console.error(`Error attempting to enable fullscreen: ${err.message}`);
+              // Try again with a user interaction
+              const tryAgainButton = document.createElement('button');
+              tryAgainButton.innerText = 'Clique para entrar em tela cheia';
+              tryAgainButton.style.position = 'fixed';
+              tryAgainButton.style.top = '50%';
+              tryAgainButton.style.left = '50%';
+              tryAgainButton.style.transform = 'translate(-50%, -50%)';
+              tryAgainButton.style.padding = '10px 20px';
+              tryAgainButton.style.backgroundColor = '#4CAF50';
+              tryAgainButton.style.color = 'white';
+              tryAgainButton.style.border = 'none';
+              tryAgainButton.style.borderRadius = '5px';
+              tryAgainButton.style.cursor = 'pointer';
+              tryAgainButton.style.zIndex = '9999';
+              
+              tryAgainButton.onclick = () => {
+                if (fullscreenRef.current?.requestFullscreen) {
+                  fullscreenRef.current.requestFullscreen()
+                    .then(() => {
+                      setIsFullscreen(true);
+                      document.body.removeChild(tryAgainButton);
+                    })
+                    .catch(e => console.error('Second attempt failed:', e));
+                }
+              };
+              
+              document.body.appendChild(tryAgainButton);
+              
+              // Auto-remove after 10 seconds if not clicked
+              setTimeout(() => {
+                if (document.body.contains(tryAgainButton)) {
+                  document.body.removeChild(tryAgainButton);
+                }
+              }, 10000);
+            });
         }
-      }, 500);
+      }, 1000);
       
       return () => clearTimeout(timer);
     }
-  }, [userRole, isFullscreen]);
+  }, [userRole, isFullscreen, attemptedFullscreen]);
 
   // Handle fullscreen change events
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
+      if (!document.fullscreenElement) {
+        console.log('Exited fullscreen mode, may attempt to re-enter');
+        // Reset attempted flag to allow trying again if user exits fullscreen
+        setAttemptedFullscreen(false);
+      }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
