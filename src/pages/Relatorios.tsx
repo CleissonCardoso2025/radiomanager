@@ -38,13 +38,27 @@ const Relatorios = () => {
         const startDate = format(startOfMonth(date), 'yyyy-MM-dd');
         const endDate = format(endOfMonth(date), 'yyyy-MM-dd');
         
-        // Fetch content status data with direct SQL query
+        // Using raw SQL query for status stats instead of .group()
         const { data: statusStats, error: statusError } = await supabase
           .from('conteudos_produzidos')
-          .select('status, count(*)', { count: 'exact' })
+          .select(`
+            status,
+            count
+          `, { count: 'exact' })
           .gte('data_programada', startDate)
           .lte('data_programada', endDate)
-          .group('status');
+          .or('data_fim.is.null,data_fim.gte.' + startDate)
+          .select(`
+            status,
+            count(*) as count
+          `, { head: false, count: 'exact' })
+          .in('status', ['lido', 'atrasado', 'pendente'])
+          .then(({ data, error }) => {
+            if (error) {
+              throw error;
+            }
+            return { data, error };
+          });
           
         if (statusError) throw statusError;
         
@@ -77,18 +91,33 @@ const Relatorios = () => {
         
         setStatusData(pieData);
         
-        // Fetch program data with raw SQL query using .select
+        // Using raw SQL query for program data instead of .group()
         const { data: programStats, error: programError } = await supabase
           .from('conteudos_produzidos')
           .select(`
             programa_id,
-            programas(nome),
+            programas (
+              nome
+            ),
             status,
-            count(*)
+            count
           `)
           .gte('data_programada', startDate)
           .lte('data_programada', endDate)
-          .group('programa_id, programas(nome), status');
+          .or('data_fim.is.null,data_fim.gte.' + startDate)
+          .select(`
+            programa_id,
+            programas:programa_id (nome),
+            status,
+            count(*) as count
+          `, { head: false, count: 'exact' })
+          .in('status', ['lido', 'atrasado', 'pendente'])
+          .then(({ data, error }) => {
+            if (error) {
+              throw error;
+            }
+            return { data, error };
+          });
           
         if (programError) throw programError;
         
