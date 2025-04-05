@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
@@ -21,24 +22,43 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
-type StatusCount = {
+// Define types for our data
+interface StatusCount {
   status: string;
   count: number;
-};
+  start_date: string | null;
+  end_date: string | null;
+}
 
-type ProgramStatusCount = {
+interface ProgramStatusCount {
   programa_id: string;
   programa_nome: string;
   status: string;
   count: number;
-};
+  start_date: string | null;
+  end_date: string | null;
+}
+
+// Type for chart data
+interface ChartData {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface BarChartData {
+  name: string;
+  readOnTime: number;
+  readLate: number;
+  pending: number;
+}
 
 const Relatorios = () => {
   const [date, setDate] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(true);
-  const [statusData, setStatusData] = useState([]);
-  const [programData, setProgramData] = useState([]);
-  const [dailyData, setDailyData] = useState([]);
+  const [statusData, setStatusData] = useState<ChartData[]>([]);
+  const [programData, setProgramData] = useState<BarChartData[]>([]);
+  const [dailyData, setDailyData] = useState<BarChartData[]>([]);
 
   useEffect(() => {
     const fetchReportData = async () => {
@@ -49,7 +69,7 @@ const Relatorios = () => {
         const startDate = format(startOfMonth(date), 'yyyy-MM-dd');
         const endDate = format(endOfMonth(date), 'yyyy-MM-dd');
         
-        // Query for status statistics using custom SQL function
+        // Query for status statistics from the view
         const { data: statusStats, error: statusError } = await supabase
           .from('count_content_by_status')
           .select('*')
@@ -59,7 +79,7 @@ const Relatorios = () => {
         if (statusError) throw statusError;
         
         // Transform status data for pie chart
-        const pieData = statusStats ? statusStats.map((item: StatusCount) => {
+        const pieData = statusStats ? (statusStats as StatusCount[]).map((item) => {
           const getColor = (status: string) => {
             switch(status) {
               case 'lido': return '#4ade80'; // green
@@ -87,7 +107,7 @@ const Relatorios = () => {
         
         setStatusData(pieData);
         
-        // Query for program statistics using custom SQL function
+        // Query for program statistics from the view
         const { data: programStats, error: programError } = await supabase
           .from('count_content_by_program_status')
           .select('*')
@@ -97,7 +117,7 @@ const Relatorios = () => {
         if (programError) throw programError;
         
         // Transform program data
-        const programsMap: Record<string, any> = {};
+        const programsMap: Record<string, BarChartData> = {};
         
         if (programStats) {
           (programStats as ProgramStatusCount[]).forEach(item => {

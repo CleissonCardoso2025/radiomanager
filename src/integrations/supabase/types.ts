@@ -180,7 +180,26 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      count_content_by_program_status: {
+        Row: {
+          count: number | null
+          end_date: string | null
+          programa_id: string | null
+          programa_nome: string | null
+          start_date: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      count_content_by_status: {
+        Row: {
+          count: number | null
+          end_date: string | null
+          start_date: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_update_user_password: {
