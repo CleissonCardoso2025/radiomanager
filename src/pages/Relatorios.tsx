@@ -38,27 +38,15 @@ const Relatorios = () => {
         const startDate = format(startOfMonth(date), 'yyyy-MM-dd');
         const endDate = format(endOfMonth(date), 'yyyy-MM-dd');
         
-        // Using raw SQL query for status stats instead of .group()
+        // Query for status statistics
         const { data: statusStats, error: statusError } = await supabase
           .from('conteudos_produzidos')
-          .select(`
-            status,
-            count
-          `, { count: 'exact' })
+          .select('status, count(*)')
           .gte('data_programada', startDate)
           .lte('data_programada', endDate)
-          .or('data_fim.is.null,data_fim.gte.' + startDate)
-          .select(`
-            status,
-            count(*) as count
-          `, { head: false, count: 'exact' })
+          .or(`data_fim.is.null,data_fim.gte.${startDate}`)
           .in('status', ['lido', 'atrasado', 'pendente'])
-          .then(({ data, error }) => {
-            if (error) {
-              throw error;
-            }
-            return { data, error };
-          });
+          .group('status');
           
         if (statusError) throw statusError;
         
@@ -91,33 +79,20 @@ const Relatorios = () => {
         
         setStatusData(pieData);
         
-        // Using raw SQL query for program data instead of .group()
+        // Query for program statistics
         const { data: programStats, error: programError } = await supabase
           .from('conteudos_produzidos')
           .select(`
             programa_id,
-            programas (
-              nome
-            ),
+            programas:programa_id (nome),
             status,
-            count
+            count(*)
           `)
           .gte('data_programada', startDate)
           .lte('data_programada', endDate)
-          .or('data_fim.is.null,data_fim.gte.' + startDate)
-          .select(`
-            programa_id,
-            programas:programa_id (nome),
-            status,
-            count(*) as count
-          `, { head: false, count: 'exact' })
+          .or(`data_fim.is.null,data_fim.gte.${startDate}`)
           .in('status', ['lido', 'atrasado', 'pendente'])
-          .then(({ data, error }) => {
-            if (error) {
-              throw error;
-            }
-            return { data, error };
-          });
+          .group('programa_id, programas(nome), status');
           
         if (programError) throw programError;
         
