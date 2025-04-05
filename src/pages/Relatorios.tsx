@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
@@ -22,6 +21,18 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
+type StatusCount = {
+  status: string;
+  count: number;
+};
+
+type ProgramStatusCount = {
+  programa_id: string;
+  programa_nome: string;
+  status: string;
+  count: number;
+};
+
 const Relatorios = () => {
   const [date, setDate] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(true);
@@ -38,18 +49,18 @@ const Relatorios = () => {
         const startDate = format(startOfMonth(date), 'yyyy-MM-dd');
         const endDate = format(endOfMonth(date), 'yyyy-MM-dd');
         
-        // Query for status statistics using our new database function
+        // Query for status statistics using custom SQL function
         const { data: statusStats, error: statusError } = await supabase
-          .rpc('count_content_by_status', {
-            start_date: startDate,
-            end_date: endDate
-          });
+          .from('count_content_by_status')
+          .select('*')
+          .eq('start_date', startDate)
+          .eq('end_date', endDate);
           
         if (statusError) throw statusError;
         
         // Transform status data for pie chart
-        const pieData = statusStats?.map(item => {
-          const getColor = (status) => {
+        const pieData = statusStats ? statusStats.map((item: StatusCount) => {
+          const getColor = (status: string) => {
             switch(status) {
               case 'lido': return '#4ade80'; // green
               case 'atrasado': return '#f87171'; // red
@@ -58,7 +69,7 @@ const Relatorios = () => {
             }
           };
           
-          const getLabel = (status) => {
+          const getLabel = (status: string) => {
             switch(status) {
               case 'lido': return 'Lidos';
               case 'atrasado': return 'Atrasados';
@@ -69,27 +80,27 @@ const Relatorios = () => {
           
           return {
             name: getLabel(item.status),
-            value: parseInt(item.count),
+            value: parseInt(item.count.toString()),
             color: getColor(item.status)
           };
-        }) || [];
+        }) : [];
         
         setStatusData(pieData);
         
-        // Query for program statistics using our new database function
+        // Query for program statistics using custom SQL function
         const { data: programStats, error: programError } = await supabase
-          .rpc('count_content_by_program_status', {
-            start_date: startDate,
-            end_date: endDate
-          });
+          .from('count_content_by_program_status')
+          .select('*')
+          .eq('start_date', startDate)
+          .eq('end_date', endDate);
           
         if (programError) throw programError;
         
         // Transform program data
-        const programsMap = {};
+        const programsMap: Record<string, any> = {};
         
         if (programStats) {
-          programStats.forEach(item => {
+          (programStats as ProgramStatusCount[]).forEach(item => {
             const programName = item.programa_nome || 'Sem Programa';
             
             if (!programsMap[programName]) {
@@ -103,13 +114,13 @@ const Relatorios = () => {
             
             switch(item.status) {
               case 'lido':
-                programsMap[programName].readOnTime += parseInt(item.count);
+                programsMap[programName].readOnTime += parseInt(item.count.toString());
                 break;
               case 'atrasado':
-                programsMap[programName].readLate += parseInt(item.count);
+                programsMap[programName].readLate += parseInt(item.count.toString());
                 break;
               case 'pendente':
-                programsMap[programName].pending += parseInt(item.count);
+                programsMap[programName].pending += parseInt(item.count.toString());
                 break;
             }
           });
