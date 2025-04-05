@@ -39,17 +39,17 @@ const Relatorios = () => {
         const endDate = format(endOfMonth(date), 'yyyy-MM-dd');
         
         // Fetch content status data
+        // Instead of using .group(), we'll count records with each status value
         const { data: statusStats, error: statusError } = await supabase
-          .from('conteudos_produzidos')
-          .select('status, count')
-          .gte('data_programada', startDate)
-          .lte('data_programada', endDate)
-          .group('status');
+          .rpc('count_content_by_status', {
+            start_date: startDate,
+            end_date: endDate
+          });
           
         if (statusError) throw statusError;
         
         // Transform status data for pie chart
-        const pieData = statusStats.map(item => {
+        const pieData = statusStats?.map(item => {
           const getColor = (status) => {
             switch(status) {
               case 'lido': return '#4ade80'; // green
@@ -73,25 +73,25 @@ const Relatorios = () => {
             value: parseInt(item.count),
             color: getColor(item.status)
           };
-        });
+        }) || [];
         
         setStatusData(pieData);
         
         // Fetch program data
+        // Instead of using .group(), we'll use a custom RPC function
         const { data: programStats, error: programError } = await supabase
-          .from('conteudos_produzidos')
-          .select('programas(nome), status, count')
-          .gte('data_programada', startDate)
-          .lte('data_programada', endDate)
-          .group('programas(nome), status');
+          .rpc('count_content_by_program_status', {
+            start_date: startDate,
+            end_date: endDate
+          });
           
         if (programError) throw programError;
         
         // Transform program data
         const programsMap = {};
         
-        programStats.forEach(item => {
-          const programName = item.programas?.nome || 'Sem Programa';
+        programStats?.forEach(item => {
+          const programName = item.program_name || 'Sem Programa';
           
           if (!programsMap[programName]) {
             programsMap[programName] = {
@@ -177,7 +177,7 @@ const Relatorios = () => {
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
               <Calendar
-                mode="month"
+                mode="single"
                 defaultMonth={date}
                 selected={date}
                 onSelect={(newDate) => newDate && setDate(newDate)}
