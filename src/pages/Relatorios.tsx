@@ -69,58 +69,62 @@ const Relatorios = () => {
         const startDate = format(startOfMonth(date), 'yyyy-MM-dd');
         const endDate = format(endOfMonth(date), 'yyyy-MM-dd');
         
-        // Query for status statistics from the view
+        // Query for status statistics from the view using a custom query
         const { data: statusStats, error: statusError } = await supabase
-          .from('count_content_by_status')
-          .select('*')
-          .eq('start_date', startDate)
-          .eq('end_date', endDate);
+          .rpc('count_content_by_status', { 
+            start_date: startDate, 
+            end_date: endDate 
+          });
           
         if (statusError) throw statusError;
         
         // Transform status data for pie chart
-        const pieData = statusStats ? (statusStats as StatusCount[]).map((item) => {
-          const getColor = (status: string) => {
-            switch(status) {
-              case 'lido': return '#4ade80'; // green
-              case 'atrasado': return '#f87171'; // red
-              case 'pendente': return '#facc15'; // yellow
-              default: return '#94a3b8'; // gray
-            }
-          };
-          
-          const getLabel = (status: string) => {
-            switch(status) {
-              case 'lido': return 'Lidos';
-              case 'atrasado': return 'Atrasados';
-              case 'pendente': return 'Pendentes';
-              default: return status;
-            }
-          };
-          
-          return {
-            name: getLabel(item.status),
-            value: parseInt(item.count.toString()),
-            color: getColor(item.status)
-          };
-        }) : [];
+        const pieData: ChartData[] = [];
+        
+        if (statusStats && Array.isArray(statusStats)) {
+          statusStats.forEach((item: any) => {
+            const getColor = (status: string) => {
+              switch(status) {
+                case 'lido': return '#4ade80'; // green
+                case 'atrasado': return '#f87171'; // red
+                case 'pendente': return '#facc15'; // yellow
+                default: return '#94a3b8'; // gray
+              }
+            };
+            
+            const getLabel = (status: string) => {
+              switch(status) {
+                case 'lido': return 'Lidos';
+                case 'atrasado': return 'Atrasados';
+                case 'pendente': return 'Pendentes';
+                default: return status;
+              }
+            };
+            
+            pieData.push({
+              name: getLabel(item.status),
+              value: parseInt(item.count.toString()),
+              color: getColor(item.status)
+            });
+          });
+        }
         
         setStatusData(pieData);
         
         // Query for program statistics from the view
         const { data: programStats, error: programError } = await supabase
-          .from('count_content_by_program_status')
-          .select('*')
-          .eq('start_date', startDate)
-          .eq('end_date', endDate);
+          .rpc('count_content_by_program_status', { 
+            start_date: startDate, 
+            end_date: endDate 
+          });
           
         if (programError) throw programError;
         
         // Transform program data
         const programsMap: Record<string, BarChartData> = {};
         
-        if (programStats) {
-          (programStats as ProgramStatusCount[]).forEach(item => {
+        if (programStats && Array.isArray(programStats)) {
+          programStats.forEach((item: any) => {
             const programName = item.programa_nome || 'Sem Programa';
             
             if (!programsMap[programName]) {
