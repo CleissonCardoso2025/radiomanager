@@ -38,13 +38,13 @@ const Relatorios = () => {
         const startDate = format(startOfMonth(date), 'yyyy-MM-dd');
         const endDate = format(endOfMonth(date), 'yyyy-MM-dd');
         
-        // Fetch content status data
-        // Instead of using .group(), we'll count records with each status value
+        // Fetch content status data with direct SQL query
         const { data: statusStats, error: statusError } = await supabase
-          .rpc('count_content_by_status', {
-            start_date: startDate,
-            end_date: endDate
-          });
+          .from('conteudos_produzidos')
+          .select('status, count(*)', { count: 'exact' })
+          .gte('data_programada', startDate)
+          .lte('data_programada', endDate)
+          .group('status');
           
         if (statusError) throw statusError;
         
@@ -77,43 +77,50 @@ const Relatorios = () => {
         
         setStatusData(pieData);
         
-        // Fetch program data
-        // Instead of using .group(), we'll use a custom RPC function
+        // Fetch program data with raw SQL query using .select
         const { data: programStats, error: programError } = await supabase
-          .rpc('count_content_by_program_status', {
-            start_date: startDate,
-            end_date: endDate
-          });
+          .from('conteudos_produzidos')
+          .select(`
+            programa_id,
+            programas(nome),
+            status,
+            count(*)
+          `)
+          .gte('data_programada', startDate)
+          .lte('data_programada', endDate)
+          .group('programa_id, programas(nome), status');
           
         if (programError) throw programError;
         
         // Transform program data
         const programsMap = {};
         
-        programStats?.forEach(item => {
-          const programName = item.program_name || 'Sem Programa';
-          
-          if (!programsMap[programName]) {
-            programsMap[programName] = {
-              name: programName,
-              readOnTime: 0,
-              readLate: 0,
-              pending: 0
-            };
-          }
-          
-          switch(item.status) {
-            case 'lido':
-              programsMap[programName].readOnTime += parseInt(item.count);
-              break;
-            case 'atrasado':
-              programsMap[programName].readLate += parseInt(item.count);
-              break;
-            case 'pendente':
-              programsMap[programName].pending += parseInt(item.count);
-              break;
-          }
-        });
+        if (programStats) {
+          programStats.forEach(item => {
+            const programName = item.programas?.nome || 'Sem Programa';
+            
+            if (!programsMap[programName]) {
+              programsMap[programName] = {
+                name: programName,
+                readOnTime: 0,
+                readLate: 0,
+                pending: 0
+              };
+            }
+            
+            switch(item.status) {
+              case 'lido':
+                programsMap[programName].readOnTime += parseInt(item.count);
+                break;
+              case 'atrasado':
+                programsMap[programName].readLate += parseInt(item.count);
+                break;
+              case 'pendente':
+                programsMap[programName].pending += parseInt(item.count);
+                break;
+            }
+          });
+        }
         
         setProgramData(Object.values(programsMap));
         
