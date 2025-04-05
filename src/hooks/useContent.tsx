@@ -128,18 +128,34 @@ export function useContent() {
               const isContentWithinProgram = contentTotalMinutes >= progStartTotalMinutes && 
                                            contentTotalMinutes <= progEndTotalMinutes;
               
+              // Verificar se o conteúdo já passou do horário (está atrasado)
+              const isContentLate = contentTotalMinutes < currentTotalMinutes;
+              
               console.log(`Verificando horários para conteúdo ${item.nome}:`, {
                 currentTime,
                 programHorario: `${item.programas.horario_inicio} - ${item.programas.horario_fim}`,
                 contentHorario: item.horario_programado,
                 isProgramActive,
-                isContentWithinProgram
+                isContentWithinProgram,
+                isContentLate
               });
               
-              // Mostrar somente conteúdos que estão dentro do período do programa
+              // Mostrar somente conteúdos que:
+              // 1. Estão dentro do período do programa
+              // 2. O programa está ativo no momento OU vai começar em até 30 minutos
+              // 3. O conteúdo está por vir OU recém atrasado (até 15 minutos)
               if (!isContentWithinProgram) {
                 console.log(`Conteúdo ${item.id} não será exibido (fora do horário do programa)`);
                 return false;
+              }
+              
+              // Se o conteúdo já passou há mais de 15 minutos, não mostrar
+              if (isContentLate) {
+                const minutesLate = currentTotalMinutes - contentTotalMinutes;
+                if (minutesLate > 15) {
+                  console.log(`Conteúdo ${item.id} está atrasado em ${minutesLate} minutos, não será exibido`);
+                  return false;
+                }
               }
               
               // Se o programa não estiver ativo agora, verificar se está prestes a começar (30 minutos antes)
@@ -156,19 +172,10 @@ export function useContent() {
               }
             }
             
-            // Verificar status e recorrência
-            if (item.status === 'lido') {
-              // Se foi lido pelo usuário atual e não é recorrente, não mostrar
-              if (!item.recorrente) {
-                console.log(`Conteúdo ${item.id} já foi lido e não é recorrente, não exibindo`);
-                return false;
-              }
-              
-              // Se é recorrente mas já foi lido pelo usuário atual, verificar array lido_por
-              if (item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id)) {
-                console.log(`Conteúdo ${item.id} é recorrente mas já foi lido pelo usuário atual, não exibindo`);
-                return false;
-              }
+            // Verificar se já foi lido pelo usuário atual
+            if (item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id)) {
+              console.log(`Conteúdo ${item.id} já foi lido pelo usuário atual, não exibindo`);
+              return false;
             }
             
             return true;
@@ -201,7 +208,7 @@ export function useContent() {
               const now = new Date();
               const minutesUntil = differenceInMinutes(scheduledDate, now);
               
-              const isUpcoming = minutesUntil >= 0 && minutesUntil <= 30;
+              const isUpcoming = minutesUntil >= -15 && minutesUntil <= 30; // Inclui até 15 minutos atrasados
               
               if (isUpcoming && isMobileDevice()) {
                 playNotificationSound('alert');

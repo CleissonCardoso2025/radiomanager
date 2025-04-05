@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -101,7 +102,7 @@ export function useTestimonials(selectedProgram = null) {
             // Se não estiver dentro do período de datas, não mostrar
             if (!isWithinDateRange) return false;
             
-            // Verificar se o horário está dentro do período do programa
+            // Verificar se o horário está dentro do período do programa e do horário atual
             if (t.programas.horario_inicio && t.programas.horario_fim) {
               const now = new Date();
               const currentHour = now.getHours();
@@ -129,18 +130,34 @@ export function useTestimonials(selectedProgram = null) {
               const isTestimonialWithinProgram = testTotalMinutes >= progStartTotalMinutes && 
                                                testTotalMinutes <= progEndTotalMinutes;
               
+              // Verificar se o testemunhal já passou do horário (está atrasado)
+              const isTestimonialLate = testTotalMinutes < currentTotalMinutes;
+              
               console.log(`Verificando horários para ${t.patrocinador}:`, {
                 currentTime,
                 programHorario: `${t.programas.horario_inicio} - ${t.programas.horario_fim}`,
                 testimonialHorario: t.horario_agendado,
                 isProgramActive,
-                isTestimonialWithinProgram
+                isTestimonialWithinProgram,
+                isTestimonialLate
               });
               
-              // Mostrar somente testemunhais durante o período do programa ou próximos de iniciar
+              // Mostrar somente testemunhais que:
+              // 1. Estão dentro do horário do programa
+              // 2. O programa está ativo no momento OU vai começar em até 30 minutos
+              // 3. O testemunhal está por vir OU recém atrasado (até 15 minutos)
               if (!isTestimonialWithinProgram) {
                 console.log(`Testemunhal ${t.id} não será exibido (fora do horário do programa)`);
                 return false;
+              }
+              
+              // Se o testemunhal já passou há mais de 15 minutos, não mostrar
+              if (isTestimonialLate) {
+                const minutesLate = currentTotalMinutes - testTotalMinutes;
+                if (minutesLate > 15) {
+                  console.log(`Testemunhal ${t.id} está atrasado em ${minutesLate} minutos, não será exibido`);
+                  return false;
+                }
               }
               
               // Se o programa não estiver ativo agora, verificar se está prestes a começar (30 minutos antes)
@@ -170,10 +187,9 @@ export function useTestimonials(selectedProgram = null) {
               
               return items.filter(t => {
                 const lidoPor = t.lido_por || [];
-                const recorrente = t.recorrente || false;
                 
-                // Keep item if it's recurrent or not read by this user
-                return recorrente || !lidoPor.includes(user.id);
+                // Manter apenas os itens NÃO lidos por este usuário
+                return !lidoPor.includes(user.id);
               });
             } catch (err) {
               console.error('Error checking user auth status:', err);
@@ -212,7 +228,7 @@ export function useTestimonials(selectedProgram = null) {
                 const now = new Date();
                 const minutesUntil = differenceInMinutes(scheduledDate, now);
                 
-                const isUpcoming = minutesUntil >= 0 && minutesUntil <= 30;
+                const isUpcoming = minutesUntil >= -15 && minutesUntil <= 30; // Inclui até 15 minutos atrasados
                 const isExactTime = minutesUntil === 0;
                 
                 if (isExactTime && isMobileDevice()) {

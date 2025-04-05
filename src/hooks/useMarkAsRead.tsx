@@ -61,7 +61,9 @@ export function useMarkAsRead() {
           duration: 5000
         });
         
-        return testemunhalData && testemunhalData.recorrente ? 'recorrente' : true;
+        // Sempre retornamos true para remover o item da lista, independente da recorrência
+        // Isso faz com que todos os itens desapareçam quando marcados como lidos
+        return true;
       } else if (tipo === 'conteudo') {
         console.log(`Marcando conteúdo ${id} como lido`);
         
@@ -116,8 +118,9 @@ export function useMarkAsRead() {
           duration: 5000
         });
         
-        console.log('Conteúdo atualizado, recorrente:', conteudoData && conteudoData.recorrente);
-        return conteudoData && conteudoData.recorrente ? 'recorrente' : true;
+        // Sempre retornamos true para remover o item da lista, independente da recorrência
+        // Isso faz com que todos os itens desapareçam quando marcados como lidos
+        return true;
       }
       
       return false;
