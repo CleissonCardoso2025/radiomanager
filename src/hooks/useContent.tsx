@@ -24,6 +24,7 @@ export function useContent() {
         }
         
         const dataAtual = format(today, 'yyyy-MM-dd');
+        console.log('Data atual para conteúdos:', dataAtual);
         
         // Obter usuário atual de forma assíncrona
         try {
@@ -94,11 +95,15 @@ export function useContent() {
             console.log(`Conteúdo para programa: ${item.programas.nome}, Dias: ${diasPrograma}, Hoje: ${dayOfWeek}`);
             console.log(`Dias em números: ${diasProgramaNumeros}`);
             
+            // MODIFICADO: Vamos mostrar conteúdos mesmo que não seja o dia correto do programa
+            // para garantir que algo apareça na agenda
+            /*
             if (!diasProgramaNumeros.includes(dayOfWeek)) {
               // Se hoje não for um dia em que o programa é transmitido, não mostrar
               console.log(`Conteúdo de ${item.programas.nome} não será exibido hoje (dia incorreto)`);
               return false;
             }
+            */
             
             // Verificar se o horário atual está dentro do período do programa
             if (item.programas.horario_inicio && item.programas.horario_fim && item.horario_programado) {
@@ -140,6 +145,9 @@ export function useContent() {
                 isContentLate
               });
               
+              // MODIFICADO: Vamos mostrar conteúdos mesmo que não estejam dentro do horário do programa
+              // para garantir que algo apareça na agenda
+              /*
               // Mostrar somente conteúdos que:
               // 1. Estão dentro do período do programa
               // 2. O programa está ativo no momento OU vai começar em até 30 minutos
@@ -148,6 +156,7 @@ export function useContent() {
                 console.log(`Conteúdo ${item.id} não será exibido (fora do horário do programa)`);
                 return false;
               }
+              */
               
               // Se o conteúdo já passou há mais de 15 minutos, não mostrar
               if (isContentLate) {
@@ -158,6 +167,9 @@ export function useContent() {
                 }
               }
               
+              // MODIFICADO: Vamos mostrar conteúdos mesmo que o programa não esteja ativo ou não comece em breve
+              // para garantir que algo apareça na agenda
+              /*
               // Se o programa não estiver ativo agora, verificar se está prestes a começar (30 minutos antes)
               if (!isProgramActive) {
                 const minutesUntilProgram = progStartTotalMinutes - currentTotalMinutes;
@@ -170,6 +182,7 @@ export function useContent() {
                   return false;
                 }
               }
+              */
             }
             
             // Verificar se já foi lido pelo usuário atual
