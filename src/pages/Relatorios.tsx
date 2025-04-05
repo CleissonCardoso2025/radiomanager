@@ -38,15 +38,12 @@ const Relatorios = () => {
         const startDate = format(startOfMonth(date), 'yyyy-MM-dd');
         const endDate = format(endOfMonth(date), 'yyyy-MM-dd');
         
-        // Query for status statistics
+        // Query for status statistics using our new database function
         const { data: statusStats, error: statusError } = await supabase
-          .from('conteudos_produzidos')
-          .select('status, count(*)')
-          .gte('data_programada', startDate)
-          .lte('data_programada', endDate)
-          .or(`data_fim.is.null,data_fim.gte.${startDate}`)
-          .in('status', ['lido', 'atrasado', 'pendente'])
-          .group('status');
+          .rpc('count_content_by_status', {
+            start_date: startDate,
+            end_date: endDate
+          });
           
         if (statusError) throw statusError;
         
@@ -79,20 +76,12 @@ const Relatorios = () => {
         
         setStatusData(pieData);
         
-        // Query for program statistics
+        // Query for program statistics using our new database function
         const { data: programStats, error: programError } = await supabase
-          .from('conteudos_produzidos')
-          .select(`
-            programa_id,
-            programas:programa_id (nome),
-            status,
-            count(*)
-          `)
-          .gte('data_programada', startDate)
-          .lte('data_programada', endDate)
-          .or(`data_fim.is.null,data_fim.gte.${startDate}`)
-          .in('status', ['lido', 'atrasado', 'pendente'])
-          .group('programa_id, programas(nome), status');
+          .rpc('count_content_by_program_status', {
+            start_date: startDate,
+            end_date: endDate
+          });
           
         if (programError) throw programError;
         
@@ -101,7 +90,7 @@ const Relatorios = () => {
         
         if (programStats) {
           programStats.forEach(item => {
-            const programName = item.programas?.nome || 'Sem Programa';
+            const programName = item.programa_nome || 'Sem Programa';
             
             if (!programsMap[programName]) {
               programsMap[programName] = {

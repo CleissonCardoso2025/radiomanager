@@ -194,6 +194,28 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      count_content_by_program_status: {
+        Args: {
+          start_date: string
+          end_date: string
+        }
+        Returns: {
+          programa_id: string
+          programa_nome: string
+          status: string
+          count: number
+        }[]
+      }
+      count_content_by_status: {
+        Args: {
+          start_date: string
+          end_date: string
+        }
+        Returns: {
+          status: string
+          count: number
+        }[]
+      }
       get_users_with_emails: {
         Args: Record<PropertyKey, never>
         Returns: {
