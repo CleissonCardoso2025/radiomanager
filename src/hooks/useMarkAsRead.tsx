@@ -37,10 +37,34 @@ export function useMarkAsRead() {
       // Atualizar o registro adicionando o ID do usuário ao array lido_por
       // e atualizando o timestamp de leitura
       const timestamp = new Date().toISOString();
+      
+      // Primeiro, vamos verificar o estado atual do array lido_por
+      const { data: currentItem, error: fetchError } = await supabase
+        .from(tableName)
+        .select('lido_por')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        console.error('Erro ao buscar item:', fetchError);
+        toast.error('Erro ao buscar item', {
+          description: fetchError.message
+        });
+        setIsMarkingAsRead(false);
+        return false;
+      }
+      
+      // Criar um novo array com o ID do usuário, se ele ainda não estiver presente
+      const currentLidoPor = currentItem.lido_por || [];
+      if (!currentLidoPor.includes(user.id)) {
+        currentLidoPor.push(user.id);
+      }
+      
+      // Atualizar o registro com o novo array
       const { error: updateError } = await supabase
         .from(tableName)
         .update({ 
-          lido_por: supabase.sql`array_append(lido_por, ${user.id})`,
+          lido_por: currentLidoPor,
           status: 'lido',
           timestamp_leitura: timestamp
         })
