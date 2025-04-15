@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { format, isToday, parseISO } from 'date-fns';
 
 export function useMarkAsRead() {
   const [isMarkingAsRead, setIsMarkingAsRead] = useState(false);
@@ -34,13 +35,45 @@ export function useMarkAsRead() {
         return false;
       }
       
+      // Verificar se o item já existe e seu status atual
+      const { data: currentItem, error: fetchError } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        console.error('Erro ao buscar item:', fetchError);
+        toast.error('Erro ao verificar status do item');
+        setIsMarkingAsRead(false);
+        return false;
+      }
+
+      // Verificar se o item já foi lido por este usuário hoje
+      const lidoPorArray = currentItem.lido_por || [];
+      const timestampLeitura = currentItem.timestamp_leitura ? parseISO(currentItem.timestamp_leitura) : null;
+      
+      // Se o item foi lido por este usuário e foi hoje, não marcar novamente
+      if (lidoPorArray.includes(user.id) && timestampLeitura && isToday(timestampLeitura)) {
+        console.log(`Item ${id} já foi lido por ${user.id} hoje`);
+        toast.info('Este item já foi marcado como lido hoje');
+        setIsMarkingAsRead(false);
+        return true; // Retornar true porque o item já está no estado desejado
+      }
+      
       // Atualizar o registro adicionando o ID do usuário ao array lido_por
-      // e atualizando o timestamp de leitura
+      // e atualizando o timestamp de leitura para o dia atual
       const timestamp = new Date().toISOString();
+      
+      // Construir o array lido_por atualizado (sem duplicar o ID do usuário)
+      const updatedLidoPor = lidoPorArray.includes(user.id) 
+        ? lidoPorArray 
+        : [...lidoPorArray, user.id];
+      
       const { error: updateError } = await supabase
         .from(tableName)
         .update({ 
-          lido_por: supabase.sql`array_append(lido_por, ${user.id})`,
+          lido_por: updatedLidoPor,
           status: 'lido',
           timestamp_leitura: timestamp
         })

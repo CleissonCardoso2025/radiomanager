@@ -126,17 +126,29 @@ const Agenda: React.FC = () => {
     console.log('Mark as read result:', result, 'Type:', tipo, 'ID:', id);
     
     if (result === true) {
-      // Em vez de remover o item, vamos atualizar o testemunhal com o timestamp de leitura
-      // e a lista lido_por, mas mantê-lo na lista até o final do programa
+      // Atualizar o testemunhal com o status de lido e timestamp, mas mantê-lo na lista
       if (tipo === 'testemunhal') {
-        setTestemunhais(prev => 
-          prev.map(t => 
-            t.id === id 
-              ? { ...t, lido_por: [...(t.lido_por || []), t.user_id], timestamp_leitura: new Date().toISOString() } 
-              : t
-          )
-        );
+        // Obter o usuário atual
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          setTestemunhais(prev => 
+            prev.map(t => 
+              t.id === id 
+                ? { 
+                    ...t, 
+                    lido_por: t.lido_por ? 
+                      (t.lido_por.includes(user.id) ? t.lido_por : [...t.lido_por, user.id]) 
+                      : [user.id], 
+                    timestamp_leitura: new Date().toISOString(),
+                    status: 'lido'
+                  } 
+                : t
+            )
+          );
+        }
       } else if (tipo === 'conteudo') {
+        // Para conteúdos, ainda podemos remover da lista após marcados como lidos
         setConteudos(prev => prev.filter(c => c.id !== id));
       }
     }
