@@ -50,8 +50,14 @@ export function useMarkAsRead() {
       }
 
       // Verificar se o item já foi lido por este usuário hoje
-      const lidoPorArray = currentItem.lido_por || [];
-      const timestampLeitura = currentItem.timestamp_leitura ? parseISO(currentItem.timestamp_leitura) : null;
+      // Fazer uma verificação de tipo antes de acessar as propriedades
+      const lidoPorArray = currentItem && Array.isArray(currentItem.lido_por) 
+        ? currentItem.lido_por 
+        : [];
+        
+      const timestampLeitura = currentItem && currentItem.timestamp_leitura 
+        ? parseISO(currentItem.timestamp_leitura) 
+        : null;
       
       // Se o item foi lido por este usuário e foi hoje, não marcar novamente
       if (lidoPorArray.includes(user.id) && timestampLeitura && isToday(timestampLeitura)) {
