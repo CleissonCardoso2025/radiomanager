@@ -63,9 +63,9 @@ export function useMarkAsRead() {
       }
       
       // Criar um novo array com o ID do usuário, se ele ainda não estiver presente
-      // Certificar-se de que currentItem.lido_por existe e é um array
-      // Tratando de forma segura para o TypeScript
-      const currentLidoPor = Array.isArray(currentItem.lido_por) ? currentItem.lido_por : [];
+      // Usando type assertion para garantir ao TypeScript que temos a propriedade lido_por
+      const lidoPor = currentItem.lido_por as string[] | null;
+      const currentLidoPor = lidoPor ? [...lidoPor] : [];
       
       if (!currentLidoPor.includes(user.id)) {
         currentLidoPor.push(user.id);
