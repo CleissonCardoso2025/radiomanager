@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -218,8 +218,45 @@ export function useTestimonials(selectedProgram = null) {
             return items.filter(t => {
               const lidoPor = t.lido_por || [];
               
-              // Manter apenas os itens NÃO lidos por este usuário
-              return !lidoPor.includes(user.id);
+              if (lidoPor.includes(user.id)) {
+                // ALTERAÇÃO: Se foi lido, verificar se foi hoje e se o programa já acabou
+                if (t.timestamp_leitura) {
+                  const leituraDate = new Date(t.timestamp_leitura);
+                  
+                  // Se foi lido hoje, verificar se o programa já terminou
+                  if (isToday(leituraDate)) {
+                    // Verificar se o programa já terminou
+                    if (t.programas.horario_fim) {
+                      const now = new Date();
+                      const currentHour = now.getHours();
+                      const currentMinute = now.getMinutes();
+                      const currentTotalMinutes = currentHour * 60 + currentMinute;
+                      
+                      const [endHour, endMinute] = t.programas.horario_fim.split(':').map(Number);
+                      const endTotalMinutes = endHour * 60 + endMinute;
+                      
+                      // Se o programa ainda não terminou, mostrar o testemunhal
+                      if (currentTotalMinutes <= endTotalMinutes) {
+                        console.log(`Testemunhal ${t.id} foi lido hoje, mas o programa ainda não terminou. Mantendo na lista.`);
+                        return true;
+                      }
+                    }
+                  }
+                  
+                  // Se não foi lido hoje, manter na lista para aparecer nos próximos dias
+                  if (!isToday(leituraDate)) {
+                    console.log(`Testemunhal ${t.id} foi lido em outro dia. Mantendo na lista para os próximos dias.`);
+                    return true;
+                  }
+                }
+                
+                // Se chegou até aqui, significa que o testemunhal foi lido hoje e o programa já terminou
+                console.log(`Testemunhal ${t.id} foi lido hoje e o programa já terminou. Removendo da lista.`);
+                return false;
+              }
+              
+              // Se não foi lido por este usuário, manter
+              return true;
             });
           } catch (err) {
             console.error('Error checking user auth status:', err);

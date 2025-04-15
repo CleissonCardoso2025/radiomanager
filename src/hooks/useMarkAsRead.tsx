@@ -2,138 +2,69 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { isMobileDevice, playNotificationSound } from '@/services/notificationService';
 
 export function useMarkAsRead() {
   const [isMarkingAsRead, setIsMarkingAsRead] = useState(false);
 
   const markAsRead = async (id: string, tipo: string = 'testemunhal') => {
-    setIsMarkingAsRead(true);
-    
     try {
+      setIsMarkingAsRead(true);
+      
+      // Obter o usuário atual
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         console.error('Usuário não autenticado');
+        toast.error('Você precisa estar logado para marcar itens como lidos');
         setIsMarkingAsRead(false);
         return false;
       }
       
+      console.log(`Marcando ${tipo} ${id} como lido por ${user.id}`);
+      
+      let tableName;
       if (tipo === 'testemunhal') {
-        const { data: testemunhalData, error: testemunhalError } = await supabase
-          .from('testemunhais')
-          .select('recorrente, lido_por')
-          .eq('id', id)
-          .single();
-          
-        if (testemunhalError) throw testemunhalError;
-        
-        let lido_por = [];
-        
-        if (testemunhalData && testemunhalData.lido_por && Array.isArray(testemunhalData.lido_por)) {
-          lido_por = [...testemunhalData.lido_por];
-          if (!lido_por.includes(user.id)) {
-            lido_por.push(user.id);
-          }
-        } else {
-          lido_por = [user.id];
-        }
-        
-        const { data, error } = await supabase
-          .from('testemunhais')
-          .update({ 
-            status: 'lido',
-            lido_por: lido_por,
-            timestamp_leitura: new Date().toISOString()
-          })
-          .eq('id', id)
-          .select();
-          
-        if (error) throw error;
-        
-        if (isMobileDevice()) {
-          playNotificationSound('success');
-        }
-        
-        toast.success('Testemunhal marcado como lido', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        
-        // Sempre retornamos true para remover o item da lista, independente da recorrência
-        // Isso faz com que todos os itens desapareçam quando marcados como lidos
-        return true;
+        tableName = 'testemunhais';
       } else if (tipo === 'conteudo') {
-        console.log(`Marcando conteúdo ${id} como lido`);
-        
-        const { data: conteudoData, error: conteudoError } = await supabase
-          .from('conteudos_produzidos')
-          .select('recorrente, lido_por')
-          .eq('id', id)
-          .single();
-          
-        if (conteudoError) {
-          console.error('Erro ao buscar dados do conteúdo:', conteudoError);
-          throw conteudoError;
-        }
-        
-        console.log('Dados do conteúdo recuperados:', conteudoData);
-        
-        let lido_por = [];
-        
-        if (conteudoData && conteudoData.lido_por && Array.isArray(conteudoData.lido_por)) {
-          lido_por = [...conteudoData.lido_por];
-          if (!lido_por.includes(user.id)) {
-            lido_por.push(user.id);
-          }
-        } else {
-          lido_por = [user.id];
-        }
-        
-        console.log(`Atualizando conteúdo ${id} com lido_por:`, lido_por);
-        
-        const { data, error } = await supabase
-          .from('conteudos_produzidos')
-          .update({ 
-            status: 'lido',
-            lido_por: lido_por,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', id)
-          .select();
-          
-        if (error) {
-          console.error('Erro ao atualizar conteúdo:', error);
-          throw error;
-        }
-        
-        if (isMobileDevice()) {
-          playNotificationSound('success');
-        }
-        
-        toast.success('Conteúdo marcado como lido', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        
-        // Sempre retornamos true para remover o item da lista, independente da recorrência
-        // Isso faz com que todos os itens desapareçam quando marcados como lidos
-        return true;
+        tableName = 'conteudos_produzidos';
+      } else {
+        console.error('Tipo inválido:', tipo);
+        toast.error('Tipo inválido');
+        setIsMarkingAsRead(false);
+        return false;
       }
       
-      return false;
+      // Atualizar o registro adicionando o ID do usuário ao array lido_por
+      // e atualizando o timestamp de leitura
+      const timestamp = new Date().toISOString();
+      const { error: updateError } = await supabase
+        .from(tableName)
+        .update({ 
+          lido_por: supabase.sql`array_append(lido_por, ${user.id})`,
+          status: 'lido',
+          timestamp_leitura: timestamp
+        })
+        .eq('id', id);
+      
+      if (updateError) {
+        console.error('Erro ao atualizar:', updateError);
+        toast.error('Erro ao marcar como lido', {
+          description: updateError.message
+        });
+        setIsMarkingAsRead(false);
+        return false;
+      }
+      
+      // Notificar sucesso
+      toast.success(`${tipo === 'testemunhal' ? 'Testemunhal' : 'Conteúdo'} marcado como lido`);
+      
+      setIsMarkingAsRead(false);
+      return true;
     } catch (error) {
       console.error('Erro ao marcar como lido:', error);
-      toast.error('Erro ao marcar como lido', {
-        position: 'bottom-right',
-        closeButton: true,
-        duration: 5000
-      });
-      return false;
-    } finally {
+      toast.error('Erro ao marcar como lido');
       setIsMarkingAsRead(false);
+      return false;
     }
   };
 

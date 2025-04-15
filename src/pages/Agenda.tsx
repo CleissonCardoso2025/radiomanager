@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import Header from '@/components/Header';
 import { releaseScreenWakeLock, keepScreenAwake } from '@/services/notificationService';
@@ -125,9 +126,16 @@ const Agenda: React.FC = () => {
     console.log('Mark as read result:', result, 'Type:', tipo, 'ID:', id);
     
     if (result === true) {
-      // Item should be removed
+      // Em vez de remover o item, vamos atualizar o testemunhal com o timestamp de leitura
+      // e a lista lido_por, mas mantê-lo na lista até o final do programa
       if (tipo === 'testemunhal') {
-        setTestemunhais(prev => prev.filter(t => t.id !== id));
+        setTestemunhais(prev => 
+          prev.map(t => 
+            t.id === id 
+              ? { ...t, lido_por: [...(t.lido_por || []), t.user_id], timestamp_leitura: new Date().toISOString() } 
+              : t
+          )
+        );
       } else if (tipo === 'conteudo') {
         setConteudos(prev => prev.filter(c => c.id !== id));
       }
