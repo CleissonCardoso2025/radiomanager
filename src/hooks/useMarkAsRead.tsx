@@ -54,7 +54,7 @@ export function useMarkAsRead() {
         return false;
       }
       
-      // Verificar se temos dados e então acessar lido_por
+      // Verificar se temos dados antes de acessar lido_por
       if (!currentItem) {
         console.error('Item não encontrado');
         toast.error('Item não encontrado');
@@ -63,7 +63,9 @@ export function useMarkAsRead() {
       }
       
       // Criar um novo array com o ID do usuário, se ele ainda não estiver presente
-      const currentLidoPor = currentItem.lido_por || [];
+      // Certificar-se de que currentItem.lido_por existe e é um array
+      const currentLidoPor = Array.isArray(currentItem.lido_por) ? currentItem.lido_por : [];
+      
       if (!currentLidoPor.includes(user.id)) {
         currentLidoPor.push(user.id);
       }
