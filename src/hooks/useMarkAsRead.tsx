@@ -64,7 +64,9 @@ export function useMarkAsRead() {
       
       // Criar um novo array com o ID do usuário, se ele ainda não estiver presente
       // Certificar-se de que currentItem.lido_por existe e é um array
-      const currentLidoPor = Array.isArray(currentItem?.lido_por) ? currentItem.lido_por : [];
+      // Usando uma abordagem mais segura para tipos
+      const lidoPorArray = currentItem.lido_por;
+      const currentLidoPor = Array.isArray(lidoPorArray) ? lidoPorArray : [];
       
       if (!currentLidoPor.includes(user.id)) {
         currentLidoPor.push(user.id);
