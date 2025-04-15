@@ -207,14 +207,18 @@ export function useTestimonials(selectedProgram = null) {
           return true;
         }) : [];
         
-        console.log('Filtered testemunhais by day, date range, program time:', filteredData);
-        
         // Now do a separate async operation to filter by read status
         const filterByReadStatus = async (items) => {
           try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return items;
             
+            console.log('ATENÇÃO: Temporariamente mostrando TODOS os testemunhais, incluindo os já lidos');
+            
+            // MODIFICADO: Temporariamente mostrar todos os testemunhais para diagnóstico
+            return items;
+            
+            /* Código original comentado para diagnóstico
             return items.filter(t => {
               const lidoPor = t.lido_por || [];
               
@@ -258,6 +262,7 @@ export function useTestimonials(selectedProgram = null) {
               // Se não foi lido por este usuário, manter
               return true;
             });
+            */
           } catch (err) {
             console.error('Error checking user auth status:', err);
             return items;

@@ -185,11 +185,17 @@ export function useContent() {
               */
             }
             
-            // Verificar se já foi lido pelo usuário atual
-            if (item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id)) {
+            // MODIFICADO: Temporariamente mostrar todos os conteúdos para diagnóstico
+            console.log('ATENÇÃO: Temporariamente mostrando TODOS os conteúdos, incluindo os já lidos');
+            return true;
+            
+            /* Código original comentado para diagnóstico
+            // Verificar se o conteúdo já foi lido pelo usuário atual
+            if (item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id) && !item.recorrente) {
               console.log(`Conteúdo ${item.id} já foi lido pelo usuário atual, não exibindo`);
               return false;
             }
+            */
             
             return true;
           }) : [];
