@@ -54,6 +54,14 @@ export function useMarkAsRead() {
         return false;
       }
       
+      // Verificar se temos dados e então acessar lido_por
+      if (!currentItem) {
+        console.error('Item não encontrado');
+        toast.error('Item não encontrado');
+        setIsMarkingAsRead(false);
+        return false;
+      }
+      
       // Criar um novo array com o ID do usuário, se ele ainda não estiver presente
       const currentLidoPor = currentItem.lido_por || [];
       if (!currentLidoPor.includes(user.id)) {
