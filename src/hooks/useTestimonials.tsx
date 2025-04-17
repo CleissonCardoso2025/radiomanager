@@ -168,15 +168,6 @@ export function useTestimonials(selectedProgram = null) {
               isTestimonialLate
             });
             
-            // MODIFICADO: Vamos mostrar testemunhais mesmo que não estejam dentro do horário exato do programa
-            // para garantir que alguma coisa apareça na agenda
-            /* 
-            if (!isTestimonialWithinProgram) {
-              console.log(`Testemunhal ${t.id} não será exibido (fora do horário do programa)`);
-              return false;
-            }
-            */
-            
             // Se o testemunhal já passou há mais de 15 minutos, não mostrar
             if (isTestimonialLate) {
               const minutesLate = currentTotalMinutes - testTotalMinutes;
@@ -185,84 +176,42 @@ export function useTestimonials(selectedProgram = null) {
                 return false;
               }
             }
-            
-            // Se o programa não estiver ativo agora, verificar se está prestes a começar (30 minutos antes)
-            if (!isProgramActive) {
-              const minutesUntilProgram = progStartTotalMinutes - currentTotalMinutes;
-              // MODIFICADO: Vamos mostrar testemunhais mesmo que o programa não comece em breve
-              // apenas para garantir que algo apareça na agenda
-              /*
-              // Se o programa começar em até 30 minutos, mostrar os testemunhais
-              if (minutesUntilProgram > 0 && minutesUntilProgram <= 30) {
-                console.log(`Programa ${t.programas.nome} começará em ${minutesUntilProgram} minutos, exibindo testemunhal`);
-                // Continuar e mostrar
-              } else {
-                console.log(`Testemunhal ${t.id} não será exibido (programa não está ativo e não começa em breve)`);
-                return false;
-              }
-              */
-            }
           }
           
           return true;
         }) : [];
         
-        // Now do a separate async operation to filter by read status
+        // Agora filtramos para não mostrar testemunhais que já foram lidos hoje
         const filterByReadStatus = async (items) => {
           try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return items;
             
-            console.log('ATENÇÃO: Temporariamente mostrando TODOS os testemunhais, incluindo os já lidos');
-            
-            // MODIFICADO: Temporariamente mostrar todos os testemunhais para diagnóstico
-            return items;
-            
-            /* Código original comentado para diagnóstico
+            // Filtrar testemunhais que já foram lidos pelo usuário atual hoje
             return items.filter(t => {
+              // Verificar se o array lido_por existe e se o usuário atual está nele
               const lidoPor = t.lido_por || [];
               
               if (lidoPor.includes(user.id)) {
-                // ALTERAÇÃO: Se foi lido, verificar se foi hoje e se o programa já acabou
+                // Se foi lido, verificar se foi hoje
                 if (t.timestamp_leitura) {
                   const leituraDate = new Date(t.timestamp_leitura);
                   
-                  // Se foi lido hoje, verificar se o programa já terminou
+                  // Se foi lido hoje, não mostrar
                   if (isToday(leituraDate)) {
-                    // Verificar se o programa já terminou
-                    if (t.programas.horario_fim) {
-                      const now = new Date();
-                      const currentHour = now.getHours();
-                      const currentMinute = now.getMinutes();
-                      const currentTotalMinutes = currentHour * 60 + currentMinute;
-                      
-                      const [endHour, endMinute] = t.programas.horario_fim.split(':').map(Number);
-                      const endTotalMinutes = endHour * 60 + endMinute;
-                      
-                      // Se o programa ainda não terminou, mostrar o testemunhal
-                      if (currentTotalMinutes <= endTotalMinutes) {
-                        console.log(`Testemunhal ${t.id} foi lido hoje, mas o programa ainda não terminou. Mantendo na lista.`);
-                        return true;
-                      }
-                    }
-                  }
-                  
-                  // Se não foi lido hoje, manter na lista para aparecer nos próximos dias
-                  if (!isToday(leituraDate)) {
-                    console.log(`Testemunhal ${t.id} foi lido em outro dia. Mantendo na lista para os próximos dias.`);
-                    return true;
+                    console.log(`Testemunhal ${t.id} foi lido hoje por ${user.id}. Removendo da lista.`);
+                    return false;
                   }
                 }
                 
-                // Se chegou até aqui, significa que o testemunhal foi lido hoje e o programa já terminou
-                console.log(`Testemunhal ${t.id} foi lido hoje e o programa já terminou. Removendo da lista.`);
-                return false;
+                // Se não foi lido hoje, manter na lista para aparecer nos próximos dias
+                console.log(`Testemunhal ${t.id} foi lido em outro dia por ${user.id}. Mantendo na lista.`);
+                return true;
               }
               
               // Se não foi lido por este usuário, manter
               return true;
             });
-            */
           } catch (err) {
             console.error('Error checking user auth status:', err);
             return items;

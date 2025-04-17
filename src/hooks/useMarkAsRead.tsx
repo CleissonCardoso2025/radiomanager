@@ -50,13 +50,13 @@ export function useMarkAsRead() {
       }
 
       // Verificar se o item já foi lido por este usuário hoje
-      // Fazer uma verificação de tipo antes de acessar as propriedades
-      const lidoPorArray = currentItem && Array.isArray(currentItem.lido_por) 
+      // Fazer uma verificação de tipo e existência antes de acessar as propriedades
+      const lidoPorArray = currentItem && 'lido_por' in currentItem && Array.isArray(currentItem.lido_por) 
         ? currentItem.lido_por 
         : [];
         
-      const timestampLeitura = currentItem && currentItem.timestamp_leitura 
-        ? parseISO(currentItem.timestamp_leitura) 
+      const timestampLeitura = currentItem && 'timestamp_leitura' in currentItem && currentItem.timestamp_leitura 
+        ? parseISO(currentItem.timestamp_leitura.toString()) 
         : null;
       
       // Se o item foi lido por este usuário e foi hoje, não marcar novamente

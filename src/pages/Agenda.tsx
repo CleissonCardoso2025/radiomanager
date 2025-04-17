@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import Header from '@/components/Header';
 import { releaseScreenWakeLock, keepScreenAwake } from '@/services/notificationService';
@@ -127,29 +126,10 @@ const Agenda: React.FC = () => {
     console.log('Mark as read result:', result, 'Type:', tipo, 'ID:', id);
     
     if (result === true) {
-      // Atualizar o testemunhal com o status de lido e timestamp, mas mantê-lo na lista
+      // Remover o testemunhal da lista após marcado como lido (para este dia)
       if (tipo === 'testemunhal') {
-        // Obter o usuário atual
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          setTestemunhais(prev => 
-            prev.map(t => 
-              t.id === id 
-                ? { 
-                    ...t, 
-                    lido_por: t.lido_por ? 
-                      (t.lido_por.includes(user.id) ? t.lido_por : [...t.lido_por, user.id]) 
-                      : [user.id], 
-                    timestamp_leitura: new Date().toISOString(),
-                    status: 'lido'
-                  } 
-                : t
-            )
-          );
-        }
+        setTestemunhais(prev => prev.filter(t => t.id !== id));
       } else if (tipo === 'conteudo') {
-        // Para conteúdos, ainda podemos remover da lista após marcados como lidos
         setConteudos(prev => prev.filter(c => c.id !== id));
       }
     }
