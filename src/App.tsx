@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { supabase } from './integrations/supabase/client';
+import InstallPrompt from './components/InstallPrompt';
 
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login'));
@@ -108,6 +110,7 @@ const App = () => {
   return (
     <AuthContext.Provider value={{ user, isLoading, userRole }}>
       <Toaster />
+      <InstallPrompt />
       <Router>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
