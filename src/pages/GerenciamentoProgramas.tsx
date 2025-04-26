@@ -84,20 +84,7 @@ interface Testemunhal {
   data_fim: string | null;
 }
 
-interface ConteudoProduzido {
-  id: string;
-  nome: string;
-  conteudo: string;
-  programa_id: string;
-  data_programada: string;
-  data_fim: string | null;
-  horario_programado: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  programas?: { nome: string };
-  recorrente?: boolean;
-}
+
 
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
@@ -105,8 +92,8 @@ const GerenciamentoProgramas: React.FC = () => {
   const [activeTab, setActiveTab] = useState('programas');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [modalType, setModalType] = useState<'programa' | 'testemunhal' | 'conteudo'>('programa');
-  const [selectedItem, setSelectedItem] = useState<Programa | Testemunhal | ConteudoProduzido | null>(null);
+  const [modalType, setModalType] = useState<'programa' | 'testemunhal'>('programa');
+  const [selectedItem, setSelectedItem] = useState<Programa | Testemunhal | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState(false);
   
@@ -136,100 +123,51 @@ const GerenciamentoProgramas: React.FC = () => {
 
   const [programas, setProgramas] = useState<Programa[]>([]);
   const [testemunhais, setTestemunhais] = useState<Testemunhal[]>([]);
-  const [conteudosProduzidos, setConteudosProduzidos] = useState<ConteudoProduzido[]>([]);
 
-  useEffect(() => {
-    const fetchProgramas = async () => {
-      const { data, error } = await supabase
-        .from('programas')
-        .select('*')
-        .order('nome');
-      
-      if (error) {
-        toast.error('Erro ao carregar programas', {
-          description: error.message,
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        return;
-      }
-      
-      setProgramas(data || []);
-    };
+
+  // Declaração das funções de fetch
+  const fetchProgramas = async () => {
+    const { data, error } = await supabase
+      .from('programas')
+      .select('*')
+      .order('nome');
     
-    const fetchTestemunhais = async () => {
-      const { data, error } = await supabase
-        .from('testemunhais')
-        .select('*, programas(nome)')
-        .order('patrocinador');
-      
-      if (error) {
-        toast.error('Erro ao carregar testemunhais', {
-          description: error.message,
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        return;
-      }
-      
-      setTestemunhais(data || []);
-    };
+    if (error) {
+      toast.error('Erro ao carregar programas', {
+        description: error.message,
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+      return;
+    }
+    
+    setProgramas(data || []);
+  };
+  
+  const fetchTestemunhais = async () => {
+    const { data, error } = await supabase
+      .from('testemunhais')
+      .select('*, programas(nome)')
+      .order('patrocinador');
+    
+    if (error) {
+      toast.error('Erro ao carregar testemunhais', {
+        description: error.message,
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+      return;
+    }
+    
+    setTestemunhais(data || []);
+  };
 
-    const fetchConteudosProduzidos = async () => {
-      try {
-        // Verificar se a tabela existe
-        const { error: checkError } = await supabase
-          .from('conteudos_produzidos')
-          .select('count')
-          .limit(1);
-          
-        if (checkError && checkError.code === '42P01') {
-          console.error('Tabela conteudos_produzidos não existe:', checkError);
-          // A tabela não existe, então inicializamos com um array vazio
-          setConteudosProduzidos([]);
-          
-          // Mostrar toast informando ao usuário
-          toast.warning('Funcionalidade em construção', {
-            description: 'A funcionalidade de produção de conteúdo está sendo implementada. Por favor, tente novamente mais tarde.',
-            position: 'bottom-right',
-            closeButton: true,
-            duration: 8000
-          });
-          return;
-        }
-        
-        // Se a tabela existir, buscar os dados
-        const { data, error } = await supabase
-          .from('conteudos_produzidos')
-          .select('*, programas(nome)')
-          .order('nome');
-          
-        if (error) throw error;
-        
-        const conteudosFormatados = data.map(item => ({
-          ...item,
-          programas: item.programas || { nome: '' },
-          data_fim: item.data_fim || null
-        })) as ConteudoProduzido[];
-        
-        setConteudosProduzidos(conteudosFormatados);
-      } catch (error: any) {
-        console.error('Erro ao carregar conteúdos produzidos:', error);
-        toast.error('Erro ao carregar conteúdos produzidos', {
-          description: error.message,
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        setConteudosProduzidos([]);
-      }
-    };
-
+  // Effect para carregar os dados
+  useEffect(() => {
     fetchProgramas();
     fetchTestemunhais();
-    fetchConteudosProduzidos();
   }, []);
 
   useEffect(() => {
@@ -342,7 +280,7 @@ const GerenciamentoProgramas: React.FC = () => {
     return times;
   };
 
-  const handleAdd = (type: 'programa' | 'testemunhal' | 'conteudo') => {
+  const handleAdd = (type: 'programa' | 'testemunhal') => {
     setModalType(type);
     setSelectedItem(null);
     setFormData({
@@ -365,7 +303,7 @@ const GerenciamentoProgramas: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (item: Programa | Testemunhal | ConteudoProduzido, type: 'programa' | 'testemunhal' | 'conteudo') => {
+  const handleEdit = (item: Programa | Testemunhal, type: 'programa' | 'testemunhal') => {
     setModalType(type);
     setSelectedItem(item);
     
@@ -390,23 +328,12 @@ const GerenciamentoProgramas: React.FC = () => {
         data_inicio: testemunhal.data_inicio ? new Date(testemunhal.data_inicio) : new Date(),
         data_fim: testemunhal.data_fim ? new Date(testemunhal.data_fim) : undefined,
       });
-    } else {
-      const conteudo = item as ConteudoProduzido;
-      setFormData({
-        nome: conteudo.nome,
-        conteudo: conteudo.conteudo,
-        programa_id: conteudo.programa_id,
-        data_programada: conteudo.data_programada ? new Date(conteudo.data_programada) : new Date(),
-        data_fim: conteudo.data_fim ? new Date(conteudo.data_fim) : undefined,
-        horario_programado: conteudo.horario_programado,
-        recorrente: conteudo.recorrente || false,
-      });
     }
     
     setIsModalOpen(true);
   };
 
-  const handleDelete = (item: Programa | Testemunhal | ConteudoProduzido) => {
+  const handleDelete = (item: Programa | Testemunhal) => {
     setSelectedItem(item);
     setIsAlertOpen(true);
   };
@@ -534,139 +461,6 @@ const GerenciamentoProgramas: React.FC = () => {
       
       setTestemunhais(prev => [...prev, ...novosTestemunhais]);
       setIsModalOpen(false);
-    } else if (modalType === 'conteudo') {
-      console.log('Dados do formulário:', {
-        nome: formData.nome,
-        conteudo: formData.conteudo,
-        programa_id: formData.programa_id,
-        data_programada: formData.data_programada,
-        data_fim: formData.data_fim,
-        horario_programado: formData.horario_programado,
-        recorrente: formData.recorrente,
-      });
-      
-      if (!formData.nome) {
-        toast.error('Nome do conteúdo é obrigatório', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        return;
-      }
-      
-      if (!formData.conteudo) {
-        toast.error('Conteúdo é obrigatório', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        return;
-      }
-      
-      if (!formData.programa_id) {
-        toast.error('Programa é obrigatório', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        return;
-      }
-      
-      if (!formData.data_programada) {
-        toast.error('Data programada é obrigatória', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        return;
-      }
-      
-      if (!formData.horario_programado) {
-        toast.error('Horário programado é obrigatório', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        return;
-      }
-      
-      try {
-        const { error: checkError } = await supabase
-          .from('conteudos_produzidos')
-          .select('count')
-          .limit(1);
-          
-        if (checkError && checkError.code === '42P01') {
-          toast.error('Funcionalidade indisponível', {
-            description: 'A funcionalidade de produção de conteúdo ainda está sendo implementada. Por favor, tente novamente mais tarde.',
-            position: 'bottom-right',
-            closeButton: true,
-            duration: 5000
-          });
-          return;
-        }
-        
-        const dataFormatada = formData.data_programada instanceof Date 
-          ? formData.data_programada.toISOString().split('T')[0]
-          : typeof formData.data_programada === 'string' 
-            ? formData.data_programada
-            : new Date().toISOString().split('T')[0];
-        
-        const dataFimFormatada = formData.data_fim instanceof Date
-          ? formData.data_fim.toISOString().split('T')[0]
-          : typeof formData.data_fim === 'string'
-            ? formData.data_fim
-            : null;
-            
-        const { data, error } = await supabase
-          .from('conteudos_produzidos')
-          .upsert({
-            id: selectedItem?.id,
-            nome: formData.nome,
-            conteudo: formData.conteudo,
-            programa_id: formData.programa_id,
-            data_programada: dataFormatada,
-            data_fim: dataFimFormatada,
-            horario_programado: formData.horario_programado,
-            status: 'pendente',
-            recorrente: formData.recorrente,
-            lido_por: []
-          })
-          .select('*, programas(nome)');
-          
-        if (error) {
-          throw error;
-        }
-        
-        const novoConteudo = {
-          ...data[0],
-          programas: data[0].programas || { nome: '' },
-          data_fim: data[0].data_fim || null
-        } as ConteudoProduzido;
-        
-        if (selectedItem) {
-          setConteudosProduzidos(prev => 
-            prev.map(c => c.id === selectedItem.id ? novoConteudo : c)
-          );
-        } else {
-          setConteudosProduzidos(prev => [...prev, novoConteudo]);
-        }
-        
-        toast.success('Conteúdo salvo com sucesso!', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        
-        setIsModalOpen(false);
-      } catch (error: any) {
-        toast.error('Erro ao salvar conteúdo', {
-          description: error.message,
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-      }
     }
   };
 
@@ -731,22 +525,6 @@ const GerenciamentoProgramas: React.FC = () => {
           closeButton: true,
           duration: 5000
         });
-      } else if ('conteudo' in selectedItem) {
-        // É um conteúdo produzido
-        const { error } = await supabase
-          .from('conteudos_produzidos')
-          .delete()
-          .eq('id', selectedItem.id);
-          
-        if (error) throw error;
-        
-        setConteudosProduzidos(prev => prev.filter(c => c.id !== selectedItem.id));
-        
-        toast.success('Conteúdo excluído com sucesso!', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
       }
     } catch (error: any) {
       toast.error('Erro ao excluir item', {
@@ -784,7 +562,6 @@ const GerenciamentoProgramas: React.FC = () => {
     }
   };
 
-  // Add this function to display the end date in the table
   const formatEndDate = (dateStr: string | null) => {
     if (!dateStr) return 'Sem data fim';
     try {
@@ -814,17 +591,6 @@ const GerenciamentoProgramas: React.FC = () => {
   const indexOfFirstTestemunhal = indexOfLastTestemunhal - itemsPerPage;
   const currentTestemunhais = filteredTestemunhais.slice(indexOfFirstTestemunhal, indexOfLastTestemunhal);
   const totalPagesTestemunhais = Math.ceil(filteredTestemunhais.length / itemsPerPage);
-
-  const filteredConteudos = conteudosProduzidos.filter(conteudo =>
-    conteudo.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    conteudo.conteudo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (conteudo.programas?.nome || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const indexOfLastConteudo = currentPage * itemsPerPage;
-  const indexOfFirstConteudo = indexOfLastConteudo - itemsPerPage;
-  const currentConteudos = filteredConteudos.slice(indexOfFirstConteudo, indexOfLastConteudo);
-  const totalPagesConteudos = Math.ceil(filteredConteudos.length / itemsPerPage);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -886,7 +652,7 @@ const GerenciamentoProgramas: React.FC = () => {
           <div className="flex flex-col gap-6 mb-6">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-1 rounded-lg shadow-sm">
               <div className="flex flex-col sm:flex-row gap-4 justify-between">
-                <TabsList className="w-full sm:w-auto h-auto p-1 bg-transparent grid grid-cols-3 gap-2">
+                <TabsList className="w-full sm:w-auto h-auto p-1 bg-transparent grid grid-cols-2 gap-2">
                   <TabsTrigger 
                     value="programas" 
                     onClick={() => setActiveTab('programas')}
@@ -903,22 +669,14 @@ const GerenciamentoProgramas: React.FC = () => {
                     <MessageSquare className="mr-2 h-4 w-4" />
                     Testemunhais
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="conteudos" 
-                    onClick={() => setActiveTab('conteudos')}
-                    className="py-3 px-4 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md rounded-md transition-all duration-200 hover:bg-blue-100 hover:text-blue-800 font-medium"
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Produção
-                  </TabsTrigger>
                 </TabsList>
                 
                 <Button 
                   className="gap-2 px-4 bg-white text-blue-700 hover:bg-blue-50 shadow-md border border-blue-100 m-1" 
-                  onClick={() => handleAdd(activeTab === 'programas' ? 'programa' : activeTab === 'testemunhais' ? 'testemunhal' : 'conteudo')}
+                  onClick={() => handleAdd(activeTab === 'programas' ? 'programa' : 'testemunhal')}
                 >
                   <Plus size={18} />
-                  <span className="hidden sm:inline">Adicionar {activeTab === 'programas' ? 'Programa' : activeTab === 'testemunhais' ? 'Testemunhal' : 'Produção'}</span>
+                  <span className="hidden sm:inline">Adicionar {activeTab === 'programas' ? 'Programa' : 'Testemunhal'}</span>
                   <span className="sm:hidden">Adicionar</span>
                 </Button>
               </div>
@@ -1232,174 +990,13 @@ const GerenciamentoProgramas: React.FC = () => {
               </CardContent>
             </Card>
           </TabsContent>
-
-          <TabsContent value="conteudos" className="mt-0">
-            <div className="mb-4 flex flex-col gap-4">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight mb-1">Produção</h2>
-                <p className="text-muted-foreground">Gerencie os conteúdos produzidos para a rádio.</p>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                <Input
-                  placeholder="Buscar por nome, conteúdo ou programa..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="max-w-full sm:max-w-md"
-                />
-                {searchTerm && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setCurrentPage(1);
-                    }}
-                    className="w-full sm:w-auto"
-                  >
-                    Limpar busca
-                  </Button>
-                )}
-              </div>
-            </div>
-            
-            <Card className="shadow-sm">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="whitespace-nowrap">Nome</TableHead>
-                        <TableHead className="whitespace-nowrap">Conteúdo</TableHead>
-                        <TableHead className="whitespace-nowrap hidden sm:table-cell">Programa</TableHead>
-                        <TableHead className="whitespace-nowrap hidden md:table-cell">Data</TableHead>
-                        <TableHead className="whitespace-nowrap">Horário</TableHead>
-                        <TableHead className="whitespace-nowrap">Status</TableHead>
-                        <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {Array.isArray(currentConteudos) && currentConteudos.length > 0 ? (
-                        currentConteudos.map((conteudo) => (
-                          <TableRow key={conteudo.id} className="hover:bg-gray-50">
-                            <TableCell className="font-medium max-w-[120px] sm:max-w-[150px] truncate">
-                              <div title={conteudo.nome}>
-                                {conteudo.nome}
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-[150px] sm:max-w-xs truncate">
-                              <div title={conteudo.conteudo}>
-                                {conteudo.conteudo}
-                              </div>
-                            </TableCell>
-                            <TableCell className="hidden sm:table-cell max-w-[150px] truncate">{conteudo.programas?.nome || ''}</TableCell>
-                            <TableCell className="hidden md:table-cell">{formatDate(conteudo.data_programada)}</TableCell>
-                            <TableCell>{conteudo.horario_programado.slice(0, 5)}</TableCell>
-                            <TableCell>
-                              <span className={`px-2 py-1 rounded-full text-xs ${
-                                conteudo.status === 'lido' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : conteudo.status === 'atrasado'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {conteudo.status === 'lido' 
-                                  ? 'Lido' 
-                                  : conteudo.status === 'atrasado'
-                                    ? 'Atrasado'
-                                    : 'Pendente'}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1 sm:gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => handleEdit(conteudo, 'conteudo')} className="h-8 w-8 p-0" title="Editar">
-                                  <Pencil size={16} />
-                                </Button>
-                                <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0" onClick={() => handleDelete(conteudo)} title="Excluir">
-                                  <Trash2 size={16} />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={7} className="h-24 text-center">
-                            <div className="flex flex-col items-center justify-center gap-2">
-                              <CalendarDays className="h-8 w-8 text-muted-foreground opacity-30" />
-                              <p className="text-sm text-muted-foreground">
-                                {searchTerm ? "Nenhum conteúdo encontrado para esta busca" : "Nenhum conteúdo cadastrado"}
-                              </p>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                
-                {totalPagesConteudos > 1 && (
-                  <div className="flex justify-center py-4 overflow-x-auto">
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious 
-                            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                            className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                            aria-disabled={currentPage === 1}
-                          />
-                        </PaginationItem>
-                        
-                        {getPageNumbers().map((page, index) => (
-                          <PaginationItem key={`page-${index}`} className="hidden sm:block">
-                            {page === 'ellipsis-start' || page === 'ellipsis-end' ? (
-                              <PaginationEllipsis />
-                            ) : (
-                              <PaginationLink 
-                                isActive={currentPage === page} 
-                                onClick={() => typeof page === 'number' && handlePageChange(page)}
-                                className="cursor-pointer"
-                              >
-                                {page}
-                              </PaginationLink>
-                            )}
-                          </PaginationItem>
-                        ))}
-                        
-                        <PaginationItem className="sm:hidden">
-                          <span className="px-2">{currentPage} / {totalPagesConteudos}</span>
-                        </PaginationItem>
-                        
-                        <PaginationItem>
-                          <PaginationNext 
-                            onClick={() => currentPage < totalPagesConteudos && handlePageChange(currentPage + 1)}
-                            className={currentPage === totalPagesConteudos ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                            aria-disabled={currentPage === totalPagesConteudos}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  </div>
-                )}
-                
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 text-xs sm:text-sm text-muted-foreground border-t gap-2">
-                  <div>
-                    Mostrando {indexOfFirstConteudo + 1}-{Math.min(indexOfLastConteudo, filteredConteudos.length)} de {filteredConteudos.length} resultados
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {selectedItem ? 'Editar' : 'Adicionar'} {modalType === 'programa' ? 'Programa' : modalType === 'testemunhal' ? 'Testemunhal' : 'Conteúdo'}
+                {selectedItem ? 'Editar' : 'Adicionar'} {modalType === 'programa' ? 'Programa' : 'Testemunhal'}
               </DialogTitle>
             </DialogHeader>
             
@@ -1474,7 +1071,7 @@ const GerenciamentoProgramas: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ) : modalType === 'testemunhal' ? (
+            ) : (
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
                   <Label htmlFor="patrocinador" className="sm:text-right">
@@ -1626,146 +1223,6 @@ const GerenciamentoProgramas: React.FC = () => {
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                  <Label htmlFor="nome" className="sm:text-right">
-                    Nome
-                  </Label>
-                  <Input
-                    id="nome"
-                    value={formData.nome}
-                    onChange={(e) => handleFormChange('nome', e.target.value)}
-                    className="col-span-1 sm:col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                  <Label htmlFor="conteudo" className="sm:text-right">
-                    Conteúdo
-                  </Label>
-                  <Textarea
-                    id="conteudo"
-                    value={formData.conteudo}
-                    onChange={(e) => handleFormChange('conteudo', e.target.value)}
-                    className="col-span-1 sm:col-span-3 min-h-[100px]"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                  <Label htmlFor="programa_id" className="sm:text-right">
-                    Programa
-                  </Label>
-                  <Select
-                    value={formData.programa_id}
-                    onValueChange={(value) => handleFormChange('programa_id', value)}
-                  >
-                    <SelectTrigger className="col-span-1 sm:col-span-3">
-                      <SelectValue placeholder="Selecione um programa" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {programas.map((programa) => (
-                        <SelectItem key={programa.id} value={programa.id}>
-                          {programa.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                  <Label htmlFor="data_programada" className="sm:text-right">
-                    Data Programada
-                  </Label>
-                  <div className="col-span-1 sm:col-span-3">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          {formData.data_programada ? (
-                            format(formData.data_programada, 'PPP', { locale: ptBR })
-                          ) : (
-                            <span>Selecione uma data</span>
-                          )}
-                          <Calendar className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={formData.data_programada}
-                          onSelect={(date) => handleFormChange('data_programada', date)}
-                          initialFocus
-                          locale={ptBR}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-                
-                {/* Add data_fim field */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                  <Label htmlFor="data_fim" className="sm:text-right">
-                    Data Final (opcional)
-                  </Label>
-                  <div className="col-span-1 sm:col-span-3">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          {formData.data_fim ? (
-                            format(formData.data_fim, 'PPP', { locale: ptBR })
-                          ) : (
-                            <span>Selecione uma data</span>
-                          )}
-                          <Calendar className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={formData.data_fim}
-                          onSelect={(date) => handleFormChange('data_fim', date)}
-                          initialFocus
-                          locale={ptBR}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                  <Label htmlFor="horario_programado" className="sm:text-right">
-                    Horário Programado
-                  </Label>
-                  <Input
-                    id="horario_programado"
-                    type="time"
-                    value={formData.horario_programado}
-                    onChange={(e) => handleFormChange('horario_programado', e.target.value)}
-                    className="col-span-1 sm:col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-                  <div className="sm:text-right">
-                    <Label>Recorrente</Label>
-                  </div>
-                  <div className="col-span-1 sm:col-span-3 flex items-center space-x-2">
-                    <Checkbox 
-                      id="recorrente" 
-                      checked={formData.recorrente} 
-                      onCheckedChange={(checked) => handleFormChange('recorrente', checked)}
-                    />
-                    <label
-                      htmlFor="recorrente"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Conteúdo recorrente (aparecerá novamente mesmo após ser marcado como lido)
-                    </label>
-                  </div>
-                </div>
-              </div>
             )}
             
             <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
@@ -1801,5 +1258,6 @@ const GerenciamentoProgramas: React.FC = () => {
     </div>
   );
 };
+
 
 export default GerenciamentoProgramas;
