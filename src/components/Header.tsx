@@ -139,6 +139,7 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
   const allNavItems = [
     { name: 'Dashboard', path: '/', isActive: location.pathname === '/', requiredRole: 'admin' },
     { name: 'Programas e Testemunhais', path: '/gerenciamento', isActive: location.pathname === '/gerenciamento', requiredRole: 'admin' },
+    { name: 'Produção', path: '/producao', isActive: location.pathname === '/producao', requiredRole: 'any' },
     { name: 'Agenda', path: '/agenda', isActive: location.pathname === '/agenda', requiredRole: 'any' },
     { name: 'Relatórios', path: '/relatorios', isActive: location.pathname === '/relatorios', requiredRole: 'admin' },
   ];

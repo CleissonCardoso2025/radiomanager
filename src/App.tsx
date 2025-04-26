@@ -9,6 +9,7 @@ import InstallPrompt from './components/InstallPrompt';
 const Login = lazy(() => import('./pages/Login'));
 const Index = lazy(() => import('./pages/Index'));
 const GerenciamentoProgramas = lazy(() => import('./pages/GerenciamentoProgramas'));
+const Producao = lazy(() => import('./pages/Producao'));
 const Agenda = lazy(() => import('./pages/Agenda'));
 const Relatorios = lazy(() => import('./pages/Relatorios'));
 const Perfil = lazy(() => import('./pages/Perfil'));
@@ -128,6 +129,11 @@ const App = () => {
             <Route path="/agenda" element={
               <ProtectedRoute allowedRoles={['admin', 'locutor']}>
                 <Agenda />
+              </ProtectedRoute>
+            } />
+            <Route path="/producao" element={
+              <ProtectedRoute allowedRoles={['admin', 'locutor']}>
+                <Producao />
               </ProtectedRoute>
             } />
             <Route path="/relatorios" element={
