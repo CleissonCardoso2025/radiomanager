@@ -22,6 +22,7 @@ export type Database = {
           programa_id: string | null
           recorrente: boolean | null
           status: string | null
+          timestamp_leitura: string | null
           updated_at: string | null
         }
         Insert: {
@@ -36,6 +37,7 @@ export type Database = {
           programa_id?: string | null
           recorrente?: boolean | null
           status?: string | null
+          timestamp_leitura?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -50,6 +52,7 @@ export type Database = {
           programa_id?: string | null
           recorrente?: boolean | null
           status?: string | null
+          timestamp_leitura?: string | null
           updated_at?: string | null
         }
         Relationships: [

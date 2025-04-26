@@ -1,1 +1,13 @@
+
+# Project ID from the URL of your Supabase project
+# e.g., if your URL is https://[PROJECT_ID].supabase.co
+# then your project ID is [PROJECT_ID]
 project_id = "elgvdvhlzjphfjufosmt"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+
+[functions.openai-proxy]
+verify_jwt = true
