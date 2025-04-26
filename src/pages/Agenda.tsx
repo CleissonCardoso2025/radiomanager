@@ -22,11 +22,27 @@ const Agenda: React.FC = () => {
   const { testemunhais, isLoading, exactTimeTestimonials, setTestemunhais } = useTestimonials();
   const { conteudos, setConteudos } = useContent();
   const { markAsRead, isMarkingAsRead } = useMarkAsRead();
-  const { filteredItems, searchText, setSearchText } = useFilteredItems(testemunhais, conteudos);
+  // Busca removida conforme solicitado
+  const filteredItems = [...testemunhais, ...conteudos];
   const { userRole } = useAuth();
   const fullscreenRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [attemptedFullscreen, setAttemptedFullscreen] = useState(false);
+  // Forçar tela cheia para todos os perfis
+  useEffect(() => {
+    if (fullscreenRef.current && !isFullscreen && !attemptedFullscreen) {
+      setAttemptedFullscreen(true);
+      const timer = setTimeout(() => {
+        if (fullscreenRef.current?.requestFullscreen && !document.fullscreenElement) {
+          fullscreenRef.current.requestFullscreen()
+            .then(() => setIsFullscreen(true))
+            .catch(() => {});
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isFullscreen, attemptedFullscreen]);
+  // Removido useEffect duplicado de fullscreen por perfil
 
   // Effect to manage screen wake lock
   useEffect(() => {
@@ -150,10 +166,6 @@ const Agenda: React.FC = () => {
       <ConnectionStatus isOnline={isOnline} connectionError={connectionError} retryCount={retryCount} />
       <div className="container py-6">
         <PageHeader />
-        <SearchBar 
-          searchText={searchText} 
-          setSearchText={setSearchText} 
-        />
         <TestimonialList 
           testimonials={filteredItems} 
           isLoading={isLoading} 

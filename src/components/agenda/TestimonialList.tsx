@@ -45,7 +45,10 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
   const totalPages = Math.ceil(testimonials.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentTestimonials = testimonials.slice(indexOfFirstItem, indexOfLastItem);
+  // Filtrar IDs lidos hoje (persistência local)
+  const today = new Date().toISOString().slice(0, 10);
+  const lidosHoje = JSON.parse(localStorage.getItem('testemunhais_lidos_' + today) || '[]');
+  const currentTestimonials = testimonials.filter(t => !lidosHoje.includes(t.id)).slice(indexOfFirstItem, indexOfLastItem);
   
   // Handle page changes
   const handlePageChange = (page: number) => {
@@ -137,6 +140,25 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
     };
   }, []);
 
+  // Entrar automaticamente em tela cheia ao montar o componente
+  React.useEffect(() => {
+    // Pequeno delay para garantir que o componente esteja totalmente montado
+    const timer = setTimeout(() => {
+      if (fullscreenRef.current && !document.fullscreenElement) {
+        fullscreenRef.current.requestFullscreen()
+          .then(() => {
+            console.log('Entrou em tela cheia automaticamente');
+            setIsFullscreen(true);
+          })
+          .catch(err => {
+            console.error('Erro ao tentar entrar em tela cheia:', err);
+          });
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   // Render the testimonial cards
   const renderTestimonials = () => {
     if (isLoading) {
@@ -150,7 +172,16 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
       );
     }
 
-    if (testimonials.length === 0) {
+    if (currentTestimonials.length === 0) {
+      if (isFullscreen) {
+        return (
+          <div style={{ minHeight: '60vh' }} className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="bg-white/90 rounded-xl p-8 shadow-sm border border-gray-100 max-w-md">
+              <h3 className="text-2xl font-semibold mb-2">Não existem testemunhais programados para este horário.</h3>
+            </div>
+          </div>
+        );
+      }
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="bg-white/50 backdrop-blur-sm rounded-xl p-8 shadow-sm border border-gray-100 max-w-md">
@@ -183,7 +214,15 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
             <TestimonialCard
               key={testimonial.id}
               testemunhal={testimonial}
-              onMarkAsRead={onMarkAsRead}
+              onMarkAsRead={id => {
+                // Marca como lido no localStorage
+                const today = new Date().toISOString().slice(0, 10);
+                const lidosHoje = JSON.parse(localStorage.getItem('testemunhais_lidos_' + today) || '[]');
+                if (!lidosHoje.includes(id)) {
+                  localStorage.setItem('testemunhais_lidos_' + today, JSON.stringify([...lidosHoje, id]));
+                }
+                onMarkAsRead(id, 'testemunhal');
+              }}
               isPending={isPending}
             />
           ))}
@@ -196,6 +235,7 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
     <div 
       ref={fullscreenRef} 
       className={`container px-4 pb-8 flex-1 relative ${isFullscreen ? 'bg-white h-screen overflow-y-auto' : ''}`}
+      style={{ fontSize: 24 }}
     >
       <div className="flex justify-end mb-4">
         <Button 
@@ -276,7 +316,48 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
           </PaginationContent>
         </Pagination>
       )}
+      {/* Rodapé de data/hora em tela cheia */}
+      {isFullscreen && (
+        <FooterDateTime />
+      )}
     </div>
+  );
+};
+
+// Componente de rodapé com data/hora
+const FooterDateTime: React.FC = () => {
+  const [now, setNow] = React.useState(new Date());
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
+
+  return (
+    <footer style={{
+      position: 'fixed',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(255,255,255,0.9)',
+      color: '#222',
+      fontSize: 24,
+      textAlign: 'center',
+      padding: '8px 0',
+      borderTop: '1px solid #eee',
+      zIndex: 1000
+    }}>
+      {formatDate(now)} &mdash; {formatTime(now)}
+    </footer>
   );
 };
 
