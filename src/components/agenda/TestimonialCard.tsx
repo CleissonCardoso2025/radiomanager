@@ -54,20 +54,7 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
   onMarkAsRead,
   isPending
 }) => {
-  const [fontSize, setFontSize] = useState(16); // Tamanho padrão da fonte
   const [expanded, setExpanded] = useState(false);
-
-  const increaseFontSize = () => {
-    if (fontSize < 24) {
-      setFontSize(prevSize => prevSize + 2);
-    }
-  };
-
-  const decreaseFontSize = () => {
-    if (fontSize > 12) {
-      setFontSize(prevSize => prevSize - 2);
-    }
-  };
 
   // Determine if this is an upcoming testimonial
   const isUpcoming = testemunhal.isUpcoming;
@@ -128,6 +115,9 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
                 {isExactTime && (
                   <span className="ml-1 text-red-700 font-bold animate-pulse"> (HORÁRIO EXATO!)</span>
                 )}
+                {testemunhal.recorrente && testemunhal.data_fim && (
+                  <span className="ml-2 text-blue-600 font-medium">Recorrente até {new Date(testemunhal.data_fim).toLocaleDateString('pt-BR')}</span>
+                )}
               </span>
             </div>
           </div>
@@ -145,32 +135,8 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
         
         <CardContent className="p-4 pt-0">
           <div className="prose prose-sm max-w-none">
-            <div className="flex items-center justify-end mb-2 space-x-2">
-              <div className="bg-gradient-to-r from-gray-100/80 to-gray-50/80 backdrop-blur-sm rounded-lg flex items-center p-1 shadow-sm border border-gray-200/50">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={decreaseFontSize} 
-                  className="h-8 w-8 text-gray-600 hover:bg-gray-200/70"
-                  title="Diminuir texto"
-                >
-                  <Type className="h-3.5 w-3.5" />
-                  <ChevronDown className="h-2.5 w-2.5" />
-                </Button>
-                <span className="text-xs font-medium text-gray-600 px-2">{fontSize}px</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={increaseFontSize} 
-                  className="h-8 w-8 text-gray-600 hover:bg-gray-200/70"
-                  title="Aumentar texto"
-                >
-                  <Type className="h-3.5 w-3.5" />
-                  <ChevronUp className="h-2.5 w-2.5" />
-                </Button>
-              </div>
-            </div>
-            <p style={{ fontSize: `${fontSize}px` }} className={cn(
+
+            <p style={{ fontSize: '24px' }} className={cn(
               "whitespace-pre-wrap break-words",
               isExactTime && "font-semibold bg-red-50 p-2 rounded-md border border-red-200"
             )}>
