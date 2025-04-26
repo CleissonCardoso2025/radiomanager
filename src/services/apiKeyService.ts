@@ -11,17 +11,36 @@ export const apiKeyService = {
    */
   async callOpenAI(messages: any[]): Promise<any> {
     try {
+      // Get session token from localStorage
+      const token = localStorage.getItem('sb-elgvdvhlzjphfjufosmt-auth-token');
+      let authToken = '';
+      
+      if (token) {
+        try {
+          const parsedToken = JSON.parse(token);
+          authToken = parsedToken?.access_token || '';
+        } catch (e) {
+          console.error('Error parsing auth token:', e);
+        }
+      }
+
+      if (!authToken) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+
       const response = await fetch('https://elgvdvhlzjphfjufosmt.supabase.co/functions/v1/openai-proxy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('sb-token')}`
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({ messages })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to call OpenAI API');
+        const errorText = await response.text();
+        console.error('OpenAI proxy error response:', errorText);
+        throw new Error(`Failed to call OpenAI API: ${response.status} ${response.statusText}`);
       }
 
       return await response.json();
