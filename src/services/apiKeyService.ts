@@ -1,6 +1,6 @@
 
 /**
- * Service for managing API keys securely in localStorage
+ * Service for managing API calls to OpenAI through Supabase Edge Functions
  */
 export const apiKeyService = {
   /**
@@ -28,60 +28,6 @@ export const apiKeyService = {
       console.error('Error calling OpenAI API:', error);
       throw error;
     }
-  },
-
-  /**
-   * Save an API key to localStorage
-   * @param name Name of the API key (e.g., 'openai')
-   * @param key The API key value
-   */
-  saveApiKey(name: string, key: string): void {
-    try {
-      const apiKeys = this.getAllApiKeys();
-      apiKeys[name] = key;
-      localStorage.setItem('api_keys', JSON.stringify(apiKeys));
-    } catch (error) {
-      console.error(`Error saving API key for ${name}:`, error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get an API key by its name
-   * @param name Name of the API key
-   * @returns The API key or undefined if not found
-   */
-  getApiKey(name: string): string | undefined {
-    const apiKeys = this.getAllApiKeys();
-    return apiKeys[name];
-  },
-
-  /**
-   * Remove an API key by its name
-   * @param name Name of the API key to remove
-   */
-  removeApiKey(name: string): void {
-    try {
-      const apiKeys = this.getAllApiKeys();
-      delete apiKeys[name];
-      localStorage.setItem('api_keys', JSON.stringify(apiKeys));
-    } catch (error) {
-      console.error(`Error removing API key for ${name}:`, error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get all stored API keys
-   * @returns Object containing all API keys
-   */
-  getAllApiKeys(): Record<string, string> {
-    try {
-      const storedKeys = localStorage.getItem('api_keys');
-      return storedKeys ? JSON.parse(storedKeys) : {};
-    } catch (error) {
-      console.error('Error retrieving API keys:', error);
-      return {};
-    }
   }
 };
+

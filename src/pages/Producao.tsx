@@ -83,7 +83,6 @@ function Producao() {
   const [formData, setFormData] = useState<any>({});
   const [notificationCount, setNotificationCount] = useState(0);
   
-  // Estados para assistente de conteúdo
   const [contentType, setContentType] = useState<string>("");
   const [customContentType, setCustomContentType] = useState<string>("");
   const [contentTone, setContentTone] = useState<string>("");
@@ -176,20 +175,16 @@ function Producao() {
   };
 
   const handleSave = async () => {
-    // Validação básica
     if (!formData.nome || !formData.conteudo || !formData.programa_id) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
     try {
       setIsLoading(true);
-      // Remove campos que não existem no schema do banco
       const { wordCount, ...formDataRest } = formData;
-      // Determina se o conteúdo é recorrente com base nas datas de início e fim
       const isRecorrente = formData.data_fim && formData.data_programada && 
                           new Date(formData.data_fim) > new Date(formData.data_programada);
       
-      // Remover campos que não pertencem ao schema da tabela
       const { programas, ...cleanFormData } = formDataRest;
       
       const payload = {
@@ -227,7 +222,7 @@ function Producao() {
     }));
   };
 
-  const handleContentGenerated = (content: string) => {
+  const handleContentGenerated = async (content: string) => {
     setFormData(prev => ({
       ...prev,
       conteudo: content
@@ -243,7 +238,6 @@ function Producao() {
     }
   };
 
-  // Filtragem e paginação
   const filteredConteudos = conteudosProduzidos.filter(conteudo =>
     conteudo.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     conteudo.conteudo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -268,29 +262,23 @@ function Producao() {
         pages.push(i);
       }
     } else {
-      // Sempre mostrar a primeira página
       pages.push(1);
       
-      // Calcular páginas do meio
       const startPage = Math.max(2, currentPage - Math.floor(maxPagesToShow / 2));
       const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 3);
       
-      // Adicionar elipse se necessário
       if (startPage > 2) {
         pages.push('...');
       }
       
-      // Adicionar páginas do meio
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
       
-      // Adicionar elipse se necessário
       if (endPage < totalPages - 1) {
         pages.push('...');
       }
       
-      // Sempre mostrar a última página
       pages.push(totalPages);
     }
     
@@ -420,7 +408,6 @@ function Producao() {
         </div>
       </main>
 
-      {/* Modal para adicionar/editar conteúdo */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-2xl w-full p-4 md:max-w-3xl overflow-y-auto max-h-[80vh] rounded-lg shadow-lg bg-white dark:bg-gray-900" style={{scrollBehavior:'smooth'}}>
           <DialogHeader>
@@ -532,50 +519,29 @@ function Producao() {
                       return;
                     }
                     setIsGeneratingContent(true);
-                    // Limpa o campo antes de gerar nova sugestão
                     setGeneratedContent('');
                     handleContentGenerated('');
                     try {
                       const tipo = contentType === 'Outro' ? customContentType : contentType;
                       const prompt = `Gere um título curto e um texto pronto para locução, sem explicações, instruções, marcações ou estrutura de produção.\nRetorne o título na primeira linha, e o texto a partir da segunda linha.\nTipo: ${tipo}.\nO texto deve ter aproximadamente ${formData.wordCount} palavras, não ultrapasse esse limite.\nSeja objetivo e priorize o conteúdo essencial.\nTom: ${contentTone || 'Neutro'}.\nFinalidade/detalhes: ${keyInfo}`;
-                      // Busca a chave da API do Supabase
-                      const apiKey = await apiKeyService.getApiKey('openai');
                       
-                      if (!apiKey) {
-                        toast.error('Chave da API OpenAI não encontrada. Configure-a na página de Configurações.');
-                        setIsGeneratingContent(false);
-                        return;
-                      }
+                      const response = await apiKeyService.callOpenAI([
+                        { role: 'system', content: 'Você é um assistente especializado em criação de conteúdo para rádio.' },
+                        { role: 'user', content: prompt }
+                      ]);
                       
-                      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${apiKey}`
-                        },
-                        body: JSON.stringify({
-                          model: 'gpt-3.5-turbo',
-                          messages: [
-                            { role: 'system', content: 'Você é um assistente especializado em criação de conteúdo para rádio.' },
-                            { role: 'user', content: prompt }
-                          ],
-                          max_tokens: 1024,
-                          temperature: 0.7
-                        })
-                      });
-                      const data = await response.json();
-                      console.log('Resposta OpenAI:', data);
-                      if (data.error) {
-                        toast.error('Erro da IA: ' + (data.error.message || JSON.stringify(data.error)));
+                      if (response.error) {
+                        toast.error('Erro da IA: ' + (response.error.message || JSON.stringify(response.error)));
                         setGeneratedContent('');
                         handleContentGenerated('');
                         return;
                       }
+                      
                       let content = '';
-                      if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-                        content = data.choices[0].message.content;
+                      if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content) {
+                        content = response.choices[0].message.content;
                       }
-                      // Extrai título e corpo
+                      
                       let titulo = '';
                       if (content) {
                         const lines = content.split('\n');
@@ -586,6 +552,7 @@ function Producao() {
                           titulo = content.slice(0, 60);
                         }
                       }
+                      
                       setGeneratedContent(content);
                       handleContentGenerated(content);
                       if (titulo) {
@@ -698,7 +665,6 @@ function Producao() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de confirmação para exclusão */}
       <Dialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
