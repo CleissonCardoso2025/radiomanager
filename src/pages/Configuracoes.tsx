@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Bell, Moon, Sun, Volume2, Users, Shield, Loader2, Plus, Upload, Image, Trash, Pencil, Key } from 'lucide-react';
+import { Bell, Moon, Sun, Volume2, Users, Shield, Loader2, Plus, Upload, Image, Trash, Pencil, Key, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/App';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase, createUserWithRole, getUsersWithEmails, updateUserPassword, updateUserEmailMap } from '@/integrations/supabase/client';
+import { apiKeyService } from '@/services/apiKeyService';
 import {
   Dialog,
   DialogContent,
@@ -57,6 +58,11 @@ interface UserSettings {
   maintenanceMode: boolean;
 }
 
+interface ApiKeyForm {
+  name: string;
+  key: string;
+}
+
 interface User {
   id: string;
   email: string;
@@ -90,10 +96,13 @@ const Configuracoes = () => {
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [customLogo, setCustomLogo] = useState<string | null>(null);
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [showApiKey, setShowApiKey] = useState(false);
   
   const [settings, setSettings] = useState<UserSettings>({
     emailNotifications: false,
@@ -129,6 +138,13 @@ const Configuracoes = () => {
     mode: 'onChange'
   });
 
+  const apiKeyForm = useForm<ApiKeyForm>({
+    defaultValues: {
+      name: '',
+      key: ''
+    }
+  });
+
   useEffect(() => {
     const savedSettings = localStorage.getItem('userSettings');
     if (savedSettings) {
@@ -142,8 +158,14 @@ const Configuracoes = () => {
 
     if (userRole === 'admin') {
       fetchUsers();
+      loadApiKeys();
     }
   }, [userRole]);
+
+  const loadApiKeys = () => {
+    const keys = apiKeyService.getAllApiKeys();
+    setApiKeys(keys);
+  };
 
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
@@ -426,6 +448,10 @@ const Configuracoes = () => {
                   <>
                     <TabsTrigger value="admin">Administração</TabsTrigger>
                     <TabsTrigger value="marca">Marca</TabsTrigger>
+                    <TabsTrigger value="apis" className="flex items-center gap-2">
+                      <Key className="h-4 w-4" />
+                      APIs
+                    </TabsTrigger>
                   </>
                 )}
               </TabsList>
@@ -740,6 +766,136 @@ const Configuracoes = () => {
                       </div>
                     </div>
                   </TabsContent>
+
+                  <TabsContent value="apis" className="space-y-6">
+                    <div className="space-y-4">
+                      <h3 className="font-medium flex items-center gap-2">
+                        <Key size={20} />
+                        Chaves de API
+                      </h3>
+                      <div className="space-y-6 border rounded-md p-4">
+                        <div className="flex justify-between items-center mb-4">
+                          <p className="text-sm text-gray-500">
+                            Gerencie as chaves de API para integração com serviços externos.
+                          </p>
+                          <Button 
+                            size="sm" 
+                            onClick={() => {
+                              apiKeyForm.reset({ name: '', key: '' });
+                              setIsApiKeyDialogOpen(true);
+                            }}
+                            className="gap-1"
+                          >
+                            <Plus size={16} />
+                            Adicionar Chave
+                          </Button>
+                        </div>
+                        
+                        {Object.keys(apiKeys).length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <Key className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                            <p>Nenhuma chave de API configurada</p>
+                            <p className="text-sm">Adicione chaves para integrar com serviços externos</p>
+                          </div>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>Chave</TableHead>
+                                <TableHead className="text-right">Ações</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {Object.entries(apiKeys).map(([name, key]) => (
+                                <TableRow key={name}>
+                                  <TableCell className="font-medium">{name}</TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Input 
+                                        type={showApiKey ? "text" : "password"} 
+                                        value={key} 
+                                        readOnly 
+                                        className="font-mono text-xs"
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setShowApiKey(!showApiKey)}
+                                        className="h-8 w-8"
+                                      >
+                                        {showApiKey ? (
+                                          <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                          <Eye className="h-4 w-4" />
+                                        )}
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          apiKeyForm.reset({ name, key });
+                                          setIsApiKeyDialogOpen(true);
+                                        }}
+                                        className="gap-1"
+                                      >
+                                        <Pencil size={14} />
+                                        Editar
+                                      </Button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="gap-1 text-red-500 hover:text-red-700"
+                                          >
+                                            <Trash size={14} />
+                                            Remover
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Remover chave de API</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Tem certeza que deseja remover a chave "{name}"? Esta ação não pode ser desfeita.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              onClick={() => {
+                                                apiKeyService.removeApiKey(name);
+                                                loadApiKeys();
+                                                toast.success(`Chave "${name}" removida com sucesso`);
+                                              }}
+                                              className="bg-red-500 hover:bg-red-700"
+                                            >
+                                              Remover
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
+                        
+                        <div className="mt-4">
+                          <h3 className="text-sm font-medium mb-2">Chaves necessárias:</h3>
+                          <ul className="text-sm text-gray-500 list-disc pl-5 space-y-1">
+                            <li><strong>openai</strong> - Necessária para o assistente de criação de conteúdo na página de Produção</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
                 </>
               )}
               
@@ -904,6 +1060,102 @@ const Configuracoes = () => {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+              </DialogFooter>
+            </form>
+          </FormProvider>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isApiKeyDialogOpen} onOpenChange={setIsApiKeyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerenciar Chave de API</DialogTitle>
+            <DialogDescription>
+              Adicione ou edite uma chave de API para integração com serviços externos.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <FormProvider {...apiKeyForm}>
+            <form onSubmit={apiKeyForm.handleSubmit(async (data) => {
+              try {
+                setIsLoading(true);
+                await apiKeyService.saveApiKey(data.name, data.key);
+                loadApiKeys();
+                setIsApiKeyDialogOpen(false);
+                toast.success(`Chave "${data.name}" salva com sucesso`);
+              } catch (error) {
+                toast.error('Erro ao salvar chave de API');
+                console.error(error);
+              } finally {
+                setIsLoading(false);
+              }
+            })} className="space-y-4">
+              <FormField
+                control={apiKeyForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome da Chave</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Ex: openai" 
+                        {...field} 
+                        disabled={field.value !== '' && Object.keys(apiKeys).includes(field.value)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={apiKeyForm.control}
+                name="key"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor da Chave</FormLabel>
+                    <FormControl>
+                      <div className="flex">
+                        <Input 
+                          type={showApiKey ? "text" : "password"} 
+                          placeholder="Insira a chave de API" 
+                          {...field} 
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="ml-2"
+                        >
+                          {showApiKey ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setIsApiKeyDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar Chave'
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </FormProvider>

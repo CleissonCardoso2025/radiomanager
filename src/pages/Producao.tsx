@@ -31,6 +31,7 @@ import { Plus, FileText, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
+import { apiKeyService } from '@/services/apiKeyService';
 
 interface ConteudoProduzido {
   id: string;
@@ -537,11 +538,20 @@ function Producao() {
                     try {
                       const tipo = contentType === 'Outro' ? customContentType : contentType;
                       const prompt = `Gere um título curto e um texto pronto para locução, sem explicações, instruções, marcações ou estrutura de produção.\nRetorne o título na primeira linha, e o texto a partir da segunda linha.\nTipo: ${tipo}.\nO texto deve ter aproximadamente ${formData.wordCount} palavras, não ultrapasse esse limite.\nSeja objetivo e priorize o conteúdo essencial.\nTom: ${contentTone || 'Neutro'}.\nFinalidade/detalhes: ${keyInfo}`;
+                      // Busca a chave da API do Supabase
+                      const apiKey = await apiKeyService.getApiKey('openai');
+                      
+                      if (!apiKey) {
+                        toast.error('Chave da API OpenAI não encontrada. Configure-a na página de Configurações.');
+                        setIsGeneratingContent(false);
+                        return;
+                      }
+                      
                       const response = await fetch('https://api.openai.com/v1/chat/completions', {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',
-                          'Authorization': 'Bearer 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'
+                          'Authorization': `Bearer ${apiKey}`
                         },
                         body: JSON.stringify({
                           model: 'gpt-3.5-turbo',
