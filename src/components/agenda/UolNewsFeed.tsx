@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Rss, Newspaper } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from "@/hooks/use-toast";
 
 interface NewsItem {
   title: string;
@@ -15,6 +16,7 @@ const UolNewsFeed: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchNews = async () => {
@@ -22,22 +24,48 @@ const UolNewsFeed: React.FC = () => {
         setIsLoading(true);
         setError(null);
         
-        // Use a different CORS proxy that might work better with UTF-8 encoding
-        const proxyUrl = 'https://corsproxy.io/?';
-        const targetUrl = encodeURIComponent('https://rss.uol.com.br/feed/noticias.xml');
-        const response = await fetch(`${proxyUrl}${targetUrl}`, {
-          headers: {
-            'Accept': 'application/xml, text/xml; charset=UTF-8',
-            'Accept-Charset': 'UTF-8'
-          }
-        });
+        // Try multiple CORS proxies to increase chances of success
+        const corsProxies = [
+          'https://corsproxy.io/?',
+          'https://api.allorigins.win/raw?url='
+        ];
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        let response = null;
+        let proxyUsed = '';
+        
+        // Try each proxy until one works
+        for (const proxy of corsProxies) {
+          const targetUrl = encodeURIComponent('https://rss.uol.com.br/feed/noticias.xml');
+          try {
+            console.log(`Trying proxy: ${proxy}`);
+            const tempResponse = await fetch(`${proxy}${targetUrl}`, {
+              headers: {
+                'Accept': 'application/xml, text/xml; charset=UTF-8',
+                'Accept-Charset': 'UTF-8'
+              }
+            });
+            
+            if (tempResponse.ok) {
+              response = tempResponse;
+              proxyUsed = proxy;
+              console.log(`Successfully fetched with proxy: ${proxy}`);
+              break;
+            }
+          } catch (proxyError) {
+            console.error(`Error with proxy ${proxy}:`, proxyError);
+          }
+        }
+        
+        if (!response || !response.ok) {
+          throw new Error('Failed to fetch news from all available proxies');
         }
         
         const text = await response.text();
-        console.log('Raw XML response first 200 chars:', text.substring(0, 200)); 
+        console.log(`Raw XML response first 200 chars from ${proxyUsed}:`, text.substring(0, 200)); 
+        
+        if (!text || text.trim().length === 0) {
+          throw new Error('Empty response received from proxy');
+        }
         
         const parser = new DOMParser();
         const xml = parser.parseFromString(text, 'text/xml');
@@ -67,9 +95,24 @@ const UolNewsFeed: React.FC = () => {
             const pubDateElement = item.querySelector('pubDate');
             
             if (titleElement && titleElement.textContent) {
-              const title = titleElement.textContent;
-              // Handle UTF-8 encoding - try multiple approaches
-              const decodedTitle = decodeURIComponent(escape(title));
+              // Try multiple approaches to decode the text properly
+              let title = titleElement.textContent;
+              let decodedTitle = title;
+              
+              try {
+                // Method 1: Use decodeURIComponent(escape())
+                decodedTitle = decodeURIComponent(escape(title));
+              } catch (decodeError) {
+                console.warn('First decode method failed:', decodeError);
+                try {
+                  // Method 2: Directly use the string
+                  decodedTitle = title;
+                } catch (fallbackError) {
+                  console.warn('Fallback decode method failed:', fallbackError);
+                  // Just use the original as last resort
+                  decodedTitle = title;
+                }
+              }
               
               newsItems.push({
                 title: decodedTitle,
@@ -87,10 +130,18 @@ const UolNewsFeed: React.FC = () => {
         }
         
         console.log("UOL news items loaded:", newsItems.length);
+        console.log("First news item:", newsItems[0]);
         setNews(newsItems);
       } catch (err) {
         console.error('Error fetching RSS feed:', err);
         setError('Failed to load news');
+        
+        // Show a toast notification with the error
+        toast({
+          title: "Erro ao carregar notícias",
+          description: "Não foi possível carregar o feed de notícias UOL",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -101,6 +152,7 @@ const UolNewsFeed: React.FC = () => {
     // Try fetching again in 30 seconds if it failed the first time
     const retryTimer = setTimeout(() => {
       if (news.length === 0) {
+        console.log("Retrying news fetch after 30 seconds");
         fetchNews();
       }
     }, 30000);
@@ -117,7 +169,7 @@ const UolNewsFeed: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse w-full">
         <Newspaper className="h-4 w-4 shrink-0" />
         <span className="whitespace-nowrap">Carregando notícias...</span>
       </div>
@@ -126,7 +178,7 @@ const UolNewsFeed: React.FC = () => {
 
   if (error || news.length === 0) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground w-full">
         <Rss className="h-4 w-4 shrink-0" />
         <span className="whitespace-nowrap">{error || 'Notícias indisponíveis'}</span>
       </div>
