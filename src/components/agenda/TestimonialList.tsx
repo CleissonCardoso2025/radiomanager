@@ -12,6 +12,7 @@ import {
   PaginationPrevious,
   PaginationEllipsis
 } from "@/components/ui/pagination";
+import { FooterContent } from './Footer';
 
 interface TestimonialListProps {
   testimonials: any[];
@@ -41,93 +42,76 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
     }
   };
 
-  // Calculate pagination values
   const totalPages = Math.ceil(testimonials.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  // Filtrar IDs lidos hoje (persistência local)
   const today = new Date().toISOString().slice(0, 10);
   const lidosHoje = JSON.parse(localStorage.getItem('testemunhais_lidos_' + today) || '[]');
   const currentTestimonials = testimonials.filter(t => !lidosHoje.includes(t.id)).slice(indexOfFirstItem, indexOfLastItem);
-  
-  // Handle page changes
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // Scroll to top of list when changing pages
     if (fullscreenRef.current) {
       fullscreenRef.current.scrollTop = 0;
     }
   };
 
-  // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages = [];
     const maxPagesToShow = 5;
     
     if (totalPages <= maxPagesToShow) {
-      // Show all pages if total is less than max
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Always show first page
       pages.push(1);
       
-      // Calculate middle pages
       let startPage = Math.max(2, currentPage - 1);
       let endPage = Math.min(totalPages - 1, currentPage + 1);
       
-      // Adjust if we're near the beginning or end
       if (currentPage <= 2) {
         endPage = 3;
       } else if (currentPage >= totalPages - 1) {
         startPage = totalPages - 2;
       }
       
-      // Add ellipsis before middle pages if needed
       if (startPage > 2) {
         pages.push('ellipsis-start');
       }
       
-      // Add middle pages
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
       
-      // Add ellipsis after middle pages if needed
       if (endPage < totalPages - 1) {
         pages.push('ellipsis-end');
       }
       
-      // Always show last page
       pages.push(totalPages);
     }
     
     return pages;
   };
 
-  // Log information about the testimonials list for debugging
   console.log('Testimonials received in TestimonialList:', testimonials.length, testimonials);
   console.log('Current page:', currentPage, 'of', totalPages);
   console.log('Showing items', indexOfFirstItem + 1, 'to', Math.min(indexOfLastItem, testimonials.length));
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      // If not in fullscreen mode, request fullscreen
       if (fullscreenRef.current?.requestFullscreen) {
         fullscreenRef.current.requestFullscreen().catch(err => {
           console.error(`Error attempting to enable fullscreen: ${err.message}`);
         });
       }
     } else {
-      // If in fullscreen mode, exit fullscreen
       if (document.exitFullscreen) {
         document.exitFullscreen();
       }
     }
   };
 
-  // Handle fullscreen change events
   React.useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -140,9 +124,7 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
     };
   }, []);
 
-  // Entrar automaticamente em tela cheia ao montar o componente
   React.useEffect(() => {
-    // Pequeno delay para garantir que o componente esteja totalmente montado
     const timer = setTimeout(() => {
       if (fullscreenRef.current && !document.fullscreenElement) {
         fullscreenRef.current.requestFullscreen()
@@ -159,7 +141,6 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  // Render the testimonial cards
   const renderTestimonials = () => {
     if (isLoading) {
       return (
@@ -215,7 +196,6 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
               key={testimonial.id}
               testemunhal={testimonial}
               onMarkAsRead={id => {
-                // Marca como lido no localStorage
                 const today = new Date().toISOString().slice(0, 10);
                 const lidosHoje = JSON.parse(localStorage.getItem('testemunhais_lidos_' + today) || '[]');
                 if (!lidosHoje.includes(id)) {
@@ -261,11 +241,9 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
 
       {renderTestimonials()}
 
-      {/* Pagination controls */}
       {totalPages > 1 && (
         <Pagination className="mt-6">
           <PaginationContent className="bg-white/50 backdrop-blur-sm shadow-sm rounded-lg p-1 border border-gray-100">
-            {/* Previous page button */}
             <PaginationItem>
               <Button
                 variant={currentPage === 1 ? "ghost" : "secondary"}
@@ -280,7 +258,6 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
               </Button>
             </PaginationItem>
             
-            {/* Page numbers */}
             {getPageNumbers().map((page, index) => (
               <PaginationItem key={`page-${index}`}>
                 {page === 'ellipsis-start' || page === 'ellipsis-end' ? (
@@ -299,7 +276,6 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
               </PaginationItem>
             ))}
             
-            {/* Next page button */}
             <PaginationItem>
               <Button
                 variant={currentPage === totalPages ? "ghost" : "secondary"}
@@ -316,48 +292,15 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
           </PaginationContent>
         </Pagination>
       )}
-      {/* Rodapé de data/hora em tela cheia */}
+      
       {isFullscreen && (
-        <FooterDateTime />
+        <div className="bg-white border-t py-2 fixed bottom-0 left-0 right-0 z-10 w-full">
+          <div className="container mx-auto px-4">
+            <FooterContent />
+          </div>
+        </div>
       )}
     </div>
-  );
-};
-
-// Componente de rodapé com data/hora
-const FooterDateTime: React.FC = () => {
-  const [now, setNow] = React.useState(new Date());
-
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(new Date());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
-
-  return (
-    <footer style={{
-      position: 'fixed',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(255,255,255,0.9)',
-      color: '#222',
-      fontSize: 24,
-      textAlign: 'center',
-      padding: '8px 0',
-      borderTop: '1px solid #eee',
-      zIndex: 1000
-    }}>
-      {formatDate(now)} &mdash; {formatTime(now)}
-    </footer>
   );
 };
 

@@ -21,10 +21,13 @@ const UolNewsFeed: React.FC = () => {
         setIsLoading(true);
         setError(null);
         
+        // Using CORS proxy with proper UTF-8 handling
         const proxyUrl = 'https://api.allorigins.win/raw?url=';
         const targetUrl = encodeURIComponent('https://rss.uol.com.br/feed/noticias.xml');
-        const response = await fetch(`${proxyUrl}${targetUrl}`, {
+        const cacheParam = `&timestamp=${new Date().getTime()}`; // Cache busting
+        const response = await fetch(`${proxyUrl}${targetUrl}${cacheParam}`, {
           headers: {
+            'Accept': 'text/xml; charset=UTF-8',
             'Accept-Charset': 'UTF-8'
           }
         });
@@ -34,25 +37,34 @@ const UolNewsFeed: React.FC = () => {
         }
         
         const text = await response.text();
+        console.log('Raw XML response:', text.substring(0, 200)); // Log the first part of the response
+        
         const parser = new DOMParser();
         const xml = parser.parseFromString(text, 'text/xml');
         
         if (xml.querySelector('parsererror')) {
+          console.error('XML parse error:', xml.querySelector('parsererror')?.textContent);
           throw new Error('Invalid XML response');
         }
         
         const items = xml.querySelectorAll('item');
+        console.log('Found items in XML:', items.length);
         
         if (items.length === 0) {
           throw new Error('No news items found in feed');
         }
         
-        const decoder = new TextDecoder('utf-8');
-        const newsItems = Array.from(items).slice(0, 10).map(item => ({
-          title: decoder.decode(new TextEncoder().encode(item.querySelector('title')?.textContent || '')),
-          link: item.querySelector('link')?.textContent || '',
-          pubDate: item.querySelector('pubDate')?.textContent || ''
-        }));
+        // Explicitly handle UTF-8 encoding
+        const newsItems = Array.from(items).slice(0, 10).map(item => {
+          const titleElement = item.querySelector('title');
+          const title = titleElement?.textContent || '';
+          
+          return {
+            title: decodeURIComponent(escape(title)), // Handle UTF-8 characters properly
+            link: item.querySelector('link')?.textContent || '',
+            pubDate: item.querySelector('pubDate')?.textContent || ''
+          };
+        });
         
         console.log("UOL news items loaded:", newsItems);
         setNews(newsItems);
