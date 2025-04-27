@@ -21,10 +21,13 @@ const UolNewsFeed: React.FC = () => {
         setIsLoading(true);
         setError(null);
         
-        // Usando um proxy CORS para evitar problemas de CORS
         const proxyUrl = 'https://api.allorigins.win/raw?url=';
         const targetUrl = encodeURIComponent('https://rss.uol.com.br/feed/noticias.xml');
-        const response = await fetch(`${proxyUrl}${targetUrl}`);
+        const response = await fetch(`${proxyUrl}${targetUrl}`, {
+          headers: {
+            'Accept-Charset': 'UTF-8'
+          }
+        });
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -34,7 +37,6 @@ const UolNewsFeed: React.FC = () => {
         const parser = new DOMParser();
         const xml = parser.parseFromString(text, 'text/xml');
         
-        // Check if XML has parsing errors
         if (xml.querySelector('parsererror')) {
           throw new Error('Invalid XML response');
         }
@@ -45,8 +47,9 @@ const UolNewsFeed: React.FC = () => {
           throw new Error('No news items found in feed');
         }
         
+        const decoder = new TextDecoder('utf-8');
         const newsItems = Array.from(items).slice(0, 10).map(item => ({
-          title: item.querySelector('title')?.textContent || '',
+          title: decoder.decode(new TextEncoder().encode(item.querySelector('title')?.textContent || '')),
           link: item.querySelector('link')?.textContent || '',
           pubDate: item.querySelector('pubDate')?.textContent || ''
         }));
@@ -63,13 +66,12 @@ const UolNewsFeed: React.FC = () => {
 
     fetchNews();
     
-    // Rotate news every 8 seconds
     const interval = setInterval(() => {
       setCurrentIndex(prev => (news.length > 0 ? (prev + 1) % news.length : 0));
     }, 8000);
 
     return () => clearInterval(interval);
-  }, [news.length]);
+  }, []);
 
   if (isLoading) {
     return (
@@ -97,12 +99,12 @@ const UolNewsFeed: React.FC = () => {
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "flex items-center gap-2 text-sm overflow-hidden whitespace-nowrap",
+        "flex items-center gap-2 text-sm overflow-hidden whitespace-nowrap w-full",
         "hover:text-primary transition-colors"
       )}
     >
-      <span className="bg-orange-600 text-white px-1 py-0.5 text-xs font-bold rounded">UOL</span>
-      <span className="flex-1 truncate">
+      <span className="bg-orange-600 text-white px-1 py-0.5 text-xs font-bold rounded shrink-0">UOL</span>
+      <span className="truncate flex-1">
         {currentNews.title}
       </span>
     </a>
