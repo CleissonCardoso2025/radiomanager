@@ -1,5 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
+import { Plus, Search } from "lucide-react";
+import { toast } from "sonner";
 import Header from '@/components/Header';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -7,15 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -23,41 +19,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { Plus, FileText, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from "date-fns";
-import { ptBR } from 'date-fns/locale';
-import { apiKeyService } from '@/services/apiKeyService';
-
-interface ConteudoProduzido {
-  id: string;
-  nome: string;
-  conteudo: string;
-  data_programada: string;
-  horario_programado: string;
-  programa_id: string;
-  status: string;
-  recorrente: boolean;
-  lido_por: string[] | null;
-  data_inicio?: string | null;
-  data_fim?: string | null;
-  programas?: {
-    id: string;
-    nome: string;
-  };
-  [key: string]: any;
-}
+import { ContentForm } from '@/components/producao/ContentForm';
+import { ContentList } from '@/components/producao/ContentList';
+import { Pagination } from '@/components/producao/Pagination';
 
 function Producao() {
   const [programas, setProgramas] = useState<any[]>([]);
-  const [openAiModel, setOpenAiModel] = useState<string>('gpt-3.5-turbo-0125');
+  const [conteudosProduzidos, setConteudosProduzidos] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [formData, setFormData] = useState<any>({});
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [showAiOptions, setShowAiOptions] = useState(false);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
 
   useEffect(() => {
     fetchProgramas();
+    fetchConteudosProduzidos();
   }, []);
 
   const fetchProgramas = async () => {
@@ -71,29 +55,6 @@ function Producao() {
     }
     setProgramas(data || []);
   };
-  
-  const [conteudosProduzidos, setConteudosProduzidos] = useState<ConteudoProduzido[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<ConteudoProduzido | null>(null);
-  const [formData, setFormData] = useState<any>({});
-  const [notificationCount, setNotificationCount] = useState(0);
-  
-  const [contentType, setContentType] = useState<string>("");
-  const [customContentType, setCustomContentType] = useState<string>("");
-  const [contentTone, setContentTone] = useState<string>("");
-  const [keyInfo, setKeyInfo] = useState<string>("");
-  const [generatedContent, setGeneratedContent] = useState<string>("");
-  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
-  const [showAiOptions, setShowAiOptions] = useState(false);
-
-  useEffect(() => {
-    fetchConteudosProduzidos();
-  }, []);
 
   const fetchConteudosProduzidos = async () => {
     try {
@@ -107,23 +68,10 @@ function Producao() {
         console.error('Erro ao carregar conteúdos produzidos:', error);
         toast.error('Erro ao carregar conteúdos produzidos');
         setConteudosProduzidos([]);
-        setIsLoading(false);
         return;
       }
       
-      const conteudosFormatados = (data?.map(item => ({
-        ...item,
-        nome: item.nome || 'Sem título',
-        conteudo: item.conteudo || 'Sem conteúdo',
-        data_programada: item.data_programada || '',
-        horario_programado: item.horario_programado || '',
-        programa_id: item.programa_id || '',
-        status: item.status || 'pendente',
-        recorrente: item.recorrente || false,
-        lido_por: item.lido_por || []
-      })) as unknown as ConteudoProduzido[]) || [];
-      
-      setConteudosProduzidos(conteudosFormatados);
+      setConteudosProduzidos(data || []);
     } catch (error: any) {
       console.error('Erro ao carregar conteúdos produzidos:', error);
       toast.error('Erro ao carregar conteúdos produzidos');
@@ -138,7 +86,7 @@ function Producao() {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (item: ConteudoProduzido) => {
+  const handleEdit = (item: any) => {
     setSelectedItem(item);
     setFormData({
       ...item,
@@ -147,7 +95,7 @@ function Producao() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (item: ConteudoProduzido) => {
+  const handleDelete = (item: any) => {
     setSelectedItem(item);
     setIsAlertOpen(true);
   };
@@ -199,12 +147,15 @@ function Producao() {
         status: 'pendente',
         lido_por: [],
       };
+      
       const { error } = await supabase
         .from('conteudos_produzidos')
         .upsert(payload);
+        
       if (error) {
         throw error;
       }
+      
       toast.success('Conteúdo salvo com sucesso!');
       setIsModalOpen(false);
       fetchConteudosProduzidos();
@@ -222,22 +173,6 @@ function Producao() {
     }));
   };
 
-  const handleContentGenerated = async (content: string) => {
-    setFormData(prev => ({
-      ...prev,
-      conteudo: content
-    }));
-  };
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'N/A';
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy', { locale: ptBR });
-    } catch (error) {
-      return 'Data inválida';
-    }
-  };
-
   const filteredConteudos = conteudosProduzidos.filter(conteudo =>
     conteudo.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     conteudo.conteudo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -248,42 +183,6 @@ function Producao() {
   const indexOfFirstConteudo = indexOfLastConteudo - itemsPerPage;
   const currentConteudos = filteredConteudos.slice(indexOfFirstConteudo, indexOfLastConteudo);
   const totalPages = Math.ceil(filteredConteudos.length / itemsPerPage);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxPagesToShow = 5;
-    
-    if (totalPages <= maxPagesToShow) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      pages.push(1);
-      
-      const startPage = Math.max(2, currentPage - Math.floor(maxPagesToShow / 2));
-      const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 3);
-      
-      if (startPage > 2) {
-        pages.push('...');
-      }
-      
-      for (let i = startPage; i <= endPage; i++) {
-        pages.push(i);
-      }
-      
-      if (endPage < totalPages - 1) {
-        pages.push('...');
-      }
-      
-      pages.push(totalPages);
-    }
-    
-    return pages;
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -332,76 +231,22 @@ function Producao() {
                   <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
                   <span className="ml-3">Carregando...</span>
                 </div>
-              ) : currentConteudos.length > 0 ? (
-                <>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Programa</TableHead>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Horário</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Recorrente</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {currentConteudos.map((conteudo) => (
-                          <TableRow key={conteudo.id}>
-                            <TableCell className="font-medium">{conteudo.nome}</TableCell>
-                            <TableCell>{conteudo.programas?.nome || 'N/A'}</TableCell>
-                            <TableCell>{formatDate(conteudo.data_programada)}</TableCell>
-                            <TableCell>{conteudo.horario_programado?.substring(0, 5) || 'N/A'}</TableCell>
-                            <TableCell>
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                conteudo.status === 'lido' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {conteudo.status === 'lido' ? 'Lido' : 'Pendente'}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              {conteudo.recorrente ? 'Sim' : 'Não'}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleEdit(conteudo)}
-                                >
-                                  Editar
-                                </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => handleDelete(conteudo)}
-                                >
-                                  Excluir
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </>
               ) : (
-                <div className="text-center py-8">
-                  <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-lg font-medium text-gray-900">Nenhum conteúdo encontrado</h3>
-                  <p className="mt-1 text-gray-500">Comece adicionando um novo conteúdo para seus programas.</p>
-                  <div className="mt-6">
-                    <Button onClick={handleAdd}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar Conteúdo
-                    </Button>
-                  </div>
-                </div>
+                <>
+                  <ContentList
+                    currentConteudos={currentConteudos}
+                    handleEdit={handleEdit}
+                    handleDelete={handleDelete}
+                    handleAdd={handleAdd}
+                  />
+                  {totalPages > 1 && (
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                    />
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -417,248 +262,21 @@ function Producao() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="grid gap-4 py-4">
-            <Button 
-              variant="outline" 
-              className="w-full mb-4"
-              onClick={() => setShowAiOptions(!showAiOptions)}
-            >
-              {showAiOptions ? "Ocultar opções" : "Gerar conteúdo com IA"}
-            </Button>
-
-            {showAiOptions && (
-              <div className="mb-6 space-y-4 border p-4 rounded-md bg-gray-50">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="contentType" className="block mb-2">Tipo de conteúdo</Label>
-                    <select
-                      id="contentType"
-                      className="w-full border rounded px-2 py-1"
-                      value={contentType}
-                      onChange={e => setContentType(e.target.value)}
-                      disabled={isGeneratingContent}
-                    >
-                      <option value="">Selecione</option>
-                      <option value="Boletim esportivo para Rádio">Boletim esportivo para Rádio</option>
-                      <option value="Notícia Para Rádio">Notícia Para Rádio</option>
-                      <option value="Texto testemunhal">Texto testemunhal</option>
-                      <option value="Outro">Outro</option>
-                    </select>
-                  </div>
-                  
-                  {contentType === 'Outro' && (
-                    <div>
-                      <Label htmlFor="customContentType" className="block mb-2">Especifique</Label>
-                      <Input
-                        id="customContentType"
-                        value={customContentType}
-                        onChange={e => setCustomContentType(e.target.value)}
-                        disabled={isGeneratingContent}
-                        placeholder="Tipo personalizado"
-                      />
-                    </div>
-                  )}
-                  
-                  <div>
-                    <Label htmlFor="wordCount" className="block mb-2">Qtd. palavras</Label>
-                    <Input
-                      id="wordCount"
-                      type="number"
-                      min={50}
-                      max={2000}
-                      placeholder="300 palavras = 1.30'"
-                      value={formData.wordCount || ''}
-                      onChange={e => handleFormChange('wordCount', e.target.value)}
-                      disabled={isGeneratingContent}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="contentTone" className="block mb-2">Tom</Label>
-                    <select
-                      id="contentTone"
-                      className="w-full border rounded px-2 py-1"
-                      value={contentTone}
-                      onChange={e => setContentTone(e.target.value)}
-                      disabled={isGeneratingContent}
-                    >
-                      <option value="">Selecione o tom</option>
-                      <option value="Neutro">Neutro</option>
-                      <option value="Jornalístico">Jornalístico</option>
-                      <option value="Engraçado">Engraçado</option>
-                      <option value="Informal">Informal</option>
-                      <option value="Inspirador">Inspirador</option>
-                      <option value="Urgente">Urgente</option>
-                      <option value="Criativo">Criativo</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="keyInfo" className="block mb-2">Detalhes</Label>
-                  <Textarea
-                    id="keyInfo"
-                    className="w-full min-h-[80px]"
-                    placeholder="O que, por que, onde, qual, quantos, quando, quem..."
-                    value={keyInfo}
-                    onChange={e => setKeyInfo(e.target.value)}
-                    disabled={isGeneratingContent}
-                  />
-                </div>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full mt-2"
-                  onClick={async () => {
-                    if (!contentType && !customContentType) {
-                      toast.error('Selecione o tipo de conteúdo');
-                      return;
-                    }
-                    if (!formData.wordCount) {
-                      toast.error('Informe a quantidade de palavras');
-                      return;
-                    }
-                    setIsGeneratingContent(true);
-                    setGeneratedContent('');
-                    handleContentGenerated('');
-                    try {
-                      const tipo = contentType === 'Outro' ? customContentType : contentType;
-                      const prompt = `Gere um título curto e um texto pronto para locução, sem explicações, instruções, marcações ou estrutura de produção.\nRetorne o título na primeira linha, e o texto a partir da segunda linha.\nTipo: ${tipo}.\nO texto deve ter aproximadamente ${formData.wordCount} palavras, não ultrapasse esse limite.\nSeja objetivo e priorize o conteúdo essencial.\nTom: ${contentTone || 'Neutro'}.\nFinalidade/detalhes: ${keyInfo}`;
-                      
-                      const response = await apiKeyService.callOpenAI([
-                        { role: 'system', content: 'Você é um assistente especializado em criação de conteúdo para rádio.' },
-                        { role: 'user', content: prompt }
-                      ]);
-                      
-                      if (response.error) {
-                        toast.error('Erro da IA: ' + (response.error.message || JSON.stringify(response.error)));
-                        setGeneratedContent('');
-                        handleContentGenerated('');
-                        return;
-                      }
-                      
-                      let content = '';
-                      if (response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content) {
-                        content = response.choices[0].message.content;
-                      }
-                      
-                      let titulo = '';
-                      if (content) {
-                        const lines = content.split('\n');
-                        if (lines.length > 1) {
-                          titulo = lines[0].replace(/^\s*[-–—•\d\.)\s]*/, '').trim();
-                          content = lines.slice(1).join('\n').trim();
-                        } else {
-                          titulo = content.slice(0, 60);
-                        }
-                      }
-                      
-                      setGeneratedContent(content);
-                      handleContentGenerated(content);
-                      if (titulo) {
-                        setFormData((prev: any) => ({ ...prev, nome: titulo }));
-                      }
-                      if (content) {
-                        toast.success('Conteúdo gerado com sucesso!');
-                      } else {
-                        toast.error('Não foi possível gerar o conteúdo. Verifique o console para detalhes.');
-                      }
-                    } catch (err: any) {
-                      toast.error('Erro ao gerar conteúdo com IA: ' + (err?.message || err));
-                    } finally {
-                      setIsGeneratingContent(false);
-                    }
-                  }}
-                  disabled={isGeneratingContent}
-                >
-                  {isGeneratingContent ? 'Gerando...' : 'Gerar conteúdo'}
-                </Button>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-4 items-center gap-4 modal-grid mt-4">
-              <Label htmlFor="nome" className="text-right modal-label">
-                Nome
-              </Label>
-              <Input
-                id="nome"
-                value={formData.nome || ''}
-                onChange={(e) => handleFormChange('nome', e.target.value)}
-                className="col-span-3"
-                placeholder="Título do conteúdo"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-start gap-4 modal-grid">
-              <Label htmlFor="conteudo" className="text-right pt-2 modal-label">
-                Conteúdo
-              </Label>
-              <Textarea
-                id="conteudo"
-                value={formData.conteudo || ''}
-                onChange={(e) => handleFormChange('conteudo', e.target.value)}
-                className="col-span-3 min-h-[120px]"
-                style={{ resize: 'vertical' }}
-                placeholder="Texto do conteúdo"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4 modal-grid">
-              <Label htmlFor="programa_id" className="text-right modal-label">Programa</Label>
-              <select
-                id="programa_id"
-                className="col-span-3 border rounded px-2 py-1"
-                value={formData.programa_id || ''}
-                onChange={e => handleFormChange('programa_id', e.target.value)}
-                required
-              >
-                <option value="">Selecione um programa</option>
-                {Array.isArray(programas) && programas.map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4 modal-grid">
-              <Label htmlFor="data_programada" className="text-right modal-label">Data de início</Label>
-              <Input
-                id="data_programada"
-                type="date"
-                className="col-span-3"
-                value={formData.data_programada || ''}
-                onChange={e => handleFormChange('data_programada', e.target.value)}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4 modal-grid">
-              <Label htmlFor="data_fim" className="text-right modal-label">Data de fim</Label>
-              <div className="col-span-3">
-                <Input
-                  id="data_fim"
-                  type="date"
-                  className="w-full"
-                  value={formData.data_fim || ''}
-                  onChange={e => handleFormChange('data_fim', e.target.value)}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Se a data de fim for posterior à data de início, o conteúdo será recorrente e aparecerá na agenda todos os dias neste período.
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4 modal-grid">
-              <Label htmlFor="horario_programado" className="text-right modal-label">Hora agendamento</Label>
-              <Input
-                id="horario_programado"
-                type="time"
-                className="col-span-3"
-                value={formData.horario_programado || ''}
-                onChange={e => handleFormChange('horario_programado', e.target.value)}
-                required
-              />
-            </div>
-
-          </div>
+          <ContentForm
+            formData={formData}
+            handleFormChange={handleFormChange}
+            programas={programas}
+            isGeneratingContent={isGeneratingContent}
+            setIsGeneratingContent={setIsGeneratingContent}
+            showAiOptions={showAiOptions}
+            setShowAiOptions={setShowAiOptions}
+          />
           
           <div className="flex flex-col md:flex-row justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setIsModalOpen(false)} className="modal-btn" style={{color: '#222', background: '#fff', border: '1px solid #ccc'}}>Cancelar</Button>
-            <Button onClick={handleSave} className="modal-btn" style={{color: '#fff', background: '#2563eb'}}>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave}>
               {selectedItem ? 'Salvar Alterações' : 'Adicionar Conteúdo'}
             </Button>
           </div>
