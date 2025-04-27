@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Rss, Newspaper } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface NewsItem {
   title: string;
@@ -21,13 +22,12 @@ const UolNewsFeed: React.FC = () => {
         setIsLoading(true);
         setError(null);
         
-        // Using CORS proxy with proper UTF-8 handling
-        const proxyUrl = 'https://api.allorigins.win/raw?url=';
+        // Use a different CORS proxy that might work better with UTF-8 encoding
+        const proxyUrl = 'https://corsproxy.io/?';
         const targetUrl = encodeURIComponent('https://rss.uol.com.br/feed/noticias.xml');
-        const cacheParam = `&timestamp=${new Date().getTime()}`; // Cache busting
-        const response = await fetch(`${proxyUrl}${targetUrl}${cacheParam}`, {
+        const response = await fetch(`${proxyUrl}${targetUrl}`, {
           headers: {
-            'Accept': 'text/xml; charset=UTF-8',
+            'Accept': 'application/xml, text/xml; charset=UTF-8',
             'Accept-Charset': 'UTF-8'
           }
         });
@@ -37,7 +37,7 @@ const UolNewsFeed: React.FC = () => {
         }
         
         const text = await response.text();
-        console.log('Raw XML response:', text.substring(0, 200)); // Log the first part of the response
+        console.log('Raw XML response first 200 chars:', text.substring(0, 200)); 
         
         const parser = new DOMParser();
         const xml = parser.parseFromString(text, 'text/xml');
@@ -48,28 +48,48 @@ const UolNewsFeed: React.FC = () => {
         }
         
         const items = xml.querySelectorAll('item');
-        console.log('Found items in XML:', items.length);
         
         if (items.length === 0) {
+          console.log('No items found in the XML feed');
           throw new Error('No news items found in feed');
         }
         
-        // Explicitly handle UTF-8 encoding
-        const newsItems = Array.from(items).slice(0, 10).map(item => {
-          const titleElement = item.querySelector('title');
-          const title = titleElement?.textContent || '';
-          
-          return {
-            title: decodeURIComponent(escape(title)), // Handle UTF-8 characters properly
-            link: item.querySelector('link')?.textContent || '',
-            pubDate: item.querySelector('pubDate')?.textContent || ''
-          };
-        });
+        console.log(`Found ${items.length} items in XML feed`);
         
-        console.log("UOL news items loaded:", newsItems);
+        const newsItems: NewsItem[] = [];
+        
+        // Process items one by one with better error handling
+        for (let i = 0; i < Math.min(items.length, 10); i++) {
+          try {
+            const item = items[i];
+            const titleElement = item.querySelector('title');
+            const linkElement = item.querySelector('link');
+            const pubDateElement = item.querySelector('pubDate');
+            
+            if (titleElement && titleElement.textContent) {
+              const title = titleElement.textContent;
+              // Handle UTF-8 encoding - try multiple approaches
+              const decodedTitle = decodeURIComponent(escape(title));
+              
+              newsItems.push({
+                title: decodedTitle,
+                link: linkElement?.textContent || '#',
+                pubDate: pubDateElement?.textContent || ''
+              });
+            }
+          } catch (itemError) {
+            console.error('Error processing news item:', itemError);
+          }
+        }
+        
+        if (newsItems.length === 0) {
+          throw new Error('Failed to process any news items');
+        }
+        
+        console.log("UOL news items loaded:", newsItems.length);
         setNews(newsItems);
-      } catch (error) {
-        console.error('Error fetching RSS feed:', error);
+      } catch (err) {
+        console.error('Error fetching RSS feed:', err);
         setError('Failed to load news');
       } finally {
         setIsLoading(false);
@@ -78,18 +98,28 @@ const UolNewsFeed: React.FC = () => {
 
     fetchNews();
     
+    // Try fetching again in 30 seconds if it failed the first time
+    const retryTimer = setTimeout(() => {
+      if (news.length === 0) {
+        fetchNews();
+      }
+    }, 30000);
+    
     const interval = setInterval(() => {
       setCurrentIndex(prev => (news.length > 0 ? (prev + 1) % news.length : 0));
     }, 8000);
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(retryTimer);
+    };
+  }, [news.length]);
 
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
-        <Newspaper className="h-4 w-4" />
-        <span>Carregando notícias...</span>
+        <Newspaper className="h-4 w-4 shrink-0" />
+        <span className="whitespace-nowrap">Carregando notícias...</span>
       </div>
     );
   }
@@ -97,8 +127,8 @@ const UolNewsFeed: React.FC = () => {
   if (error || news.length === 0) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Rss className="h-4 w-4" />
-        <span>{error || 'Notícias indisponíveis'}</span>
+        <Rss className="h-4 w-4 shrink-0" />
+        <span className="whitespace-nowrap">{error || 'Notícias indisponíveis'}</span>
       </div>
     );
   }
@@ -111,7 +141,7 @@ const UolNewsFeed: React.FC = () => {
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "flex items-center gap-2 text-sm overflow-hidden whitespace-nowrap w-full",
+        "flex items-center gap-2 text-sm overflow-hidden w-full",
         "hover:text-primary transition-colors"
       )}
     >
