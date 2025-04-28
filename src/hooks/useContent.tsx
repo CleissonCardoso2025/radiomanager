@@ -5,6 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { isMobileDevice, playNotificationSound } from '@/services/notificationService';
 
+// Helper function for calculating minutes difference
+function differenceInMinutes(dateA: Date, dateB: Date): number {
+  return Math.floor((dateA.getTime() - dateB.getTime()) / (1000 * 60));
+}
+
 export function useContent() {
   const [conteudos, setConteudos] = useState([]);
   const [lastProgramChange, setLastProgramChange] = useState<string | null>(null);
@@ -245,18 +250,6 @@ export function useContent() {
               */
             }
             
-            // MODIFICADO: Temporariamente mostrar todos os conteúdos para diagnóstico
-            console.log('ATENÇÃO: Temporariamente mostrando TODOS os conteúdos, incluindo os já lidos');
-            return true;
-            
-            /* Código original comentado para diagnóstico
-            // Verificar se o conteúdo já foi lido pelo usuário atual
-            if (item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id) && !item.recorrente) {
-              console.log(`Conteúdo ${item.id} já foi lido pelo usuário atual, não exibindo`);
-              return false;
-            }
-            */
-            
             return true;
           }) : [];
           
@@ -356,9 +349,4 @@ export function useContent() {
   }, []);
 
   return { conteudos, setConteudos };
-}
-
-// Helper function for calculating minutes difference
-function differenceInMinutes(dateA: Date, dateB: Date): number {
-  return Math.floor((dateA.getTime() - dateB.getTime()) / (1000 * 60));
 }
