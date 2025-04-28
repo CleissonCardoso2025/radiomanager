@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,7 +36,7 @@ export function useContent() {
         // Find the current active program
         const { data: programsData, error: programsError } = await supabase
           .from('programas')
-          .select('id, nome, horario_inicio, horario_fim')
+          .select('id, nome, horario_inicio, horario_fim, dias')
           .order('horario_inicio', { ascending: true });
           
         let currentProgram = null;
@@ -56,7 +57,7 @@ export function useContent() {
           currentProgram = programsData.find(program => {
             if (!program.horario_inicio || !program.horario_fim) return false;
             
-            // Check if program runs today
+            // Check if program runs today - ensure dias exists before accessing it
             const dias = program.dias || [];
             if (!dias.includes(daysMap[dayOfWeek])) return false;
             

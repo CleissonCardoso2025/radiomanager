@@ -5,11 +5,9 @@ import { useConnectionStatus } from '@/hooks/useConnectionStatus';
 import { useTestimonials } from '@/hooks/useTestimonials';
 import { useContent } from '@/hooks/useContent';
 import { useMarkAsRead } from '@/hooks/useMarkAsRead';
-import { useFilteredItems } from '@/hooks/useFilteredItems';
 import ConnectionStatus from '@/components/ConnectionStatus';
 import ConnectionErrorScreen from '@/components/agenda/ConnectionErrorScreen';
 import { useAuth } from '@/App';
-import { supabase } from '@/integrations/supabase/client';
 
 // Imported Components
 import PageHeader from '@/components/agenda/PageHeader';
