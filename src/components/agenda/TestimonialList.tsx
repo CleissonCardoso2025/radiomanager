@@ -45,9 +45,7 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
   const totalPages = Math.ceil(testimonials.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const today = new Date().toISOString().slice(0, 10);
-  const lidosHoje = JSON.parse(localStorage.getItem('testemunhais_lidos_' + today) || '[]');
-  const currentTestimonials = testimonials.filter(t => !lidosHoje.includes(t.id)).slice(indexOfFirstItem, indexOfLastItem);
+  const currentTestimonials = testimonials.slice(indexOfFirstItem, indexOfLastItem);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -196,12 +194,7 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
               key={testimonial.id}
               testemunhal={testimonial}
               onMarkAsRead={id => {
-                const today = new Date().toISOString().slice(0, 10);
-                const lidosHoje = JSON.parse(localStorage.getItem('testemunhais_lidos_' + today) || '[]');
-                if (!lidosHoje.includes(id)) {
-                  localStorage.setItem('testemunhais_lidos_' + today, JSON.stringify([...lidosHoje, id]));
-                }
-                onMarkAsRead(id, 'testemunhal');
+                onMarkAsRead(id, testimonial.tipo || 'testemunhal');
               }}
               isPending={isPending}
             />

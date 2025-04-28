@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -10,6 +9,7 @@ export function useTestimonials(selectedProgram = null) {
   const [testemunhais, setTestemunhais] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [exactTimeTestimonials, setExactTimeTestimonials] = useState<any[]>([]);
+  const [lastProgramChange, setLastProgramChange] = useState<string | null>(null);
   const today = new Date();
 
   useEffect(() => {
@@ -22,6 +22,37 @@ export function useTestimonials(selectedProgram = null) {
         
         const currentDate = format(today, 'yyyy-MM-dd');
         console.log('Current date:', currentDate);
+        
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
+        
+        const { data: programsData, error: programsError } = await supabase
+          .from('programas')
+          .select('id, nome, horario_inicio, horario_fim')
+          .filter('dias', 'cs', `{${dayOfWeek}}`)
+          .order('horario_inicio', { ascending: true });
+          
+        let currentProgram = null;
+        if (programsData && programsData.length > 0) {
+          currentProgram = programsData.find(program => {
+            if (!program.horario_inicio || !program.horario_fim) return false;
+            return program.horario_inicio <= currentTime && program.horario_fim >= currentTime;
+          });
+        }
+        
+        const currentProgramId = currentProgram?.id || 'no-program';
+        const programChanged = lastProgramChange !== currentProgramId;
+        
+        if (programChanged) {
+          console.log('Program changed, updating testimonials...');
+          setLastProgramChange(currentProgramId);
+        } else if (testemunhais.length > 0 && !programChanged) {
+          console.log('No program change detected, skipping testimonial update');
+          setIsLoading(false);
+          return;
+        }
         
         const { data, error } = await supabase
           .from('testemunhais')
@@ -44,19 +75,22 @@ export function useTestimonials(selectedProgram = null) {
         
         console.log('Raw testemunhais data:', data);
         
+        const todayStr = format(today, 'yyyy-MM-dd');
+        const localReadIds = JSON.parse(localStorage.getItem(`testemunhais_lidos_${todayStr}`) || '[]');
+        
         const filteredData = data && Array.isArray(data) ? data.filter(t => {
           if (!t || !t.programas) return false;
           
-          // Se o programa não for o selecionado e tivermos um programa selecionado, não mostrar
+          if (localReadIds.includes(t.id)) {
+            console.log(`Testemunhal ${t.id} foi marcado como lido localmente hoje. Removendo da lista.`);
+            return false;
+          }
+          
           if (selectedProgram && t.programa_id !== selectedProgram.id) {
             return false;
           }
           
-          // Verificar se hoje é um dia em que o programa é transmitido
-          const today = new Date();
-          const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
-          
-          // Mapear nomes dos dias para números
+          const dayOfWeek = today.getDay();
           const daysMap = {
             'domingo': 0,
             'segunda': 1,
@@ -67,7 +101,6 @@ export function useTestimonials(selectedProgram = null) {
             'sabado': 6
           };
           
-          // Converter os dias do programa para números e verificar se hoje é um desses dias
           const diasPrograma = t.programas.dias || [];
           const diasProgramaNumeros = diasPrograma.map(dia => {
             if (typeof dia !== 'string') return -1;
@@ -77,20 +110,16 @@ export function useTestimonials(selectedProgram = null) {
           console.log(`Programa: ${t.programas.nome}, Dias: ${diasPrograma}, Hoje: ${dayOfWeek}`);
           console.log(`Dias em números: ${diasProgramaNumeros}`);
           
-          // Verificar se hoje é um dia válido para o programa
           if (!diasProgramaNumeros.includes(dayOfWeek)) {
             console.log(`Testemunhal de ${t.programas.nome} não será exibido hoje (dia incorreto)`);
             return false;
           }
           
-          // Verificar se o testemunhal está dentro do período de exibição
           let isWithinDateRange = true;
           
           if (t.data_inicio || t.data_fim) {
-            // Se data_inicio existe, verificar se a data atual é maior ou igual
             if (t.data_inicio) {
               const startDateStr = t.data_inicio.toString();
-              // Converter para objetos Date para comparação
               const startDate = new Date(startDateStr);
               const todayDate = new Date(currentDate);
               
@@ -104,10 +133,8 @@ export function useTestimonials(selectedProgram = null) {
               });
             }
             
-            // Se data_fim existe, verificar se a data atual é menor ou igual
             if (t.data_fim) {
               const endDateStr = t.data_fim.toString();
-              // Converter para objetos Date para comparação
               const endDate = new Date(endDateStr);
               const todayDate = new Date(currentDate);
               
@@ -122,41 +149,33 @@ export function useTestimonials(selectedProgram = null) {
             }
           }
           
-          // Se não estiver dentro do período de datas, não mostrar
           if (!isWithinDateRange) {
             console.log(`Testemunhal ${t.id} fora do período de datas`);
             return false;
           }
           
-          // Verificar se o horário está dentro do período do programa e do horário atual
           if (t.programas.horario_inicio && t.programas.horario_fim) {
             const now = new Date();
             const currentHour = now.getHours();
             const currentMinute = now.getMinutes();
             const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
             
-            // Extrair horas e minutos do horário do programa
             const [progStartHour, progStartMinute] = t.programas.horario_inicio.split(':').map(Number);
             const [progEndHour, progEndMinute] = t.programas.horario_fim.split(':').map(Number);
             
-            // Extrair horas e minutos do horário agendado do testemunhal
             const [testHour, testMinute] = (t.horario_agendado || '00:00').split(':').map(Number);
             
-            // Converter para minutos desde meia-noite para facilitar a comparação
             const currentTotalMinutes = currentHour * 60 + currentMinute;
             const progStartTotalMinutes = progStartHour * 60 + progStartMinute;
             const progEndTotalMinutes = progEndHour * 60 + progEndMinute;
             const testTotalMinutes = testHour * 60 + testMinute;
             
-            // Verificar se o horário atual está dentro do período do programa
             const isProgramActive = currentTotalMinutes >= progStartTotalMinutes && 
                                    currentTotalMinutes <= progEndTotalMinutes;
             
-            // Verificar se o horário agendado do testemunhal está dentro do período do programa
             const isTestimonialWithinProgram = testTotalMinutes >= progStartTotalMinutes && 
                                              testTotalMinutes <= progEndTotalMinutes;
             
-            // Verificar se o testemunhal já passou do horário (está atrasado)
             const isTestimonialLate = testTotalMinutes < currentTotalMinutes;
             
             console.log(`Verificando horários para ${t.patrocinador}:`, {
@@ -168,7 +187,6 @@ export function useTestimonials(selectedProgram = null) {
               isTestimonialLate
             });
             
-            // Se o testemunhal já passou há mais de 15 minutos, não mostrar
             if (isTestimonialLate) {
               const minutesLate = currentTotalMinutes - testTotalMinutes;
               if (minutesLate > 15) {
@@ -181,35 +199,34 @@ export function useTestimonials(selectedProgram = null) {
           return true;
         }) : [];
         
-        // Agora filtramos para não mostrar testemunhais que já foram lidos hoje
         const filterByReadStatus = async (items) => {
           try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return items;
             
-            // Filtrar testemunhais que já foram lidos pelo usuário atual hoje
             return items.filter(t => {
-              // Verificar se o array lido_por existe e se o usuário atual está nele
               const lidoPor = t.lido_por || [];
               
               if (lidoPor.includes(user.id)) {
-                // Se foi lido, verificar se foi hoje
                 if (t.timestamp_leitura) {
                   const leituraDate = new Date(t.timestamp_leitura);
                   
-                  // Se foi lido hoje, não mostrar
                   if (isToday(leituraDate)) {
                     console.log(`Testemunhal ${t.id} foi lido hoje por ${user.id}. Removendo da lista.`);
+                    const todayStr = format(today, 'yyyy-MM-dd');
+                    const localReadIds = JSON.parse(localStorage.getItem(`testemunhais_lidos_${todayStr}`) || '[]');
+                    if (!localReadIds.includes(t.id)) {
+                      localReadIds.push(t.id);
+                      localStorage.setItem(`testemunhais_lidos_${todayStr}`, JSON.stringify(localReadIds));
+                    }
                     return false;
                   }
                 }
                 
-                // Se não foi lido hoje, manter na lista para aparecer nos próximos dias
                 console.log(`Testemunhal ${t.id} foi lido em outro dia por ${user.id}. Mantendo na lista.`);
                 return true;
               }
               
-              // Se não foi lido por este usuário, manter
               return true;
             });
           } catch (err) {
@@ -218,7 +235,6 @@ export function useTestimonials(selectedProgram = null) {
           }
         };
         
-        // Apply the second filter and then process the data
         filterByReadStatus(filteredData).then(readFilteredData => {
           console.log('Filtered testemunhais by read status:', readFilteredData);
           
@@ -229,7 +245,6 @@ export function useTestimonials(selectedProgram = null) {
                 return null;
               }
               
-              // Garantir que horario_agendado seja uma string válida
               const horarioAgendado = typeof item.horario_agendado === 'string' ? item.horario_agendado : '00:00';
               
               const scheduledTimeParts = horarioAgendado.split(':');
@@ -252,11 +267,10 @@ export function useTestimonials(selectedProgram = null) {
               const now = new Date();
               const minutesUntil = differenceInMinutes(scheduledDate, now);
               
-              const isUpcoming = minutesUntil >= -15 && minutesUntil <= 30; // Inclui até 15 minutos atrasados
+              const isUpcoming = minutesUntil >= -15 && minutesUntil <= 30;
               const isExactTime = minutesUntil === 0;
               
               if (isExactTime && isMobileDevice()) {
-                // Guardar testemunhais para o exato momento para notificação especial
                 console.log('Testemunhal no horário exato detectado:', item);
               }
               
@@ -283,7 +297,6 @@ export function useTestimonials(selectedProgram = null) {
           
           const filteredProcessedData = processedData.filter(Boolean);
           
-          // Identificar testemunhais que estão no horário exato para notificação especial
           const exactTimeItems = filteredProcessedData.filter(item => item.isExactTime);
           setExactTimeTestimonials(exactTimeItems);
           
@@ -319,38 +332,32 @@ export function useTestimonials(selectedProgram = null) {
 
     fetchTestemunhais();
     
-    // Intervalo para buscar novos dados a cada 5 minutos
-    const intervalId = setInterval(() => {
+    const programChangeCheckInterval = setInterval(() => {
       if (navigator.onLine) {
         fetchTestemunhais();
       }
-    }, 5 * 60 * 1000);
+    }, 60 * 1000);
     
     return () => {
-      clearInterval(intervalId);
+      clearInterval(programChangeCheckInterval);
     };
   }, [selectedProgram]);
 
-  // Efeito para notificar quando testemunhais no horário exato são detectados
   useEffect(() => {
     if (exactTimeTestimonials.length > 0) {
       console.log('Notificando sobre testemunhais no horário exato:', exactTimeTestimonials);
       
-      // Notificar com prioridade máxima - isso acorda a tela
       notifyUpcomingTestimonial(exactTimeTestimonials.length, true);
       
-      // Vibrar com padrão mais intenso para indicar urgência
       if (isMobileDevice() && window.navigator.vibrate) {
         window.navigator.vibrate([300, 100, 300, 100, 500]);
       }
     }
   }, [exactTimeTestimonials]);
   
-  // Intervalo para verificar testemunhais no horário exato
   useEffect(() => {
     const exactTimeCheckInterval = setInterval(() => {
       if (navigator.onLine && testemunhais.length > 0) {
-        // Verificar todos os testemunhais para ver se algum está no exato momento atual
         const now = new Date();
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
@@ -363,10 +370,8 @@ export function useTestimonials(selectedProgram = null) {
         if (exactTimeItems.length > 0) {
           console.log('Testemunhais no horário exato detectados:', exactTimeItems);
           
-          // Ativar notificação especial para testemunhais no horário exato
           notifyUpcomingTestimonial(exactTimeItems.length, true);
           
-          // Vibrar com padrão mais intenso para indicar urgência
           if (isMobileDevice() && window.navigator.vibrate) {
             window.navigator.vibrate([300, 100, 300, 100, 500]);
           }
@@ -380,7 +385,6 @@ export function useTestimonials(selectedProgram = null) {
   return { testemunhais, isLoading, exactTimeTestimonials, setTestemunhais };
 }
 
-// Helper function for calculating minutes difference
 function differenceInMinutes(dateA: Date, dateB: Date): number {
   return Math.floor((dateA.getTime() - dateB.getTime()) / (1000 * 60));
 }

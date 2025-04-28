@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +6,7 @@ import { isMobileDevice, playNotificationSound } from '@/services/notificationSe
 
 export function useContent() {
   const [conteudos, setConteudos] = useState([]);
+  const [lastProgramChange, setLastProgramChange] = useState<string | null>(null);
   const today = new Date();
 
   useEffect(() => {
@@ -26,6 +26,56 @@ export function useContent() {
         const dataAtual = format(today, 'yyyy-MM-dd');
         console.log('Data atual para conteúdos:', dataAtual);
         
+        // Get the current time to detect program changes
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
+        
+        // Find the current active program
+        const { data: programsData, error: programsError } = await supabase
+          .from('programas')
+          .select('id, nome, horario_inicio, horario_fim')
+          .order('horario_inicio', { ascending: true });
+          
+        let currentProgram = null;
+        const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+        
+        // Map day names to numbers
+        const daysMap = {
+          0: 'domingo',
+          1: 'segunda', 
+          2: 'terca',
+          3: 'quarta',
+          4: 'quinta',
+          5: 'sexta',
+          6: 'sabado'
+        };
+        
+        if (programsData && programsData.length > 0) {
+          currentProgram = programsData.find(program => {
+            if (!program.horario_inicio || !program.horario_fim) return false;
+            
+            // Check if program runs today
+            const dias = program.dias || [];
+            if (!dias.includes(daysMap[dayOfWeek])) return false;
+            
+            return program.horario_inicio <= currentTime && program.horario_fim >= currentTime;
+          });
+        }
+        
+        // Check if there's been a program change
+        const currentProgramId = currentProgram?.id || 'no-program';
+        const programChanged = lastProgramChange !== currentProgramId;
+        
+        if (programChanged) {
+          console.log('Program changed, updating content...');
+          setLastProgramChange(currentProgramId);
+        } else if (conteudos.length > 0 && !programChanged) {
+          console.log('No program change detected, skipping content update');
+          return; // Skip update if no program change
+        }
+        
         // Obter usuário atual de forma assíncrona
         try {
           const { data: { user } } = await supabase.auth.getUser();
@@ -34,6 +84,9 @@ export function useContent() {
             console.error('Usuário não autenticado');
             return;
           }
+          
+          const todayStr = format(today, 'yyyy-MM-dd');
+          const localReadContentIds = JSON.parse(localStorage.getItem(`conteudos_lidos_${todayStr}`) || '[]');
           
           const { data, error } = await supabase
             .from('conteudos_produzidos')
@@ -58,6 +111,12 @@ export function useContent() {
           
           const filteredData = data && Array.isArray(data) ? data.filter(item => {
             if (!item || !item.programas) return false;
+            
+            // Skip content that's been marked as read locally today
+            if (localReadContentIds.includes(item.id)) {
+              console.log(`Conteúdo ${item.id} foi marcado como lido localmente. Removendo da lista.`);
+              return false;
+            }
             
             // Verificar se data_fim está definida e se a data atual está dentro do intervalo
             if (item.data_fim) {
@@ -283,15 +342,15 @@ export function useContent() {
 
     fetchConteudosProduzidos();
     
-    // Intervalo para buscar novos dados a cada 5 minutos
-    const intervalId = setInterval(() => {
+    // Check for program changes every minute
+    const programChangeCheckInterval = setInterval(() => {
       if (navigator.onLine) {
         fetchConteudosProduzidos();
       }
-    }, 5 * 60 * 1000);
+    }, 60 * 1000); // Check every minute
     
     return () => {
-      clearInterval(intervalId);
+      clearInterval(programChangeCheckInterval);
     };
   }, []);
 

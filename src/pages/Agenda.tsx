@@ -13,7 +13,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Imported Components
 import PageHeader from '@/components/agenda/PageHeader';
-import SearchBar from '@/components/agenda/SearchBar';
 import TestimonialList from '@/components/agenda/TestimonialList';
 import Footer from '@/components/agenda/Footer';
 
@@ -28,6 +27,7 @@ const Agenda: React.FC = () => {
   const fullscreenRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [attemptedFullscreen, setAttemptedFullscreen] = useState(false);
+  
   // Forçar tela cheia para todos os perfis
   useEffect(() => {
     if (fullscreenRef.current && !isFullscreen && !attemptedFullscreen) {
@@ -42,8 +42,7 @@ const Agenda: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [isFullscreen, attemptedFullscreen]);
-  // Removido useEffect duplicado de fullscreen por perfil
-
+  
   // Effect to manage screen wake lock
   useEffect(() => {
     // Try to keep screen awake if there are active testimonials

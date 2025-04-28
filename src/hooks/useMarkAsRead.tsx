@@ -94,6 +94,17 @@ export function useMarkAsRead() {
         return false;
       }
       
+      // Also update localStorage to prevent this item from showing again after page refresh
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const localStorageKey = `${tipo === 'testemunhal' ? 'testemunhais' : 'conteudos'}_lidos_${today}`;
+      const readItems = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
+      
+      if (!readItems.includes(id)) {
+        readItems.push(id);
+        localStorage.setItem(localStorageKey, JSON.stringify(readItems));
+        console.log(`Added ${id} to localStorage ${localStorageKey}`);
+      }
+      
       // Notificar sucesso
       toast.success(`${tipo === 'testemunhal' ? 'Testemunhal' : 'Conteúdo'} marcado como lido`);
       
