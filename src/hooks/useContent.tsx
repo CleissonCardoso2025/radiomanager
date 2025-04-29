@@ -1,82 +1,31 @@
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { isMobileDevice, playNotificationSound } from '@/services/notificationService';
-
-// Helper function for calculating minutes difference
-function differenceInMinutes(dateA: Date, dateB: Date): number {
-  return Math.floor((dateA.getTime() - dateB.getTime()) / (1000 * 60));
-}
+import { useContentFetcher } from './content/useContentFetcher';
+import { useContentProcessor } from './content/useContentProcessor';
+import { useProgramScheduler } from './content/useProgramScheduler';
 
 export function useContent() {
   const [conteudos, setConteudos] = useState([]);
   const [lastProgramChange, setLastProgramChange] = useState<string | null>(null);
   const today = new Date();
+  
+  const { fetchConteudos } = useContentFetcher();
+  const { processContentItems } = useContentProcessor();
+  const { getCurrentProgram } = useProgramScheduler();
 
   useEffect(() => {
-    const fetchConteudosProduzidos = async () => {
+    const updateContent = async () => {
       try {
-        const { error: checkError } = await supabase
-          .from('conteudos_produzidos')
-          .select('count')
-          .limit(1);
-          
-        if (checkError && checkError.code === '42P01') {
-          console.error('Tabela conteudos_produzidos não existe:', checkError);
-          setConteudos([]);
-          return;
-        }
-        
         const dataAtual = format(today, 'yyyy-MM-dd');
         console.log('Data atual para conteúdos:', dataAtual);
         
-        // Get the current time to detect program changes
-        const now = new Date();
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
-        const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
-        
-        // Find the current active program
-        const { data: programsData, error: programsError } = await supabase
-          .from('programas')
-          .select('id, nome, horario_inicio, horario_fim, dias, apresentador')
-          .order('horario_inicio', { ascending: true });
-          
-        if (programsError) {
-          console.error('Erro ao carregar programas:', programsError);
-          return;
-        }
-        
-        let currentProgram = null;
-        const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
-        
-        // Map day names to numbers
-        const daysMap: Record<number, string> = {
-          0: 'domingo',
-          1: 'segunda', 
-          2: 'terca',
-          3: 'quarta',
-          4: 'quinta',
-          5: 'sexta',
-          6: 'sabado'
-        };
-        
-        if (programsData && programsData.length > 0) {
-          currentProgram = programsData.find(program => {
-            if (!program.horario_inicio || !program.horario_fim) return false;
-            
-            // Check if program runs today - ensure dias exists before accessing it
-            const dias = program.dias || [];
-            if (!dias.includes(daysMap[dayOfWeek])) return false;
-            
-            return program.horario_inicio <= currentTime && program.horario_fim >= currentTime;
-          });
-        }
+        // Get current program
+        const { currentProgram, currentProgramId } = await getCurrentProgram();
         
         // Check if there's been a program change
-        const currentProgramId = currentProgram?.id || 'no-program';
         const programChanged = lastProgramChange !== currentProgramId;
         
         if (programChanged) {
@@ -87,149 +36,32 @@ export function useContent() {
           return; // Skip update if no program change
         }
         
-        // Obter usuário atual de forma assíncrona
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          
-          if (!user) {
-            console.error('Usuário não autenticado');
-            return;
-          }
-          
-          const todayStr = format(today, 'yyyy-MM-dd');
-          const localReadContentIds = JSON.parse(localStorage.getItem(`conteudos_lidos_${todayStr}`) || '[]');
-          
-          const { data, error } = await supabase
-            .from('conteudos_produzidos')
-            .select('*, programas(id, nome, apresentador, dias, horario_inicio, horario_fim)')
-            .eq('data_programada', dataAtual)
-            .order('horario_programado', { ascending: true });
-          
-          if (error) {
-            console.error('Erro ao carregar conteúdos produzidos:', error);
-            
-            toast.error('Erro ao carregar conteúdos produzidos', {
-              description: error.message,
-              position: 'bottom-right',
-              closeButton: true,
-              duration: 5000
-            });
-            setConteudos([]);
-            return;
-          }
-          
-          console.log('Conteúdos produzidos para hoje:', data);
-          
-          if (!data || !Array.isArray(data)) {
-            console.error('Dados inválidos ou vazios retornados da consulta');
-            setConteudos([]);
-            return;
-          }
-          
-          const filteredData = data.filter(item => {
-            if (!item) {
-              console.log('Item inválido encontrado na lista de conteúdos');
-              return false;
-            }
-            
-            // Skip content that's been marked as read locally today
-            if (localReadContentIds.includes(item.id)) {
-              console.log(`Conteúdo ${item.id} foi marcado como lido localmente. Removendo da lista.`);
-              return false;
-            }
-            
-            // Verificar se data_fim está definida e se a data atual está dentro do intervalo
-            if (item.data_fim) {
-              const dataFim = new Date(item.data_fim);
-              const dataAtualObj = new Date(dataAtual);
-              
-              // Se a data atual for posterior à data_fim, não mostrar o conteúdo
-              if (dataAtualObj > dataFim) {
-                console.log(`Conteúdo ${item.id} não será exibido (fora do período de validade)`);
-                return false;
-              }
-            }
-            
-            // Verificar se o conteúdo já foi lido pelo usuário atual
-            if (item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id) && !item.recorrente) {
-              console.log(`Conteúdo ${item.id} já foi lido pelo usuário atual, não exibindo`);
-              return false;
-            }
-            
-            return true;
+        // Fetch content
+        const { data, error, localReadContentIds } = await fetchConteudos(dataAtual);
+        
+        if (error) {
+          console.error('Erro ao carregar conteúdos produzidos:', error);
+          toast.error('Erro ao carregar conteúdos produzidos', {
+            description: error.message,
+            position: 'bottom-right',
+            closeButton: true,
+            duration: 5000
           });
-          
-          const processedData = filteredData.map(item => {
-            try {
-              if (!item || !item.horario_programado || typeof item.horario_programado !== 'string') {
-                console.warn('Item inválido ou sem horário programado:', item);
-                return null;
-              }
-              
-              const scheduledTimeParts = item.horario_programado.split(':');
-              if (scheduledTimeParts.length < 2) {
-                console.warn('Formato de horário inválido:', item.horario_programado);
-                return null;
-              }
-              
-              const scheduledHour = parseInt(scheduledTimeParts[0], 10);
-              const scheduledMinute = parseInt(scheduledTimeParts[1], 10);
-              
-              if (isNaN(scheduledHour) || isNaN(scheduledMinute)) {
-                console.warn('Horário não numérico:', scheduledHour, scheduledMinute);
-                return null;
-              }
-              
-              const scheduledDate = new Date();
-              scheduledDate.setHours(scheduledHour, scheduledMinute, 0);
-              
-              const now = new Date();
-              const minutesUntil = differenceInMinutes(scheduledDate, now);
-              
-              const isUpcoming = minutesUntil >= -15 && minutesUntil <= 30; // Inclui até 15 minutos atrasados
-              
-              if (isUpcoming && isMobileDevice()) {
-                playNotificationSound('alert');
-              }
-              
-              return {
-                ...item,
-                id: item.id || `temp-${Date.now()}-${Math.random()}`,
-                texto: item.conteudo || "Sem conteúdo disponível",
-                patrocinador: item.nome || "Sem nome",
-                horario_agendado: item.horario_programado,
-                status: item.status || 'pendente',
-                isUpcoming,
-                minutesUntil,
-                tipo: 'conteudo',
-                recorrente: item.recorrente || false,
-                data_fim: item.data_fim || null
-              };
-            } catch (err) {
-              console.error('Erro ao processar conteúdo:', err, item);
-              return null;
-            }
-          }).filter(Boolean);
-          
-          const sortedData = processedData.sort((a, b) => {
-            if (!a || !b) return 0;
-            
-            if (a.isUpcoming && !b.isUpcoming) return -1;
-            if (!a.isUpcoming && b.isUpcoming) return 1;
-            
-            if (a.horario_programado && b.horario_programado) {
-              return a.horario_programado.localeCompare(b.horario_programado);
-            }
-            
-            return 0;
-          });
-          
-          console.log('Conteúdos filtrados e processados para exibição:', sortedData.length);
-          setConteudos(sortedData);
-        } catch (authError) {
-          console.error('Erro ao obter usuário:', authError);
           setConteudos([]);
+          return;
         }
+        
+        if (!data || !Array.isArray(data)) {
+          console.error('Dados inválidos ou vazios retornados da consulta');
+          setConteudos([]);
+          return;
+        }
+        
+        // Process content
+        const sortedData = await processContentItems(data, localReadContentIds);
+        
+        console.log('Conteúdos filtrados e processados para exibição:', sortedData.length);
+        setConteudos(sortedData);
       } catch (error) {
         console.error('Erro ao carregar conteúdos produzidos:', error);
         toast.error('Erro ao carregar conteúdos produzidos', {
@@ -241,12 +73,12 @@ export function useContent() {
       }
     };
 
-    fetchConteudosProduzidos();
+    updateContent();
     
     // Check for program changes every minute
     const programChangeCheckInterval = setInterval(() => {
       if (navigator.onLine) {
-        fetchConteudosProduzidos();
+        updateContent();
       }
     }, 60 * 1000); // Check every minute
     
