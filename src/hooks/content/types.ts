@@ -24,6 +24,7 @@ export interface ContentItem {
   isUpcoming?: boolean;
   minutesUntil?: number;
   tipo?: 'conteudo' | 'testemunhal';
+  isExactTime?: boolean;
 }
 
 export interface Program {
