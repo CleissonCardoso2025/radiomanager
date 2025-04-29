@@ -18,37 +18,87 @@ export function useContentProcessor() {
         return [];
       }
       
-      // Filter content based on read status and validity period
+      // Obter o programa atual
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
+      
+      // Obter o dia da semana atual
+      // Filtrar conteúdos lidos hoje (inclusive recorrentes)
+      data = data.filter(item => !localReadContentIds.includes(item.id));
+      const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+      
+      // Map day names to numbers
+      const daysMap: Record<number, string> = {
+        0: 'domingo',
+        1: 'segunda', 
+        2: 'terca',
+        3: 'quarta',
+        4: 'quinta',
+        5: 'sexta',
+        6: 'sabado'
+      };
+      
+      const currentDayName = daysMap[dayOfWeek];
+      
+      // Filter content based on read status, validity period, and current program
       const filteredData = data.filter(item => {
         if (!item) {
           console.log('Item inválido encontrado na lista de conteúdos');
           return false;
         }
-        
-        // Skip content that's been marked as read locally today
-        if (localReadContentIds.includes(item.id)) {
-          console.log(`Conteúdo ${item.id} foi marcado como lido localmente. Removendo da lista.`);
+
+        // Filtro de datas: data_inicio <= hoje <= data_fim (ou se data_fim não existe, apenas data_inicio <= hoje)
+        const hoje = new Date();
+        const dataInicio = item.data_inicio ? new Date(item.data_inicio) : null;
+        const dataFim = item.data_fim ? new Date(item.data_fim) : null;
+        if (dataInicio && hoje < dataInicio) {
+          console.log(`Conteúdo ${item.id} ainda não está no período de exibição (data_inicio futura)`);
           return false;
         }
-        
-        // Verificar se data_fim está definida e se a data atual está dentro do intervalo
-        if (item.data_fim) {
-          const dataFim = new Date(item.data_fim);
-          const dataAtualObj = new Date();
-          
-          // Se a data atual for posterior à data_fim, não mostrar o conteúdo
-          if (dataAtualObj > dataFim) {
-            console.log(`Conteúdo ${item.id} não será exibido (fora do período de validade)`);
-            return false;
+        if (dataFim && hoje > dataFim) {
+          console.log(`Conteúdo ${item.id} não será exibido (fora do período de validade)`);
+          return false;
+        }
+
+        // Verificar se o conteúdo está dentro do horário do programa atribuído
+        if (item.programas) {
+          const programa = item.programas;
+          // Verificar se o programa está programado para o dia atual
+          if (programa.dias && Array.isArray(programa.dias)) {
+            if (!programa.dias.includes(currentDayName)) {
+              console.log(`Conteúdo ${item.id} não está programado para hoje (${currentDayName}). Removendo da lista.`);
+              return false;
+            }
+          }
+          if (programa.horario_inicio && programa.horario_fim) {
+            // Verificar se o horário programado do conteúdo está dentro do horário do programa
+            if (item.horario_programado) {
+              if (item.horario_programado < programa.horario_inicio || item.horario_programado > programa.horario_fim) {
+                console.log(`Conteúdo ${item.id} programado para ${item.horario_programado} fora do horário do programa ${programa.nome}. Removendo da lista.`);
+                return false;
+              }
+            } else {
+              // Se não tem horário programado, não exibe
+              return false;
+            }
           }
         }
-        
+
+        // Skip content that's been marked as read locally today (mesmo que seja recorrente)
+        if (localReadContentIds.includes(item.id)) {
+          console.log(`Conteúdo ${item.id} foi marcado como lido. Removendo da lista.`);
+          return false;
+        }
+
         // Verificar se o conteúdo já foi lido pelo usuário atual
-        if (item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id) && !item.recorrente) {
+        if (item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id)) {
+          // Mesmo que seja recorrente, não exibir se já foi lido
           console.log(`Conteúdo ${item.id} já foi lido pelo usuário atual, não exibindo`);
           return false;
         }
-        
+
         return true;
       });
       
@@ -86,6 +136,14 @@ export function useContentProcessor() {
             playNotificationSound('alert');
           }
           
+          // Formatar a data de fim para exibição se for um conteúdo recorrente
+          let recorrenteInfo = '';
+          if (item.recorrente && item.data_fim) {
+            const dataFim = new Date(item.data_fim);
+            const dataFormatada = dataFim.toLocaleDateString('pt-BR');
+            recorrenteInfo = `Recorrente até ${dataFormatada}`;
+          }
+          
           return {
             ...item,
             id: item.id || `temp-${Date.now()}-${Math.random()}`,
@@ -97,7 +155,8 @@ export function useContentProcessor() {
             minutesUntil,
             tipo: 'conteudo',
             recorrente: item.recorrente || false,
-            data_fim: item.data_fim || null
+            data_fim: item.data_fim || null,
+            recorrenteInfo: recorrenteInfo
           };
         } catch (err) {
           console.error('Erro ao processar conteúdo:', err, item);

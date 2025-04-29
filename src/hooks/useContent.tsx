@@ -19,22 +19,15 @@ export function useContent() {
   useEffect(() => {
     const updateContent = async () => {
       try {
-        const dataAtual = format(today, 'yyyy-MM-dd');
+        const dataAtual = format(new Date(), 'yyyy-MM-dd');
         console.log('Data atual para conteúdos:', dataAtual);
         
         // Get current program
         const { currentProgram, currentProgramId } = await getCurrentProgram();
         
-        // Check if there's been a program change
-        const programChanged = lastProgramChange !== currentProgramId;
-        
-        if (programChanged) {
-          console.log('Program changed, updating content...');
-          setLastProgramChange(currentProgramId);
-        } else if (conteudos.length > 0 && !programChanged) {
-          console.log('No program change detected, skipping content update');
-          return; // Skip update if no program change
-        }
+        // Sempre atualizar os conteúdos, independentemente de mudanças de programa
+        console.log('Atualizando conteúdos...');
+        setLastProgramChange(currentProgramId);
         
         // Fetch content
         const { data, error, localReadContentIds } = await fetchConteudos(dataAtual);

@@ -49,9 +49,11 @@ const TestimonialItems: React.FC<TestimonialItemsProps> = ({
           <div className="text-sm text-muted-foreground mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="font-medium text-yellow-700 mb-1">Diagnóstico:</p>
             <ul className="list-disc list-inside text-left text-yellow-700 space-y-1">
-              <li>Verifique se existem programas cadastrados para hoje (terça-feira)</li>
+              <li>Verifique se existem programas cadastrados para hoje</li>
               <li>Verifique se existem testemunhais ou conteúdos com data de início válida</li>
-              <li>Verifique se os testemunhais não foram todos marcados como lidos</li>
+              <li>Verifique se há conteúdos recorrentes configurados (com data de início e fim)</li>
+              <li>Verifique se os testemunhais e conteúdos não foram todos marcados como lidos</li>
+              <li>Conteúdos não recorrentes só aparecem uma vez, mesmo que não marcados como lidos</li>
             </ul>
           </div>
         </div>

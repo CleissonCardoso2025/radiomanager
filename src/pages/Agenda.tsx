@@ -26,20 +26,26 @@ const Agenda: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [attemptedFullscreen, setAttemptedFullscreen] = useState(false);
   
-  // Forçar tela cheia para todos os perfis
-  useEffect(() => {
-    if (fullscreenRef.current && !isFullscreen && !attemptedFullscreen) {
-      setAttemptedFullscreen(true);
-      const timer = setTimeout(() => {
-        if (fullscreenRef.current?.requestFullscreen && !document.fullscreenElement) {
-          fullscreenRef.current.requestFullscreen()
-            .then(() => setIsFullscreen(true))
-            .catch(() => {});
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
+  // Não forçar mais tela cheia automaticamente para evitar erros
+  // Em vez disso, mostrar um botão permanente para entrar em tela cheia
+  const [showFullscreenButton, setShowFullscreenButton] = useState(true);
+  
+  const enterFullscreen = () => {
+    if (fullscreenRef.current && !document.fullscreenElement) {
+      fullscreenRef.current.requestFullscreen()
+        .then(() => {
+          console.log('Successfully entered fullscreen mode');
+          setIsFullscreen(true);
+          // Esconder o botão quando estiver em tela cheia
+          setShowFullscreenButton(false);
+        })
+        .catch(err => {
+          console.error(`Error attempting to enable fullscreen: ${err.message}`);
+          // Manter o botão visível se houver erro
+          setShowFullscreenButton(true);
+        });
     }
-  }, [isFullscreen, attemptedFullscreen]);
+  };
   
   // Effect to manage screen wake lock
   useEffect(() => {
@@ -54,73 +60,19 @@ const Agenda: React.FC = () => {
     };
   }, [testemunhais.length, conteudos.length]);
 
-  // Effect to automatically enter fullscreen for non-admin users
-  useEffect(() => {
-    // Only enter fullscreen automatically for non-admin users and if we haven't tried yet
-    if (userRole === 'locutor' && fullscreenRef.current && !isFullscreen && !attemptedFullscreen) {
-      // Set flag to prevent multiple attempts
-      setAttemptedFullscreen(true);
-      
-      console.log('Attempting to enter fullscreen for locutor user');
-      
-      // Try to request fullscreen with a delay to ensure component is mounted
-      const timer = setTimeout(() => {
-        if (fullscreenRef.current?.requestFullscreen && !document.fullscreenElement) {
-          fullscreenRef.current.requestFullscreen()
-            .then(() => {
-              console.log('Successfully entered fullscreen mode');
-              setIsFullscreen(true);
-            })
-            .catch(err => {
-              console.error(`Error attempting to enable fullscreen: ${err.message}`);
-              // Try again with a user interaction
-              const tryAgainButton = document.createElement('button');
-              tryAgainButton.innerText = 'Clique para entrar em tela cheia';
-              tryAgainButton.style.position = 'fixed';
-              tryAgainButton.style.top = '50%';
-              tryAgainButton.style.left = '50%';
-              tryAgainButton.style.transform = 'translate(-50%, -50%)';
-              tryAgainButton.style.padding = '10px 20px';
-              tryAgainButton.style.backgroundColor = '#4CAF50';
-              tryAgainButton.style.color = 'white';
-              tryAgainButton.style.border = 'none';
-              tryAgainButton.style.borderRadius = '5px';
-              tryAgainButton.style.cursor = 'pointer';
-              tryAgainButton.style.zIndex = '9999';
-              
-              tryAgainButton.onclick = () => {
-                if (fullscreenRef.current?.requestFullscreen) {
-                  fullscreenRef.current.requestFullscreen()
-                    .then(() => {
-                      setIsFullscreen(true);
-                      document.body.removeChild(tryAgainButton);
-                    })
-                    .catch(e => console.error('Second attempt failed:', e));
-                }
-              };
-              
-              document.body.appendChild(tryAgainButton);
-              
-              // Auto-remove after 10 seconds if not clicked
-              setTimeout(() => {
-                if (document.body.contains(tryAgainButton)) {
-                  document.body.removeChild(tryAgainButton);
-                }
-              }, 10000);
-            });
-        }
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [userRole, isFullscreen, attemptedFullscreen]);
+  // Não forçar mais tela cheia automaticamente para evitar erros
+  // Em vez disso, mostrar um botão permanente para entrar em tela cheia
 
   // Handle fullscreen change events
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-      if (!document.fullscreenElement) {
-        console.log('Exited fullscreen mode, may attempt to re-enter');
+      const isInFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isInFullscreen);
+      
+      // Quando sair da tela cheia, mostrar o botão novamente
+      if (!isInFullscreen) {
+        console.log('Exited fullscreen mode, showing button again');
+        setShowFullscreenButton(true);
         // Reset attempted flag to allow trying again if user exits fullscreen
         setAttemptedFullscreen(false);
       }
@@ -161,6 +113,20 @@ const Agenda: React.FC = () => {
     <div ref={fullscreenRef} className="min-h-screen bg-background">
       <Header />
       <ConnectionStatus isOnline={isOnline} connectionError={connectionError} retryCount={retryCount} />
+      
+      {/* Botão de tela cheia flutuante */}
+      {showFullscreenButton && !isFullscreen && (
+        <button 
+          onClick={enterFullscreen}
+          className="fixed bottom-4 right-4 z-50 bg-primary text-white p-2 rounded-full shadow-lg hover:bg-primary/90 transition-colors"
+          aria-label="Entrar em tela cheia"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 1v4m0 0h-4m4 0l-5-5" />
+          </svg>
+        </button>
+      )}
+      
       <div className="container py-6">
         <PageHeader />
         <TestimonialList 

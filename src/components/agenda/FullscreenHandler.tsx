@@ -42,24 +42,9 @@ const FullscreenHandler: React.FC<FullscreenHandlerProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (withAutoFullscreen) {
-      const timer = setTimeout(() => {
-        if (fullscreenRef.current && !document.fullscreenElement) {
-          fullscreenRef.current.requestFullscreen()
-            .then(() => {
-              console.log('Entrou em tela cheia automaticamente');
-              setIsFullscreen(true);
-            })
-            .catch(err => {
-              console.error('Erro ao tentar entrar em tela cheia:', err);
-            });
-        }
-      }, 500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [withAutoFullscreen]);
+  // Removido o efeito que tentava entrar em tela cheia automaticamente
+  // Agora o usuário precisa clicar no botão para entrar em tela cheia
+  // Isso evita erros no console relacionados a restrições de segurança do navegador
 
   return (
     <div 

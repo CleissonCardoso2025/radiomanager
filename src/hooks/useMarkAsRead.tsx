@@ -94,15 +94,22 @@ export function useMarkAsRead() {
         return false;
       }
       
-      // Also update localStorage to prevent this item from showing again after page refresh
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const localStorageKey = `${tipo === 'testemunhal' ? 'testemunhais' : 'conteudos'}_lidos_${today}`;
-      const readItems = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
+      // Verificar se o item é recorrente antes de atualizar o localStorage
+      const isRecorrente = currentItem && 'recorrente' in currentItem ? currentItem.recorrente : false;
       
-      if (!readItems.includes(id)) {
-        readItems.push(id);
-        localStorage.setItem(localStorageKey, JSON.stringify(readItems));
-        console.log(`Added ${id} to localStorage ${localStorageKey}`);
+      // Se não for recorrente, atualiza o localStorage para evitar que o item apareça novamente após atualização da página
+      if (!isRecorrente) {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const localStorageKey = `${tipo === 'testemunhal' ? 'testemunhais' : 'conteudos'}_lidos_${today}`;
+        const readItems = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
+        
+        if (!readItems.includes(id)) {
+          readItems.push(id);
+          localStorage.setItem(localStorageKey, JSON.stringify(readItems));
+          console.log(`Added ${id} to localStorage ${localStorageKey}`);
+        }
+      } else {
+        console.log(`Item ${id} é recorrente, não será adicionado ao localStorage para permitir exibição futura`);
       }
       
       // Notificar sucesso

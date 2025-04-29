@@ -89,7 +89,8 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
         getRandomGradient(),
         isUpcoming && "border-2 border-amber-500 bg-amber-50",
         isExactTime && "border-2 border-red-500 bg-red-50 shadow-lg",
-        isConteudo && "border-l-4 border-l-blue-500"
+        isConteudo && "border-l-4 border-l-blue-500",
+        testemunhal.recorrente && "border-2 border-blue-500 bg-blue-50"
       )}>
         <CardHeader className="p-4 pb-0">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
@@ -102,6 +103,12 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
               )}>
                 {isExactTime ? 'AGORA!' : (isUpcoming ? 'Em breve' : (isConteudo ? 'Conteúdo' : getStatusText(testemunhal.status)))}
               </Badge>
+              
+              {testemunhal.recorrente && (
+                <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200 ml-2">
+                  Recorrente
+                </Badge>
+              )}
               <span className="text-muted-foreground flex items-center">
                 <Clock className={cn(
                   "h-3.5 w-3.5 mr-1",
@@ -115,8 +122,13 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
                 {isExactTime && (
                   <span className="ml-1 text-red-700 font-bold animate-pulse"> (HORÁRIO EXATO!)</span>
                 )}
-                {testemunhal.recorrente && testemunhal.data_fim && (
-                  <span className="ml-2 text-blue-600 font-medium">Recorrente até {new Date(testemunhal.data_fim).toLocaleDateString('pt-BR')}</span>
+                {testemunhal.recorrente && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    {testemunhal.recorrenteInfo || 
+                      (testemunhal.data_fim ? 
+                        `Recorrente até ${new Date(testemunhal.data_fim).toLocaleDateString('pt-BR')}` : 
+                        'Conteúdo recorrente')}
+                  </span>
                 )}
               </span>
             </div>

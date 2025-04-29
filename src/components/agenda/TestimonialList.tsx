@@ -19,7 +19,7 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
   isPending
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 15; // Alterado de 5 para 15 conforme solicitado
 
   const totalPages = Math.ceil(testimonials.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -37,7 +37,7 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
   console.log('Showing items', indexOfFirstItem + 1, 'to', Math.min(indexOfLastItem, testimonials.length));
 
   return (
-    <FullscreenHandler>
+    <FullscreenHandler withAutoFullscreen={false}>
       <TestimonialItems 
         testimonials={currentTestimonials} 
         onMarkAsRead={onMarkAsRead} 
