@@ -41,14 +41,19 @@ export function useContent() {
         // Find the current active program
         const { data: programsData, error: programsError } = await supabase
           .from('programas')
-          .select('id, nome, horario_inicio, horario_fim, dias')
+          .select('id, nome, horario_inicio, horario_fim, dias, apresentador')
           .order('horario_inicio', { ascending: true });
           
+        if (programsError) {
+          console.error('Erro ao carregar programas:', programsError);
+          return;
+        }
+        
         let currentProgram = null;
         const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
         
         // Map day names to numbers
-        const daysMap = {
+        const daysMap: Record<number, string> = {
           0: 'domingo',
           1: 'segunda', 
           2: 'terca',
@@ -115,8 +120,17 @@ export function useContent() {
           
           console.log('Conteúdos produzidos para hoje:', data);
           
-          const filteredData = data && Array.isArray(data) ? data.filter(item => {
-            if (!item || !item.programas) return false;
+          if (!data || !Array.isArray(data)) {
+            console.error('Dados inválidos ou vazios retornados da consulta');
+            setConteudos([]);
+            return;
+          }
+          
+          const filteredData = data.filter(item => {
+            if (!item) {
+              console.log('Item inválido encontrado na lista de conteúdos');
+              return false;
+            }
             
             // Skip content that's been marked as read locally today
             if (localReadContentIds.includes(item.id)) {
@@ -143,7 +157,7 @@ export function useContent() {
             }
             
             return true;
-          }) : [];
+          });
           
           const processedData = filteredData.map(item => {
             try {
@@ -210,6 +224,7 @@ export function useContent() {
             return 0;
           });
           
+          console.log('Conteúdos filtrados e processados para exibição:', sortedData.length);
           setConteudos(sortedData);
         } catch (authError) {
           console.error('Erro ao obter usuário:', authError);
