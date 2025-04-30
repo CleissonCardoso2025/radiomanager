@@ -1,33 +1,29 @@
 
 import { isMobileDevice, playNotificationSound } from '@/services/notificationService';
 import { supabase } from '@/integrations/supabase/client';
-
-// Helper function for calculating minutes difference
-function differenceInMinutes(dateA: Date, dateB: Date): number {
-  return Math.floor((dateA.getTime() - dateB.getTime()) / (1000 * 60));
-}
+import { toast } from 'sonner';
 
 export function useContentProcessor() {
   const processContentItems = async (data: any[], localReadContentIds: string[]) => {
     try {
-      // Get current user
+      console.log(`Processing ${data?.length || 0} content items`);
+      
+      // Get current user - if not authenticated, still process content
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        console.error('Usuário não autenticado durante processamento');
-        return [];
+        console.log('Warning: User not authenticated. Processing content anyway.');
+        // Continue processing instead of returning empty array
       }
       
-      // Obter o programa atual
+      // Current date and time
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
       const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
       
-      // Obter o dia da semana atual
-      // Filtrar conteúdos lidos hoje (inclusive recorrentes)
-      data = data.filter(item => !localReadContentIds.includes(item.id));
-      const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+      // Get current day of week
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
       
       // Map day names to numbers
       const daysMap: Record<number, string> = {
@@ -41,78 +37,94 @@ export function useContentProcessor() {
       };
       
       const currentDayName = daysMap[dayOfWeek];
+      console.log(`Current day: ${dayOfWeek} (${currentDayName}), time: ${currentTime}`);
       
-      // Filter content based on read status, validity period, and current program
-      const filteredData = data.filter(item => {
+      if (!data || data.length === 0) {
+        console.log('No content items to process');
+        return [];
+      }
+      
+      // Filter out items already read locally today
+      const filteredByReadStatus = data.filter(item => !localReadContentIds.includes(item.id));
+      console.log(`After filtering out locally read items: ${filteredByReadStatus.length} remaining`);
+      
+      // Filter content based on validity period and program
+      const filteredData = filteredByReadStatus.filter(item => {
         if (!item) {
-          console.log('Item inválido encontrado na lista de conteúdos');
+          console.log('Invalid content item found');
           return false;
         }
 
-        // Filtro de datas: data_inicio <= hoje <= data_fim (ou se data_fim não existe, apenas data_inicio <= hoje)
-        const hoje = new Date();
-        const dataInicio = item.data_inicio ? new Date(item.data_inicio) : null;
-        const dataFim = item.data_fim ? new Date(item.data_fim) : null;
-        if (dataInicio && hoje < dataInicio) {
-          console.log(`Conteúdo ${item.id} ainda não está no período de exibição (data_inicio futura)`);
+        const logPrefix = `Content ${item.id} (${item.nome || 'unnamed'})`;
+
+        // Filter by date range: start_date <= today <= end_date (or if end_date doesn't exist, just start_date <= today)
+        const today = new Date();
+        const startDate = item.data_inicio ? new Date(item.data_inicio) : 
+                         item.data_programada ? new Date(item.data_programada) : null;
+        const endDate = item.data_fim ? new Date(item.data_fim) : null;
+        
+        if (startDate && today < startDate) {
+          console.log(`${logPrefix} not yet in display period (future start_date)`);
           return false;
         }
-        if (dataFim && hoje > dataFim) {
-          console.log(`Conteúdo ${item.id} não será exibido (fora do período de validade)`);
+        
+        if (endDate && today > endDate) {
+          console.log(`${logPrefix} expired (past end_date)`);
           return false;
         }
 
-        // Verificar se o conteúdo está dentro do horário do programa atribuído
+        // If content has program assigned, check if it's scheduled for today
         if (item.programas) {
-          const programa = item.programas;
-          // Verificar se o programa está programado para o dia atual
-          if (programa.dias && Array.isArray(programa.dias)) {
-            if (!programa.dias.includes(currentDayName)) {
-              console.log(`Conteúdo ${item.id} não está programado para hoje (${currentDayName}). Removendo da lista.`);
+          const program = item.programas;
+          
+          // Check if program is scheduled for the current day
+          if (program.dias && Array.isArray(program.dias)) {
+            if (!program.dias.includes(currentDayName)) {
+              console.log(`${logPrefix} not scheduled for today (${currentDayName})`);
               return false;
             }
           }
-          if (programa.horario_inicio && programa.horario_fim) {
-            // Verificar se o horário programado do conteúdo está dentro do horário do programa
-            if (item.horario_programado) {
-              if (item.horario_programado < programa.horario_inicio || item.horario_programado > programa.horario_fim) {
-                console.log(`Conteúdo ${item.id} programado para ${item.horario_programado} fora do horário do programa ${programa.nome}. Removendo da lista.`);
-                return false;
-              }
-            } else {
-              // Se não tem horário programado, não exibe
-              return false;
-            }
+          
+          // Relaxed: If no scheduled time, still include the content
+          if (!item.horario_programado) {
+            console.log(`${logPrefix} has no scheduled time, including anyway`);
+            return true;
           }
         }
 
-        // Skip content that's been marked as read locally today (mesmo que seja recorrente)
-        if (localReadContentIds.includes(item.id)) {
-          console.log(`Conteúdo ${item.id} foi marcado como lido. Removendo da lista.`);
+        // Skip content that's been read by the current user (if authenticated)
+        if (user && item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id)) {
+          console.log(`${logPrefix} already read by current user`);
           return false;
         }
 
-        // Verificar se o conteúdo já foi lido pelo usuário atual
-        if (item.lido_por && Array.isArray(item.lido_por) && item.lido_por.includes(user.id)) {
-          // Mesmo que seja recorrente, não exibir se já foi lido
-          console.log(`Conteúdo ${item.id} já foi lido pelo usuário atual, não exibindo`);
-          return false;
-        }
-
+        console.log(`${logPrefix} passed all filters`);
         return true;
       });
+      
+      console.log(`After content filtering: ${filteredData.length} items remain`);
       
       // Process each content item with additional display properties
       const processedData = filteredData.map(item => {
         try {
-          if (!item || !item.horario_programado || typeof item.horario_programado !== 'string') {
-            console.warn('Item inválido ou sem horário programado:', item);
+          if (!item) {
+            console.warn('Invalid item found during processing');
             return null;
           }
           
-          const scheduledTimeParts = item.horario_programado.split(':');
+          const logPrefix = `Content ${item.id} (${item.nome || 'unnamed'})`;
+          
+          // If no scheduled time, use the current time
+          const scheduledTime = item.horario_programado || currentTime.substring(0, 5);
+          
+          if (!scheduledTime || typeof scheduledTime !== 'string') {
+            console.warn(`${logPrefix} has invalid scheduled time: ${scheduledTime}`);
+            return null;
+          }
+          
+          const scheduledTimeParts = scheduledTime.split(':');
           if (scheduledTimeParts.length < 2) {
-            console.warn('Formato de horário inválido:', item.horario_programado);
+            console.warn(`${logPrefix} has invalid time format: ${scheduledTime}`);
             return null;
           }
           
@@ -120,23 +132,26 @@ export function useContentProcessor() {
           const scheduledMinute = parseInt(scheduledTimeParts[1], 10);
           
           if (isNaN(scheduledHour) || isNaN(scheduledMinute)) {
-            console.warn('Horário não numérico:', scheduledHour, scheduledMinute);
+            console.warn(`${logPrefix} has non-numeric time: ${scheduledHour}:${scheduledMinute}`);
             return null;
           }
           
           const scheduledDate = new Date();
           scheduledDate.setHours(scheduledHour, scheduledMinute, 0);
           
-          const now = new Date();
-          const minutesUntil = differenceInMinutes(scheduledDate, now);
+          const minutesUntil = Math.floor((scheduledDate.getTime() - now.getTime()) / (1000 * 60));
           
-          const isUpcoming = minutesUntil >= -15 && minutesUntil <= 30; // Inclui até 15 minutos atrasados
+          // Consider content "upcoming" if it's within 30 minutes in the future or up to 15 minutes in the past
+          const isUpcoming = minutesUntil >= -15 && minutesUntil <= 30;
           
-          if (isUpcoming && isMobileDevice()) {
+          // Flag exact time matches
+          const isExactTime = currentHour === scheduledHour && currentMinute === scheduledMinute;
+          
+          if (isExactTime && isMobileDevice()) {
             playNotificationSound('alert');
           }
           
-          // Formatar a data de fim para exibição se for um conteúdo recorrente
+          // Format end date for display if it's recurring content
           let recorrenteInfo = '';
           if (item.recorrente && item.data_fim) {
             const dataFim = new Date(item.data_fim);
@@ -144,13 +159,16 @@ export function useContentProcessor() {
             recorrenteInfo = `Recorrente até ${dataFormatada}`;
           }
           
+          console.log(`${logPrefix} processed: isUpcoming=${isUpcoming}, isExactTime=${isExactTime}, minutesUntil=${minutesUntil}`);
+          
           return {
             ...item,
             id: item.id || `temp-${Date.now()}-${Math.random()}`,
             texto: item.conteudo || "Sem conteúdo disponível",
             patrocinador: item.nome || "Sem nome",
-            horario_agendado: item.horario_programado,
+            horario_agendado: scheduledTime,
             status: item.status || 'pendente',
+            isExactTime,
             isUpcoming,
             minutesUntil,
             tipo: 'conteudo',
@@ -159,7 +177,7 @@ export function useContentProcessor() {
             recorrenteInfo: recorrenteInfo
           };
         } catch (err) {
-          console.error('Erro ao processar conteúdo:', err, item);
+          console.error('Error processing content item:', err, item);
           return null;
         }
       }).filter(Boolean);
@@ -168,9 +186,18 @@ export function useContentProcessor() {
       const sortedData = processedData.sort((a, b) => {
         if (!a || !b) return 0;
         
+        // Exact time items first
+        if (a.isExactTime && !b.isExactTime) return -1;
+        if (!a.isExactTime && b.isExactTime) return 1;
+        
+        // Then upcoming items
         if (a.isUpcoming && !b.isUpcoming) return -1;
         if (!a.isUpcoming && b.isUpcoming) return 1;
         
+        // Sort by minutes until if both are upcoming or both are not
+        if (a.minutesUntil !== b.minutesUntil) return a.minutesUntil - b.minutesUntil;
+        
+        // Default sort by scheduled time
         if (a.horario_programado && b.horario_programado) {
           return a.horario_programado.localeCompare(b.horario_programado);
         }
@@ -178,9 +205,16 @@ export function useContentProcessor() {
         return 0;
       });
       
+      console.log(`Final processed content items: ${sortedData.length}`);
+      
       return sortedData;
     } catch (error) {
-      console.error('Erro ao processar conteúdos:', error);
+      console.error('Error processing content:', error);
+      toast.error('Erro ao processar conteúdos', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
       return [];
     }
   };

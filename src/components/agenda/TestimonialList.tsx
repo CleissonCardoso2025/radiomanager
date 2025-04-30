@@ -10,13 +10,15 @@ interface TestimonialListProps {
   isLoading: boolean;
   onMarkAsRead: (id: string, type: string) => void;
   isPending: boolean;
+  onRefresh?: () => void;
 }
 
 const TestimonialList: React.FC<TestimonialListProps> = ({ 
   testimonials, 
   isLoading, 
   onMarkAsRead,
-  isPending
+  isPending,
+  onRefresh
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
@@ -44,6 +46,7 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
         onMarkAsRead={onMarkAsRead} 
         isPending={isPending}
         isLoading={isLoading}
+        onRefresh={onRefresh}
       />
 
       {totalPages > 1 && (

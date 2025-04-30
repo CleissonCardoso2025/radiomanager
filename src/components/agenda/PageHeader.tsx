@@ -1,27 +1,57 @@
 
 import React from 'react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { User } from 'lucide-react';
+import SearchBar from './SearchBar';
+import { RefreshCcw, CalendarIcon, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-const PageHeader: React.FC = () => {
-  const today = new Date();
+interface PageHeaderProps {
+  onSearch?: (query: string) => void;
+  onRefresh?: () => void;
+}
+
+const PageHeader: React.FC<PageHeaderProps> = ({ onSearch, onRefresh }) => {
+  const currentDate = new Date();
+  const formattedDate = new Intl.DateTimeFormat('pt-BR', { 
+    weekday: 'long', 
+    day: '2-digit', 
+    month: 'long', 
+    year: 'numeric' 
+  }).format(currentDate);
+  
+  const capitalizeFirstLetter = (string: string) => {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  };
   
   return (
-    <div className="bg-white shadow-sm border-b">
-      <div className="container px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full p-2">
-              <User className="text-white h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">Agenda Diária</h2>
-              <p className="text-muted-foreground">
-                {format(today, "EEEE, dd 'de' MMMM", { locale: ptBR })}
-              </p>
-            </div>
+    <div className="mb-6 space-y-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Agenda do Locutor</h1>
+          <div className="flex items-center text-sm text-muted-foreground mt-1">
+            <CalendarIcon className="w-4 h-4 mr-1" />
+            <span>{capitalizeFirstLetter(formattedDate)}</span>
           </div>
+        </div>
+        
+        {onRefresh && (
+          <Button 
+            onClick={onRefresh} 
+            variant="outline" 
+            size="sm" 
+            className="ml-auto"
+          >
+            <RefreshCcw className="w-4 h-4 mr-2" />
+            Atualizar
+          </Button>
+        )}
+      </div>
+      
+      {onSearch && <SearchBar onSearch={onSearch} />}
+      
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-muted-foreground flex items-center">
+          <Clock className="w-4 h-4 mr-1" />
+          <span>Exibindo itens para este programa e horário</span>
         </div>
       </div>
     </div>

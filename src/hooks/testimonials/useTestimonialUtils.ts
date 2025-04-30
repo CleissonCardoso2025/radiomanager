@@ -18,5 +18,14 @@ export function useTestimonialUtils() {
     return Math.floor((dateA.getTime() - dateB.getTime()) / (1000 * 60));
   }, []);
   
-  return { getDayMap, differenceInMinutes };
+  const formatTime = useCallback((date: Date): string => {
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  }, []);
+  
+  const parseTimeString = useCallback((timeStr: string): { hours: number, minutes: number } => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return { hours, minutes };
+  }, []);
+  
+  return { getDayMap, differenceInMinutes, formatTime, parseTimeString };
 }

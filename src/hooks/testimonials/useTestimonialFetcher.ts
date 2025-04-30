@@ -23,6 +23,7 @@ export function useTestimonialFetcher() {
       
       const currentDayName = daysMap[dayOfWeek];
       const formattedDate = format(currentDate, 'yyyy-MM-dd');
+      console.log(`Fetching testimonials for date: ${formattedDate}, day: ${currentDayName}`);
       
       // Buscar testemunhais recorrentes
       let recurringData = [];
@@ -33,10 +34,10 @@ export function useTestimonialFetcher() {
         .order('horario_agendado', { ascending: true });
         
       if (recurringError) {
-        console.error('Erro ao buscar testemunhais recorrentes:', recurringError);
+        console.error('Error fetching recurring testimonials:', recurringError);
       } else {
         recurringData = recurringResponse || [];
-        console.log('Testemunhais recorrentes:', recurringData.length);
+        console.log('Recurring testimonials:', recurringData.length);
       }
       
       // Buscar testemunhais regulares (não recorrentes)
@@ -49,10 +50,10 @@ export function useTestimonialFetcher() {
         .order('horario_agendado', { ascending: true });
         
       if (regularError) {
-        console.error('Erro ao buscar testemunhais regulares:', regularError);
+        console.error('Error fetching regular testimonials:', regularError);
       } else {
         regularData = regularResponse || [];
-        console.log('Testemunhais regulares:', regularData.length);
+        console.log('Regular testimonials:', regularData.length);
       }
       
       // Buscar testemunhais com período de validade
@@ -66,7 +67,7 @@ export function useTestimonialFetcher() {
           
       validityData = validityResponse || [];
       if (validityError) {
-        console.error('Erro ao buscar testemunhais com validade:', validityError);
+        console.error('Error fetching testimonials with validity period:', validityError);
       }
         
       // Combinar os resultados e remover duplicatas
@@ -84,11 +85,15 @@ export function useTestimonialFetcher() {
         return true;
       });
       
-      console.log('Total de testemunhais após remover duplicatas:', data.length);
+      console.log('Total testimonials after removing duplicates:', data.length);
+      
+      if (data.length === 0) {
+        console.log('No testimonials found in database or all filtered out');
+      }
       
       return { allData: data, error: null };
     } catch (error) {
-      console.error('Erro no fetch de testemunhais:', error);
+      console.error('Error in testimonial fetch:', error);
       toast.error('Erro ao carregar testemunhais', {
         position: 'bottom-right',
         closeButton: true,

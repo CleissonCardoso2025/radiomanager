@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import Header from '@/components/Header';
 import { releaseScreenWakeLock, keepScreenAwake } from '@/services/notificationService';
@@ -13,11 +14,25 @@ import { useAuth } from '@/App';
 import PageHeader from '@/components/agenda/PageHeader';
 import TestimonialList from '@/components/agenda/TestimonialList';
 import Footer from '@/components/agenda/Footer';
+import { toast } from 'sonner';
 
 const Agenda: React.FC = () => {
   const { isOnline, connectionError, retryCount } = useConnectionStatus();
-  const { testemunhais, isLoading: isLoadingTestimonials, exactTimeTestimonials, setTestemunhais } = useTestimonials();
-  const { conteudos, isLoading: isLoadingContent, setConteudos } = useContent();
+  const { 
+    testemunhais, 
+    isLoading: isLoadingTestimonials, 
+    exactTimeTestimonials, 
+    setTestemunhais,
+    refreshTestimonials
+  } = useTestimonials();
+  
+  const { 
+    conteudos, 
+    isLoading: isLoadingContent, 
+    setConteudos,
+    refreshContent 
+  } = useContent();
+  
   const { markAsRead, isMarkingAsRead } = useMarkAsRead();
   
   // Compilamos TODOS os itens em uma única lista para exibição
@@ -29,6 +44,16 @@ const Agenda: React.FC = () => {
   const fullscreenRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [attemptedFullscreen, setAttemptedFullscreen] = useState(false);
+  const [systemTime, setSystemTime] = useState(new Date());
+  
+  // Atualize o relógio a cada minuto
+  useEffect(() => {
+    const clockInterval = setInterval(() => {
+      setSystemTime(new Date());
+    }, 60000);
+    
+    return () => clearInterval(clockInterval);
+  }, []);
   
   // Não forçar mais tela cheia automaticamente para evitar erros
   // Em vez disso, mostrar um botão permanente para entrar em tela cheia
@@ -38,8 +63,15 @@ const Agenda: React.FC = () => {
     testemunhais: testemunhais.length,
     conteudos: conteudos.length,
     total: filteredItems.length,
-    isLoading
+    isLoading,
+    systemTime: systemTime.toLocaleString()
   });
+  
+  const refreshAllContent = () => {
+    toast.info('Atualizando conteúdo...');
+    refreshTestimonials();
+    refreshContent();
+  };
   
   const enterFullscreen = () => {
     if (fullscreenRef.current && !document.fullscreenElement) {
@@ -105,6 +137,8 @@ const Agenda: React.FC = () => {
       } else if (tipo === 'conteudo') {
         setConteudos(prev => prev.filter(c => c.id !== id));
       }
+      
+      toast.success('Item marcado como lido');
     }
   };
 
@@ -122,6 +156,12 @@ const Agenda: React.FC = () => {
       <Header />
       <ConnectionStatus isOnline={isOnline} connectionError={connectionError} retryCount={retryCount} />
       
+      {/* Hora do sistema */}
+      <div className="fixed top-16 right-4 z-40 bg-white/70 backdrop-blur-sm p-2 rounded-md shadow text-sm border border-gray-200">
+        <div>Data: {systemTime.toLocaleDateString()}</div>
+        <div>Hora: {systemTime.toLocaleTimeString()}</div>
+      </div>
+      
       {/* Botão de tela cheia flutuante */}
       {showFullscreenButton && !isFullscreen && (
         <button 
@@ -136,12 +176,13 @@ const Agenda: React.FC = () => {
       )}
       
       <div className="container py-6">
-        <PageHeader />
+        <PageHeader onRefresh={refreshAllContent} />
         <TestimonialList 
           testimonials={filteredItems} 
           isLoading={isLoading} 
           onMarkAsRead={handleMarkAsRead}
           isPending={isMarkingAsRead}
+          onRefresh={refreshAllContent}
         />
         <Footer />
       </div>

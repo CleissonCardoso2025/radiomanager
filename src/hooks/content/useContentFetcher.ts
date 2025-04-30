@@ -1,68 +1,74 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export function useContentFetcher() {
   const fetchConteudos = async (dataAtual: string) => {
     try {
-      console.log('Buscando conteúdos para a data:', dataAtual);
+      console.log('Fetching content for date:', dataAtual);
       
-      // Get current user
+      // Continue even if user is not authenticated
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        console.error('Usuário não autenticado');
-        return { data: [], error: new Error('Usuário não autenticado'), localReadContentIds: [] };
+        console.log('Warning: User not authenticated. Fetching content anyway.');
+        // Continue fetching instead of returning empty
       }
       
       // Get read content IDs from local storage
       const todayStr = dataAtual;
       const localReadContentIds = JSON.parse(localStorage.getItem(`conteudos_lidos_${todayStr}`) || '[]');
-      console.log('Conteúdos já marcados como lidos localmente:', localReadContentIds);
+      console.log('Content items already marked as read locally:', localReadContentIds);
       
-      // Buscar conteúdos para hoje (data_programada = hoje)
+      // Fetch content for today (data_programada = today)
       const { data: regularData, error: regularError } = await supabase
         .from('conteudos_produzidos')
         .select('*, programas(id, nome, apresentador, dias, horario_inicio, horario_fim)')
         .eq('data_programada', dataAtual)
         .order('horario_programado', { ascending: true });
         
-      console.log('Conteúdos regulares para hoje:', regularData?.length || 0);
+      console.log('Regular content for today:', regularData?.length || 0);
       
-      // Buscar conteúdos recorrentes (recorrente = true)
+      // Fetch recurring content (recorrente = true)
       const { data: recurringData, error: recurringError } = await supabase
         .from('conteudos_produzidos')
         .select('*, programas(id, nome, apresentador, dias, horario_inicio, horario_fim)')
         .eq('recorrente', true)
         .order('horario_programado', { ascending: true });
         
-      console.log('Conteúdos recorrentes:', recurringData?.length || 0);
+      console.log('Recurring content:', recurringData?.length || 0);
       
-      // Buscar conteúdos com período de validade (data_fim >= hoje)
+      // Fetch content with validity period (data_fim >= today)
       const { data: validityData, error: validityError } = await supabase
         .from('conteudos_produzidos')
         .select('*, programas(id, nome, apresentador, dias, horario_inicio, horario_fim)')
-        .not('data_fim', 'is', null) // Apenas conteúdos com data_fim definida
-        .gte('data_fim', dataAtual) // Data de fim maior ou igual a hoje
+        .not('data_fim', 'is', null) // Only items with data_fim defined
+        .gte('data_fim', dataAtual) // End date greater than or equal to today
         .order('horario_programado', { ascending: true });
         
-      console.log('Conteúdos com período de validade:', validityData?.length || 0);
+      console.log('Content with validity period:', validityData?.length || 0);
       
-      // Verificar erros
+      // Check for errors
       const error = regularError || recurringError || validityError;
       
       if (error) {
-        console.error('Erro ao buscar conteúdos:', error);
+        console.error('Error fetching content:', error);
+        toast.error('Erro ao buscar conteúdos', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
         return { data: [], error, localReadContentIds };
       }
       
-      // Combinar os resultados das três consultas
+      // Combine results from all three queries
       const allData = [
         ...(regularData || []),
         ...(recurringData || []),
         ...(validityData || [])
       ];
       
-      // Remover duplicatas com base no ID
+      // Remove duplicates based on ID
       const uniqueIds = new Set();
       const combinedData = allData.filter(item => {
         if (!item || !item.id) return false;
@@ -71,18 +77,22 @@ export function useContentFetcher() {
         return true;
       });
       
-      console.log('Total de conteúdos após remover duplicatas:', combinedData.length);
+      console.log('Total content after removing duplicates:', combinedData.length);
       
-      // Marcar explicitamente os conteúdos recorrentes
+      if (combinedData.length === 0) {
+        console.log('No content found in database or all filtered out');
+      }
+      
+      // Mark recurring content explicitly
       const processedData = combinedData.map(item => {
-        // Verificar se é um conteúdo recorrente (tem recorrente = true ou data_fim válida)
+        // Check if it's recurring content (recorrente = true or has valid data_fim)
         const isRecurring = item.recorrente === true || (
           item.data_fim && 
           new Date(item.data_fim) >= new Date(dataAtual)
         );
         
         if (isRecurring) {
-          console.log(`Conteúdo recorrente encontrado: ${item.id} - ${item.nome || 'Sem nome'}`);
+          console.log(`Found recurring content: ${item.id} - ${item.nome || 'Unnamed'}`);
           return {
             ...item,
             recorrente: true
@@ -92,14 +102,14 @@ export function useContentFetcher() {
         return item;
       });
       
-      console.log(`Encontrados ${processedData.length} conteúdos para exibição`);
-      processedData.forEach(item => {
-        console.log(`- ${item.id}: ${item.nome || 'Sem nome'} (${item.recorrente ? 'Recorrente' : 'Regular'})`);
-      });
-      
       return { data: processedData, error: null, localReadContentIds };
     } catch (error) {
-      console.error('Erro no fetch de conteúdos:', error);
+      console.error('Error fetching content:', error);
+      toast.error('Erro ao buscar conteúdos', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
       return { data: [], error, localReadContentIds: [] };
     }
   };

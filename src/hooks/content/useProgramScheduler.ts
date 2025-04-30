@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 export function useProgramScheduler() {
   const getCurrentProgram = async () => {
@@ -13,7 +14,7 @@ export function useProgramScheduler() {
       
       // Get current day of week in Portuguese format
       const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
-      console.log(`Dia da semana atual: ${dayOfWeek}`);
+      console.log(`Current day of week: ${dayOfWeek}`);
       
       // Map day names to database format
       const daysMap: Record<number, string> = {
@@ -27,7 +28,7 @@ export function useProgramScheduler() {
       };
       
       const currentDayName = daysMap[dayOfWeek];
-      console.log(`Nome do dia atual: ${currentDayName}`);
+      console.log(`Current day name: ${currentDayName}, time: ${currentTime}`);
       
       // Find the current active program
       const { data: programsData, error: programsError } = await supabase
@@ -36,43 +37,57 @@ export function useProgramScheduler() {
         .order('horario_inicio', { ascending: true });
         
       if (programsError) {
-        console.error('Erro ao carregar programas:', programsError);
-        return { currentProgram: null, currentProgramId: 'no-program' };
+        console.error('Error loading programs:', programsError);
+        return { currentProgram: null, currentProgramId: 'error' };
       }
       
-      console.log(`Programas obtidos: ${programsData?.length || 0}`);
+      console.log(`Retrieved ${programsData?.length || 0} programs`);
       programsData?.forEach((prog, idx) => {
-        console.log(`Programa ${idx+1}: ${prog.nome}, dias: [${prog.dias?.join(', ')}], horário: ${prog.horario_inicio}-${prog.horario_fim}`);
+        console.log(`Program ${idx+1}: ${prog.nome}, days: [${prog.dias?.join(', ')}], time: ${prog.horario_inicio}-${prog.horario_fim}`);
       });
       
       let currentProgram = null;
       
       if (programsData && programsData.length > 0) {
         currentProgram = programsData.find(program => {
-          if (!program.horario_inicio || !program.horario_fim) return false;
+          if (!program.horario_inicio || !program.horario_fim) {
+            console.log(`Program ${program.id} has incomplete time data`);
+            return false;
+          }
           
           // Check if program runs today
           const dias = program.dias || [];
           if (!dias.includes(currentDayName)) {
-            console.log(`Programa ${program.nome} não está programado para hoje (${currentDayName})`);
+            console.log(`Program ${program.nome} not scheduled for today (${currentDayName})`);
             return false;
           }
           
           const isWithinTimeRange = program.horario_inicio <= currentTime && program.horario_fim >= currentTime;
-          if (!isWithinTimeRange) {
-            console.log(`Programa ${program.nome} não está no horário atual (${currentTime})`);
-            return false;
+          if (isWithinTimeRange) {
+            console.log(`Found active program: ${program.nome} (${program.horario_inicio}-${program.horario_fim})`);
+          } else {
+            console.log(`Program ${program.nome} not active at current time (${currentTime})`);
           }
           
-          console.log(`Programa ${program.nome} está ativo agora!`);
-          return true;
+          return isWithinTimeRange;
         });
       }
       
-      const currentProgramId = currentProgram?.id || 'no-program';
+      if (!currentProgram) {
+        console.log('No active program found for current day and time');
+      }
+      
+      // Even if no program is active, still allow content display
+      const currentProgramId = currentProgram?.id || 'no-active-program';
+      
       return { currentProgram, currentProgramId };
     } catch (error) {
-      console.error('Erro ao determinar programa atual:', error);
+      console.error('Error determining current program:', error);
+      toast.error('Erro ao determinar programa atual', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 3000
+      });
       return { currentProgram: null, currentProgramId: 'error' };
     }
   };
