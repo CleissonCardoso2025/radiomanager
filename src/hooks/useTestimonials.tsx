@@ -40,6 +40,7 @@ export function useTestimonials(selectedProgramId = null) {
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
       const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
+      const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
       
       // Buscar programa atual
       const { data: programsData, error: programsError } = await supabase
@@ -172,7 +173,6 @@ export function useTestimonials(selectedProgramId = null) {
         // Verificar se o programa já começou
         const progStartParts = t.programas.horario_inicio.split(':');
         const progStartTotalMinutes = parseInt(progStartParts[0], 10) * 60 + parseInt(progStartParts[1], 10);
-        const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
         
         // Filtro de lidos pelo usuário
         if (user && t.lido_por && Array.isArray(t.lido_por) && t.lido_por.includes(user.id)) {
