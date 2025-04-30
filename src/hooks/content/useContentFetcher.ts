@@ -17,6 +17,7 @@ export function useContentFetcher() {
       // Get read content IDs from local storage
       const todayStr = dataAtual;
       const localReadContentIds = JSON.parse(localStorage.getItem(`conteudos_lidos_${todayStr}`) || '[]');
+      console.log('Conteúdos já marcados como lidos localmente:', localReadContentIds);
       
       // Buscar conteúdos para hoje (data_programada = hoje)
       const { data: regularData, error: regularError } = await supabase
@@ -25,6 +26,8 @@ export function useContentFetcher() {
         .eq('data_programada', dataAtual)
         .order('horario_programado', { ascending: true });
         
+      console.log('Conteúdos regulares para hoje:', regularData?.length || 0);
+      
       // Buscar conteúdos recorrentes (recorrente = true)
       const { data: recurringData, error: recurringError } = await supabase
         .from('conteudos_produzidos')
@@ -32,6 +35,8 @@ export function useContentFetcher() {
         .eq('recorrente', true)
         .order('horario_programado', { ascending: true });
         
+      console.log('Conteúdos recorrentes:', recurringData?.length || 0);
+      
       // Buscar conteúdos com período de validade (data_fim >= hoje)
       const { data: validityData, error: validityError } = await supabase
         .from('conteudos_produzidos')
@@ -40,6 +45,8 @@ export function useContentFetcher() {
         .gte('data_fim', dataAtual) // Data de fim maior ou igual a hoje
         .order('horario_programado', { ascending: true });
         
+      console.log('Conteúdos com período de validade:', validityData?.length || 0);
+      
       // Verificar erros
       const error = regularError || recurringError || validityError;
       
@@ -63,6 +70,8 @@ export function useContentFetcher() {
         uniqueIds.add(item.id);
         return true;
       });
+      
+      console.log('Total de conteúdos após remover duplicatas:', combinedData.length);
       
       // Marcar explicitamente os conteúdos recorrentes
       const processedData = combinedData.map(item => {
