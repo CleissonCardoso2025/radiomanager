@@ -32,9 +32,10 @@ const TestimonialList: React.FC<TestimonialListProps> = ({
     window.scrollTo(0, 0);
   };
 
-  console.log('Testimonials received in TestimonialList:', testimonials?.length || 0, testimonials);
-  console.log('Current page:', currentPage, 'of', totalPages);
-  console.log('Showing items', indexOfFirstItem + 1, 'to', Math.min(indexOfLastItem, testimonials?.length || 0));
+  console.log('TestimonialList - isLoading:', isLoading);
+  console.log('TestimonialList - Testimonials count:', testimonials?.length || 0);
+  console.log('TestimonialList - Current page:', currentPage, 'of', totalPages);
+  console.log('TestimonialList - Showing items', indexOfFirstItem + 1, 'to', Math.min(indexOfLastItem, testimonials?.length || 0));
 
   return (
     <FullscreenHandler withAutoFullscreen={false}>

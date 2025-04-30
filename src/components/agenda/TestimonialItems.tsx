@@ -3,6 +3,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import TestimonialCard from './TestimonialCard';
 import { ContentItem } from '@/hooks/content/types';
+import { AlertCircle } from 'lucide-react';
 
 interface TestimonialItemsProps {
   testimonials: ContentItem[];
@@ -27,6 +28,8 @@ const TestimonialItems: React.FC<TestimonialItemsProps> = ({
     }
   };
 
+  console.log('TestimonialItems - isLoading:', isLoading, 'Items count:', testimonials?.length || 0);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -38,10 +41,13 @@ const TestimonialItems: React.FC<TestimonialItemsProps> = ({
     );
   }
 
-  if (testimonials.length === 0) {
+  if (!testimonials || testimonials.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <div className="bg-white/50 backdrop-blur-sm rounded-xl p-8 shadow-sm border border-gray-100 max-w-md">
+          <div className="flex justify-center mb-4">
+            <AlertCircle className="h-12 w-12 text-amber-500" />
+          </div>
           <h3 className="text-lg font-semibold mb-2">Nenhum item encontrado</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Não há testemunhais ou conteúdos programados para hoje ou que correspondam à sua busca.

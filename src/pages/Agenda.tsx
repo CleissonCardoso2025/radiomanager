@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import Header from '@/components/Header';
 import { releaseScreenWakeLock, keepScreenAwake } from '@/services/notificationService';
@@ -16,11 +17,15 @@ import Footer from '@/components/agenda/Footer';
 
 const Agenda: React.FC = () => {
   const { isOnline, connectionError, retryCount } = useConnectionStatus();
-  const { testemunhais, isLoading, exactTimeTestimonials, setTestemunhais } = useTestimonials();
-  const { conteudos, setConteudos } = useContent();
+  const { testemunhais, isLoading: isLoadingTestimonials, exactTimeTestimonials, setTestemunhais } = useTestimonials();
+  const { conteudos, isLoading: isLoadingContent, setConteudos } = useContent();
   const { markAsRead, isMarkingAsRead } = useMarkAsRead();
-  // Busca removida conforme solicitado
+  
+  // Compilamos TODOS os itens em uma única lista para exibição
   const filteredItems = [...testemunhais, ...conteudos];
+  // Determinamos se QUALQUER dos hooks de carregamento está em true
+  const isLoading = isLoadingTestimonials || isLoadingContent;
+  
   const { userRole } = useAuth();
   const fullscreenRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -29,6 +34,13 @@ const Agenda: React.FC = () => {
   // Não forçar mais tela cheia automaticamente para evitar erros
   // Em vez disso, mostrar um botão permanente para entrar em tela cheia
   const [showFullscreenButton, setShowFullscreenButton] = useState(true);
+  
+  console.log('Agenda - Items carregados:', {
+    testemunhais: testemunhais.length,
+    conteudos: conteudos.length,
+    total: filteredItems.length,
+    isLoading
+  });
   
   const enterFullscreen = () => {
     if (fullscreenRef.current && !document.fullscreenElement) {
@@ -59,9 +71,6 @@ const Agenda: React.FC = () => {
       releaseScreenWakeLock();
     };
   }, [testemunhais.length, conteudos.length]);
-
-  // Não forçar mais tela cheia automaticamente para evitar erros
-  // Em vez disso, mostrar um botão permanente para entrar em tela cheia
 
   // Handle fullscreen change events
   useEffect(() => {

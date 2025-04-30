@@ -40,7 +40,9 @@ export function useTestimonials(selectedProgramId = null) {
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
       const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
-      const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentTotalMinutes = currentHour * 60 + currentMinute;
+      
+      console.log('Current time:', currentTime, 'Minutes since midnight:', currentTotalMinutes);
       
       // Buscar programa atual
       const { data: programsData, error: programsError } = await supabase
@@ -55,10 +57,8 @@ export function useTestimonials(selectedProgramId = null) {
       }
       
       console.log(`Programas obtidos: ${programsData?.length || 0}`);
-      programsData?.forEach((prog, idx) => {
-        console.log(`Programa ${idx+1}: ${prog.nome}, dias: [${prog.dias?.join(', ')}], horário: ${prog.horario_inicio}-${prog.horario_fim}`);
-      });
       
+      // Encontrar programa atual baseado no dia e horário
       let currentProgram = null;
       if (programsData && programsData.length > 0) {
         currentProgram = programsData.find(program => {
@@ -68,33 +68,31 @@ export function useTestimonials(selectedProgramId = null) {
           const dias = program.dias || [];
           if (!dias.includes(currentDayName)) return false;
           
+          // Verificar se estamos no horário do programa
           return program.horario_inicio <= currentTime && program.horario_fim >= currentTime;
         });
       }
       
       if (!currentProgram) {
-        console.log('Nenhum programa ativo no momento');
-        setTestemunhais([]);
-        setIsLoading(false);
-        return;
+        console.log('Nenhum programa ativo no momento. Hora atual:', currentTime);
+        // Mesmo sem programa atual, ainda buscamos testemunhais recorrentes e com validade
       }
       
       console.log('Programa atual:', currentProgram);
       
       // Verificar se o programa mudou desde a última verificação
-      const programId = currentProgram.id;
+      const programId = currentProgram?.id || 'no-program';
       if (lastProgramChange !== programId) {
         setLastProgramChange(programId);
         console.log('Programa mudou, atualizando testemunhais');
       }
       
-      // Buscar testemunhais recorrentes
+      // Buscar testemunhais recorrentes (não depende do programa atual)
       let recurringData = [];
       const { data: recurringResponse, error: recurringError } = await supabase
         .from('testemunhais')
-        .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_fim, recorrente, lido_por, programas!inner(id, nome, dias, apresentador, horario_inicio, horario_fim), timestamp_leitura')
+        .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_fim, recorrente, lido_por, programas(id, nome, dias, apresentador, horario_inicio, horario_fim), timestamp_leitura')
         .eq('recorrente', true)
-        .eq('programa_id', currentProgram.id)
         .order('horario_agendado', { ascending: true });
         
       if (recurringError) {
@@ -104,13 +102,12 @@ export function useTestimonials(selectedProgramId = null) {
         console.log('Testemunhais recorrentes:', recurringData.length);
       }
       
-      // Buscar testemunhais regulares (não recorrentes)
+      // Buscar testemunhais regulares (não recorrentes) - não filtramos por programa_id aqui
       let regularData = [];
       const { data: regularResponse, error: regularError } = await supabase
         .from('testemunhais')
-        .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_fim, recorrente, lido_por, programas!inner(id, nome, dias, apresentador, horario_inicio, horario_fim), timestamp_leitura')
+        .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_fim, recorrente, lido_por, programas(id, nome, dias, apresentador, horario_inicio, horario_fim), timestamp_leitura')
         .eq('recorrente', false)
-        .eq('programa_id', currentProgram.id)
         .is('data_fim', null)
         .order('horario_agendado', { ascending: true });
         
@@ -123,24 +120,19 @@ export function useTestimonials(selectedProgramId = null) {
       
       // Buscar testemunhais com período de validade
       let validityData = [];
-      if (currentProgram) {
-        const { data: validityResponse, error: validityError } = await supabase
-          .from('testemunhais')
-          .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_fim, recorrente, lido_por, programas!inner(id, nome, dias, apresentador, horario_inicio, horario_fim), timestamp_leitura')
-          .not('data_fim', 'is', null)
-          .gte('data_fim', formattedDate)
-          .eq('programa_id', currentProgram.id)
-          .order('horario_agendado', { ascending: true });
+      const { data: validityResponse, error: validityError } = await supabase
+        .from('testemunhais')
+        .select('id, patrocinador, texto, horario_agendado, status, programa_id, data_fim, recorrente, lido_por, programas(id, nome, dias, apresentador, horario_inicio, horario_fim), timestamp_leitura')
+        .not('data_fim', 'is', null)
+        .gte('data_fim', formattedDate)
+        .order('horario_agendado', { ascending: true });
           
-        validityData = validityResponse || [];
-        if (validityError) {
-          console.error('Erro ao buscar testemunhais com validade:', validityError);
-        }
-      } else {
-        console.log('Nenhum programa ativo no momento, não buscaremos testemunhais com período de validade');
+      validityData = validityResponse || [];
+      if (validityError) {
+        console.error('Erro ao buscar testemunhais com validade:', validityError);
       }
         
-      console.log('Testemunhais com período de validade do programa atual:', validityData.length);
+      console.log('Testemunhais com período de validade:', validityData.length);
       
       // Combinar os resultados e remover duplicatas
       const allData = [
@@ -148,6 +140,8 @@ export function useTestimonials(selectedProgramId = null) {
         ...(regularData || []),
         ...(validityData || [])
       ];
+      
+      console.log('Total de testemunhais antes de remover duplicatas:', allData.length);
       
       // Remover duplicatas com base no ID
       const uniqueIds = new Set();
@@ -163,18 +157,32 @@ export function useTestimonials(selectedProgramId = null) {
       const { data: userData } = await supabase.auth.getUser();
       const user = userData?.user;
       
-      // Filtro principal
+      if (!user) {
+        console.log('Usuário não autenticado. Retornando lista vazia.');
+        setIsLoading(false);
+        setTestemunhais([]);
+        return;
+      }
+      
+      // Filtro principal - ajustar para considerar o dia atual
       let filteredData = data.filter(t => {
         // Adicionar campo tipo para todos os testemunhais
         t.tipo = 'testemunhal';
         
-        if (!t.programas || !t.programas.horario_inicio || !t.programas.horario_fim) return false;
+        // Verificar se o programa existe e tem horários definidos
+        if (!t.programas || !t.programas.horario_inicio || !t.programas.horario_fim) {
+          console.log(`Testemunhal ${t.id} sem programa válido`);
+          return false;
+        }
         
-        // Verificar se o programa já começou
-        const progStartParts = t.programas.horario_inicio.split(':');
-        const progStartTotalMinutes = parseInt(progStartParts[0], 10) * 60 + parseInt(progStartParts[1], 10);
+        // Verificar se o programa está programado para hoje
+        const programDias = t.programas.dias || [];
+        if (!programDias.includes(currentDayName)) {
+          console.log(`Testemunhal ${t.id} - programa não está programado para hoje (${currentDayName})`);
+          return false;
+        }
         
-        // Filtro de lidos pelo usuário
+        // Verificar se o testemunhal já foi lido pelo usuário atual
         if (user && t.lido_por && Array.isArray(t.lido_por) && t.lido_por.includes(user.id)) {
           console.log(`Testemunhal ${t.id} já foi lido pelo usuário atual`);
           return false;
@@ -182,6 +190,8 @@ export function useTestimonials(selectedProgramId = null) {
         
         return true;
       });
+      
+      console.log(`Testemunhais após filtro principal: ${filteredData.length}`);
       
       // Filtro localStorage (testemunhais lidos hoje)
       const localReadIds = JSON.parse(localStorage.getItem(`testemunhais_lidos_${formattedDate}`) || '[]');

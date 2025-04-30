@@ -10,7 +10,7 @@ import { useProgramScheduler } from './content/useProgramScheduler';
 export function useContent() {
   const [conteudos, setConteudos] = useState([]);
   const [lastProgramChange, setLastProgramChange] = useState<string | null>(null);
-  const today = new Date();
+  const [isLoading, setIsLoading] = useState(true);
   
   const { fetchConteudos } = useContentFetcher();
   const { processContentItems } = useContentProcessor();
@@ -18,6 +18,7 @@ export function useContent() {
 
   const updateContent = useCallback(async () => {
     try {
+      setIsLoading(true);
       const dataAtual = format(new Date(), 'yyyy-MM-dd');
       console.log('Data atual para conteúdos:', dataAtual);
       
@@ -41,12 +42,14 @@ export function useContent() {
           duration: 5000
         });
         setConteudos([]);
+        setIsLoading(false);
         return;
       }
       
       if (!data || !Array.isArray(data)) {
         console.error('Dados inválidos ou vazios retornados da consulta');
         setConteudos([]);
+        setIsLoading(false);
         return;
       }
       
@@ -57,6 +60,7 @@ export function useContent() {
       
       console.log('Conteúdos filtrados e processados para exibição:', sortedData.length);
       setConteudos(sortedData);
+      setIsLoading(false);
     } catch (error) {
       console.error('Erro ao carregar conteúdos produzidos:', error);
       toast.error('Erro ao carregar conteúdos produzidos', {
@@ -65,6 +69,7 @@ export function useContent() {
         duration: 5000
       });
       setConteudos([]);
+      setIsLoading(false);
     }
   }, [getCurrentProgram, fetchConteudos, processContentItems]);
 
@@ -83,5 +88,5 @@ export function useContent() {
     };
   }, [updateContent]);
 
-  return { conteudos, setConteudos };
+  return { conteudos, setConteudos, isLoading };
 }
