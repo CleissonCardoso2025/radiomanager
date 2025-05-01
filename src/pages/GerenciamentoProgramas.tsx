@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Dialog, 
   DialogContent, 
+  DialogDescription,
   DialogHeader, 
   DialogTitle, 
   DialogFooter 
@@ -43,6 +44,13 @@ import { BadgeCheck, Calendar, CalendarDays, Clock, Pencil, Plus, Repeat, Trash2
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+// Corrige datas para timezone local
+function getLocalDateString(date: Date = new Date()): string {
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+  const localDate = new Date(date.getTime() - offsetMs);
+  return localDate.toISOString().split('T')[0];
+}
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -235,7 +243,8 @@ const GerenciamentoProgramas: React.FC = () => {
     );
   }
 
-  const timeToMinutes = (time: string): number => {
+  const timeToMinutes = (time: string | null | undefined): number => {
+    if (!time || typeof time !== 'string') return 0;
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
   };
@@ -434,8 +443,8 @@ const GerenciamentoProgramas: React.FC = () => {
         programa_id: formData.programa_id,
         leituras: 1,
         status: 'pendente',
-        data_inicio: formData.data_inicio ? formData.data_inicio.toISOString().split('T')[0] : null,
-        data_fim: formData.data_fim ? formData.data_fim.toISOString().split('T')[0] : null,
+        data_inicio: formData.data_inicio ? getLocalDateString(formData.data_inicio) : null,
+        data_fim: formData.data_fim ? getLocalDateString(formData.data_fim) : null,
       }));
       
       const { data, error } = await supabase
@@ -871,7 +880,7 @@ const GerenciamentoProgramas: React.FC = () => {
                               isTimeWithinProgram(testemunhal.programa_id, testemunhal.horario_agendado)
                               ? '' : 'text-red-600'
                             }>
-                              {testemunhal.horario_agendado.slice(0, 5)}
+                              {typeof testemunhal.horario_agendado === 'string' ? testemunhal.horario_agendado.slice(0, 5) : '--:--'}
                               {!isTimeWithinProgram(testemunhal.programa_id, testemunhal.horario_agendado) && (
                                 <span className="text-xs ml-1 text-red-600 hidden sm:inline">(Fora do horário)</span>
                               )}
@@ -993,11 +1002,14 @@ const GerenciamentoProgramas: React.FC = () => {
         </Tabs>
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto" aria-describedby="dialog-description">
             <DialogHeader>
               <DialogTitle>
                 {selectedItem ? 'Editar' : 'Adicionar'} {modalType === 'programa' ? 'Programa' : 'Testemunhal'}
               </DialogTitle>
+              <DialogDescription id="dialog-description">
+                {modalType === 'programa' ? 'Preencha os dados do programa de rádio' : 'Preencha os dados do testemunhal'}
+              </DialogDescription>
             </DialogHeader>
             
             {modalType === 'programa' ? (

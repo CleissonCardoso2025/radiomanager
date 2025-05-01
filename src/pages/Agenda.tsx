@@ -1,188 +1,205 @@
-
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
-import { releaseScreenWakeLock, keepScreenAwake } from '@/services/notificationService';
-import { useConnectionStatus } from '@/hooks/useConnectionStatus';
-import { useTestimonials } from '@/hooks/testimonials';
-import { useContent } from '@/hooks/useContent';
-import { useMarkAsRead } from '@/hooks/useMarkAsRead';
-import ConnectionStatus from '@/components/ConnectionStatus';
-import ConnectionErrorScreen from '@/components/agenda/ConnectionErrorScreen';
-import { useAuth } from '@/App';
-
-// Imported Components
-import PageHeader from '@/components/agenda/PageHeader';
-import TestimonialList from '@/components/agenda/TestimonialList';
 import Footer from '@/components/agenda/Footer';
+import TestimonialList from '@/components/agenda/TestimonialList';
+import { useMarkAsRead } from '@/hooks/useMarkAsRead';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Definição da interface ContentItem
+interface ContentItem {
+  id: string;
+  titulo?: string;
+  conteudo?: string;
+  horario_programado?: string;
+  horario_agendado?: string;
+  data_programada?: string;
+  data_inicio?: string;
+  data_fim?: string;
+  programa_id?: string;
+  status?: string;
+  recorrente?: boolean;
+  lido_por?: string[];
+  created_at?: string;
+  [key: string]: any; // Para outras propriedades que possam existir
+}
+
 const Agenda: React.FC = () => {
-  const { isOnline, connectionError, retryCount } = useConnectionStatus();
-  const { 
-    testemunhais, 
-    isLoading: isLoadingTestimonials, 
-    exactTimeTestimonials, 
-    setTestemunhais,
-    refreshTestimonials
-  } = useTestimonials();
-  
-  const { 
-    conteudos, 
-    isLoading: isLoadingContent, 
-    setConteudos,
-    refreshContent 
-  } = useContent();
-  
-  const { markAsRead, isMarkingAsRead } = useMarkAsRead();
-  
-  // Compilamos TODOS os itens em uma única lista para exibição
-  const filteredItems = [...testemunhais, ...conteudos];
-  // Determinamos se QUALQUER dos hooks de carregamento está em true
-  const isLoading = isLoadingTestimonials || isLoadingContent;
-  
-  const { userRole } = useAuth();
-  const fullscreenRef = useRef<HTMLDivElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [attemptedFullscreen, setAttemptedFullscreen] = useState(false);
-  const [systemTime, setSystemTime] = useState(new Date());
-  
-  // Atualize o relógio a cada minuto
-  useEffect(() => {
-    const clockInterval = setInterval(() => {
-      setSystemTime(new Date());
-    }, 60000);
-    
-    return () => clearInterval(clockInterval);
+  const [conteudos, setConteudos] = useState<ContentItem[]>([]);
+  const [testemunhais, setTestemunhais] = useState<ContentItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Função utilitária para garantir datas no timezone local
+  function getLocalDateString(date = new Date()) {
+    const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+    const localDate = new Date(date.getTime() - offsetMs);
+    return localDate.toISOString().split('T')[0];
+  }
+
+  // Busca conteúdos do dia
+  const fetchConteudos = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const today = getLocalDateString();
+      const { data, error } = await supabase
+        .from('conteudos_produzidos')
+        .select('*')
+        .eq('data_programada', today)
+        .order('horario_programado', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao carregar conteúdos:', error.message);
+        toast.error(`Erro ao carregar conteúdos: ${error.message}`);
+        setConteudos([]);
+        return;
+      }
+      setConteudos(data || []);
+    } catch (err) {
+      toast.error('Erro ao carregar conteúdos');
+      setConteudos([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
-  
-  // Não forçar mais tela cheia automaticamente para evitar erros
-  // Em vez disso, mostrar um botão permanente para entrar em tela cheia
-  const [showFullscreenButton, setShowFullscreenButton] = useState(true);
-  
-  console.log('Agenda - Items carregados:', {
-    testemunhais: testemunhais.length,
-    conteudos: conteudos.length,
-    total: filteredItems.length,
-    isLoading,
-    systemTime: systemTime.toLocaleString()
-  });
-  
-  const refreshAllContent = () => {
-    toast.info('Atualizando conteúdo...');
-    refreshTestimonials();
-    refreshContent();
+
+  // Busca testemunhais do dia
+  const fetchTestemunhais = useCallback(async () => {
+    try {
+      const today = getLocalDateString();
+      const { data, error } = await supabase
+        .from('testemunhais')
+        .select('*')
+        .lte('data_inicio', today)
+        .gte('data_fim', today)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao carregar testemunhais:', error.message);
+        toast.error(`Erro ao carregar testemunhais: ${error.message}`);
+        setTestemunhais([]);
+        return;
+      }
+      setTestemunhais(data || []);
+    } catch (err) {
+      toast.error('Erro ao carregar testemunhais');
+      setTestemunhais([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchConteudos();
+    fetchTestemunhais();
+  }, [fetchConteudos, fetchTestemunhais]);
+
+  // Atualização manual (botão)
+  const handleRefresh = () => {
+    fetchConteudos();
+    fetchTestemunhais();
   };
-  
-  const enterFullscreen = () => {
-    if (fullscreenRef.current && !document.fullscreenElement) {
-      fullscreenRef.current.requestFullscreen()
-        .then(() => {
-          console.log('Successfully entered fullscreen mode');
-          setIsFullscreen(true);
-          // Esconder o botão quando estiver em tela cheia
-          setShowFullscreenButton(false);
-        })
-        .catch(err => {
-          console.error(`Error attempting to enable fullscreen: ${err.message}`);
-          // Manter o botão visível se houver erro
-          setShowFullscreenButton(true);
+
+  // --- Filtrar apenas itens dentro da janela do programa atribuído ---
+  const [programas, setProgramas] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchProgramas = async () => {
+      const today = getLocalDateString();
+      const now = new Date();
+      const weekDay = now.toLocaleDateString('pt-BR', { weekday: 'long' }).toLowerCase();
+      // Buscar programas ativos para o dia da semana
+      const { data, error } = await supabase
+        .from('programas')
+        .select('*');
+      if (!error && data) {
+        // Filtrar programas ativos para hoje
+        const ativosHoje = data.filter((p: any) => {
+          if (!Array.isArray(p.dias)) return false;
+          return p.dias.map((d: string) => d.normalize('NFD').replace(/[ -]/g, '').toLowerCase()).includes(weekDay.normalize('NFD').replace(/[ -]/g, '').toLowerCase());
         });
-    }
-  };
-  
-  // Effect to manage screen wake lock
-  useEffect(() => {
-    // Try to keep screen awake if there are active testimonials
-    if (testemunhais.length > 0 || conteudos.length > 0) {
-      keepScreenAwake();
-    }
-    
-    // Clean up wake lock on unmount
-    return () => {
-      releaseScreenWakeLock();
-    };
-  }, [testemunhais.length, conteudos.length]);
-
-  // Handle fullscreen change events
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      const isInFullscreen = !!document.fullscreenElement;
-      setIsFullscreen(isInFullscreen);
-      
-      // Quando sair da tela cheia, mostrar o botão novamente
-      if (!isInFullscreen) {
-        console.log('Exited fullscreen mode, showing button again');
-        setShowFullscreenButton(true);
-        // Reset attempted flag to allow trying again if user exits fullscreen
-        setAttemptedFullscreen(false);
+        setProgramas(ativosHoje);
       }
     };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
+    fetchProgramas();
   }, []);
 
-  const handleMarkAsRead = async (id: string, tipo: string = 'testemunhal') => {
-    const result = await markAsRead(id, tipo);
-    
-    console.log('Mark as read result:', result, 'Type:', tipo, 'ID:', id);
-    
-    if (result === true) {
-      // Remover o testemunhal da lista após marcado como lido (para este dia)
-      if (tipo === 'testemunhal') {
-        setTestemunhais(prev => prev.filter(t => t.id !== id));
-      } else if (tipo === 'conteudo') {
-        setConteudos(prev => prev.filter(c => c.id !== id));
+  // Função para verificar se um item está na janela do programa e não foi lido hoje
+  function isInProgramWindow(item: any) {
+    // Verificar se o item foi lido
+    if (item.status === 'lido') {
+      // Se o item for recorrente, ainda mostrar mesmo se já foi lido
+      if (!item.recorrente) {
+        return false; // Item lido e não recorrente - não mostrar
       }
-      
-      toast.success('Item marcado como lido');
     }
-  };
-
-  if (connectionError) {
+    
+    // Para testemunhais (que têm data_inicio e data_fim), não exigir programa_id
+    const isTesemunhal = item.data_inicio && item.data_fim;
+    if (isTesemunhal) {
+      return true; // Mostrar todos os testemunhais válidos
+    }
+    
+    // Para conteúdos, verificar se está na janela do programa
+    if (!item.programa_id || !programas.length) return false;
+    const programa = programas.find(p => p.id === item.programa_id);
+    if (!programa) return false;
+    
+    // Horário atual
+    const now = new Date();
+    const currentTime = now.toTimeString().slice(0, 5); // 'HH:MM'
+    
+    // Considerar horario_inicio e horario_fim no formato 'HH:MM'
     return (
-      <ConnectionErrorScreen 
-        retryCount={retryCount} 
-        onRetry={() => window.location.reload()} 
-      />
+      currentTime >= (programa.horario_inicio || '00:00') &&
+      currentTime <= (programa.horario_fim || '23:59')
     );
   }
 
+  // Filtrar itens da agenda
+  const itensAgenda = [...conteudos, ...testemunhais]
+    .filter(isInProgramWindow)
+    .sort((a, b) => {
+      // Priorizar horario_agendado (testemunhais) ou horario_programado (conteudos)
+      const horaA = a.horario_agendado || a.horario_programado || '';
+      const horaB = b.horario_agendado || b.horario_programado || '';
+      return horaA.localeCompare(horaB);
+    });
+
+  // Usar o hook useMarkAsRead para marcar itens como lidos
+  const { markAsRead, isMarkingAsRead } = useMarkAsRead();
+
+  // Função para marcar um item como lido
+  const handleMarkAsRead = async (id: string, tipo: string = 'testemunhal') => {
+    const success = await markAsRead(id, tipo);
+    if (success) {
+      // Atualizar a lista de itens após marcar como lido
+      if (tipo === 'testemunhal') {
+        setTestemunhais(prev => prev.map(item => 
+          item.id === id ? { ...item, status: 'lido' } : item
+        ));
+      } else if (tipo === 'conteudo') {
+        setConteudos(prev => prev.map(item => 
+          item.id === id ? { ...item, status: 'lido' } : item
+        ));
+      }
+      // Reproduzir som de confirmação em dispositivos móveis
+      if (typeof window !== 'undefined' && 'navigator' in window && window.navigator.userAgent.match(/Mobile/)) {
+        const audio = new Audio('/sounds/success.mp3');
+        audio.play().catch(e => console.log('Erro ao reproduzir som:', e));
+      }
+    }
+  };
+
   return (
-    <div ref={fullscreenRef} className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <Header />
-      <ConnectionStatus isOnline={isOnline} connectionError={connectionError} retryCount={retryCount} />
-      
-      {/* Hora do sistema */}
-      <div className="fixed top-16 right-4 z-40 bg-white/70 backdrop-blur-sm p-2 rounded-md shadow text-sm border border-gray-200">
-        <div>Data: {systemTime.toLocaleDateString()}</div>
-        <div>Hora: {systemTime.toLocaleTimeString()}</div>
-      </div>
-      
-      {/* Botão de tela cheia flutuante */}
-      {showFullscreenButton && !isFullscreen && (
-        <button 
-          onClick={enterFullscreen}
-          className="fixed bottom-4 right-4 z-50 bg-primary text-white p-2 rounded-full shadow-lg hover:bg-primary/90 transition-colors"
-          aria-label="Entrar em tela cheia"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5m11 1v4m0 0h-4m4 0l-5-5" />
-          </svg>
-        </button>
-      )}
-      
       <div className="container py-6">
-        <PageHeader onRefresh={refreshAllContent} />
-        <TestimonialList 
-          testimonials={filteredItems} 
-          isLoading={isLoading} 
+        <button onClick={handleRefresh} className="mb-4 px-4 py-2 bg-primary text-white rounded">
+          Atualizar Agenda
+        </button>
+        <TestimonialList
+          testimonials={itensAgenda}
+          isLoading={isLoading}
           onMarkAsRead={handleMarkAsRead}
           isPending={isMarkingAsRead}
-          onRefresh={refreshAllContent}
+          onRefresh={handleRefresh}
         />
         <Footer />
       </div>
