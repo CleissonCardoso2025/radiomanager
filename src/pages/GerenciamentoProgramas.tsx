@@ -42,6 +42,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { BadgeCheck, Calendar, CalendarDays, Clock, Pencil, Plus, Repeat, Trash2, User, Loader2, AlertTriangle, Radio, MessageSquare, FileText } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import AiTestimonialsSection from '@/components/AiTestimonialsSection';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -97,6 +98,8 @@ interface Testemunhal {
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
 const GerenciamentoProgramas: React.FC = () => {
+  const [iaOpen, setIaOpen] = useState(false);
+  const [iaHighlight, setIaHighlight] = useState(false);
   const [activeTab, setActiveTab] = useState('programas');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
@@ -854,6 +857,32 @@ const GerenciamentoProgramas: React.FC = () => {
               )}
             </div>
             
+            {modalType !== 'programa' && (
+              <div className="mb-4">
+                <Button
+                  variant={iaOpen ? 'secondary' : 'outline'}
+                  className={`flex items-center gap-2 mx-auto transition-all ${iaOpen ? 'ring-2 ring-blue-300' : ''}`}
+                  onClick={() => setIaOpen((prev) => !prev)}
+                >
+                  <span role="img" aria-label="IA">🤖</span>
+                  {iaOpen ? 'Fechar Gerador com IA' : 'Gerar com IA'}
+                </Button>
+                {iaOpen && (
+                  <div className="mt-4 animate-fade-in">
+                    <AiTestimonialsSection
+                      onGenerated={({ titulo, texto }) => {
+                        handleFormChange('nome', titulo);
+                        handleFormChange('texto', texto);
+                        setIaOpen(false);
+                        setIaHighlight(true);
+                        setTimeout(() => setIaHighlight(false), 1000);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+            
             <Card className="shadow-sm">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -1011,7 +1040,34 @@ const GerenciamentoProgramas: React.FC = () => {
                 {modalType === 'programa' ? 'Preencha os dados do programa de rádio' : 'Preencha os dados do testemunhal'}
               </DialogDescription>
             </DialogHeader>
-            
+
+            {/* IA GERADOR NO TOPO DO MODAL DE TESTEMUNHAL */}
+            {modalType === 'testemunhal' && (
+              <div className="mb-4">
+                <Button
+                  variant={iaOpen ? 'secondary' : 'outline'}
+                  className={`flex items-center gap-2 mx-auto transition-all ${iaOpen ? 'ring-2 ring-blue-300' : ''}`}
+                  onClick={() => setIaOpen((prev) => !prev)}
+                >
+                  <span role="img" aria-label="IA">🤖</span>
+                  {iaOpen ? 'Fechar Gerador com IA' : 'Gerar com IA'}
+                </Button>
+                {iaOpen && (
+                  <div className="mt-4 animate-fade-in">
+                    <AiTestimonialsSection
+                      onGenerated={({ titulo, texto }) => {
+                        handleFormChange('nome', titulo);
+                        handleFormChange('texto', texto);
+                        setIaOpen(false);
+                        setIaHighlight(true);
+                        setTimeout(() => setIaHighlight(false), 1000);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             {modalType === 'programa' ? (
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
@@ -1098,14 +1154,17 @@ const GerenciamentoProgramas: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
                   <Label htmlFor="texto" className="sm:text-right">
-                    Texto
-                  </Label>
-                  <Textarea
-                    id="texto"
-                    value={formData.texto}
-                    onChange={(e) => handleFormChange('texto', e.target.value)}
-                    className="col-span-1 sm:col-span-3 min-h-[100px]"
-                  />
+  Texto
+</Label>
+<div className="col-span-1 sm:col-span-3 flex flex-col gap-2">
+  <Textarea
+    id="texto"
+    value={formData.texto}
+    onChange={(e) => handleFormChange('texto', e.target.value)}
+    className={`min-h-[100px] flex-1 transition-all duration-300 ${iaHighlight ? 'ring-2 ring-blue-400 border-blue-400' : ''}`}
+  />
+  <span className="text-xs text-muted-foreground">Utilize o gerador de IA no topo do modal para criar automaticamente um texto personalizado.</span>
+</div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
                   <Label htmlFor="programa_id" className="sm:text-right">
