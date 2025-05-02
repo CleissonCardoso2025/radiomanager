@@ -1,15 +1,14 @@
-
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// Use Vite's import.meta.env instead of process.env
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://elgvdvhlzjphfjufosmt.supabase.co";
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwNDk0MDQsImV4cCI6MjA2MTYyNTQwNH0.Fit5Ca-VPJbK3_xpVGDXlDlwjhzwWZ_xgyJl0uUR1qY";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
 // Configurações de retry
-const MAX_RETRIES = 2; 
-const RETRY_DELAY = 500; 
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 500;
 
+// Verifica se o erro é de conexão
 export const isConnectionError = (error: any): boolean => {
   if (!error) return false;
   const errorMessage = error.message || error.toString();
@@ -22,6 +21,7 @@ export const isConnectionError = (error: any): boolean => {
   );
 };
 
+// Inicializa o Supabase com suporte a retry e sessão local
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,
@@ -46,8 +46,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   }
 });
 
+// Mapeamento de ID de usuário para e-mail
 let userEmailMap: Record<string, string> = {};
 
+// Carrega mapeamento do localStorage
 export const loadUserEmailMap = (): Record<string, string> => {
   try {
     const storedMap = localStorage.getItem('userEmailMap');
@@ -60,8 +62,10 @@ export const loadUserEmailMap = (): Record<string, string> => {
   return userEmailMap;
 };
 
+// Inicializa mapeamento ao carregar
 loadUserEmailMap();
 
+// Atualiza mapeamento de e-mail
 export const updateUserEmailMap = (userId: string, email: string): void => {
   const isTemporaryEmail = email.includes('@radiomanager.com') || email.includes('.anon.') || email.includes('.temp.');
   if (isTemporaryEmail && userEmailMap[userId] && !userEmailMap[userId].includes('@radiomanager.com')) {
@@ -75,6 +79,7 @@ export const updateUserEmailMap = (userId: string, email: string): void => {
   }
 };
 
+// Cria usuário com papel
 export const createUserWithRole = async (email: string, password: string, role: 'admin' | 'locutor') => {
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -103,6 +108,7 @@ export const createUserWithRole = async (email: string, password: string, role: 
   }
 };
 
+// Retorna usuários com seus e-mails
 export const getUsersWithEmails = async () => {
   try {
     const { data: userRoles, error: userRolesError } = await supabase
@@ -134,26 +140,31 @@ export const getUsersWithEmails = async () => {
   }
 };
 
+// Status da conexão
 export const connectionStatus = {
   isOnline: navigator.onLine,
   lastError: null as Error | null,
   retryCount: 0,
+
   updateStatus(isOnline: boolean, error: Error | null = null) {
     this.isOnline = isOnline;
     this.lastError = error;
     this.retryCount = error ? this.retryCount + 1 : 0;
-    window.dispatchEvent(new CustomEvent('connectionStatusChanged', { 
-      detail: { isOnline, error, retryCount: this.retryCount } 
+
+    window.dispatchEvent(new CustomEvent('connectionStatusChanged', {
+      detail: { isOnline, error, retryCount: this.retryCount }
     }));
   }
 };
 
+// Listeners online/offline
 window.addEventListener('online', () => connectionStatus.updateStatus(true));
 window.addEventListener('offline', () => connectionStatus.updateStatus(false));
 
+// Verifica se o Supabase está acessível
 export const checkConnection = async () => {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('testemunhais')
       .select('count()', { count: 'exact', head: true });
 
@@ -174,6 +185,7 @@ export const checkConnection = async () => {
   }
 };
 
+// Atualiza a senha do usuário via função RPC
 export const updateUserPassword = async (userId: string, newPassword: string) => {
   try {
     const { data, error } = await supabase
