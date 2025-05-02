@@ -4,9 +4,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'sonner';
 import { supabase } from './integrations/supabase/client';
 import InstallPrompt from './components/InstallPrompt';
+import Login from './pages/Login'; // Import directly instead of lazy loading
 
-// Lazy load pages
-const Login = lazy(() => import('./pages/Login'));
+// Lazy load other pages
 const Index = lazy(() => import('./pages/Index'));
 const GerenciamentoProgramas = lazy(() => import('./pages/GerenciamentoProgramas'));
 const Producao = lazy(() => import('./pages/Producao'));

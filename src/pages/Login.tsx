@@ -18,9 +18,13 @@ const Login = () => {
   useEffect(() => {
     // Check if user is already logged in
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate('/');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          navigate('/');
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
       }
     };
     
@@ -61,7 +65,7 @@ const Login = () => {
             .from('user_roles')
             .select('role')
             .eq('user_id', data.user.id)
-            .single();
+            .maybeSingle();
             
           if (roleError) {
             console.error('Error fetching user role:', roleError);

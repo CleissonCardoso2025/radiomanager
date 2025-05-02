@@ -106,7 +106,7 @@ export type Database = {
           created_at: string | null
           data_fim: string | null
           data_inicio: string | null
-          horario_agendado: string
+          horario_agendado: string | null
           id: string
           leituras: number | null
           lido_por: string[] | null
@@ -122,7 +122,7 @@ export type Database = {
           created_at?: string | null
           data_fim?: string | null
           data_inicio?: string | null
-          horario_agendado: string
+          horario_agendado?: string | null
           id?: string
           leituras?: number | null
           lido_por?: string[] | null
@@ -138,7 +138,7 @@ export type Database = {
           created_at?: string | null
           data_fim?: string | null
           data_inicio?: string | null
-          horario_agendado?: string
+          horario_agendado?: string | null
           id?: string
           leituras?: number | null
           lido_por?: string[] | null
