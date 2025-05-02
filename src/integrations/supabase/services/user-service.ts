@@ -1,0 +1,113 @@
+
+import { supabase } from '../core/client';
+
+// Mapeamento de ID de usuário para e-mail
+let userEmailMap: Record<string, string> = {};
+
+// Carrega mapeamento do localStorage
+export const loadUserEmailMap = (): Record<string, string> => {
+  try {
+    const storedMap = localStorage.getItem('userEmailMap');
+    if (storedMap) {
+      userEmailMap = JSON.parse(storedMap);
+    }
+  } catch (error) {
+    console.error('Erro ao carregar mapeamento de emails:', error);
+  }
+  return userEmailMap;
+};
+
+// Inicializa mapeamento ao carregar
+loadUserEmailMap();
+
+// Atualiza mapeamento de e-mail
+export const updateUserEmailMap = (userId: string, email: string): void => {
+  const isTemporaryEmail = email.includes('@radiomanager.com') || email.includes('.anon.') || email.includes('.temp.');
+  if (isTemporaryEmail && userEmailMap[userId] && !userEmailMap[userId].includes('@radiomanager.com')) {
+    return;
+  }
+  userEmailMap[userId] = email;
+  try {
+    localStorage.setItem('userEmailMap', JSON.stringify(userEmailMap));
+  } catch (error) {
+    console.error('Erro ao salvar mapeamento de emails:', error);
+  }
+};
+
+// Cria usuário com papel
+export const createUserWithRole = async (email: string, password: string, role: 'admin' | 'locutor') => {
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { real_email: email }
+      }
+    });
+
+    if (error) throw error;
+
+    if (data.user) {
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: data.user.id, role });
+
+      if (roleError) throw roleError;
+
+      updateUserEmailMap(data.user.id, email);
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error };
+  }
+};
+
+// Retorna usuários com seus e-mails
+export const getUsersWithEmails = async () => {
+  try {
+    const { data: userRoles, error: userRolesError } = await supabase
+      .from('user_roles')
+      .select('*');
+
+    if (userRolesError) {
+      console.error('Erro ao buscar papéis de usuários:', userRolesError);
+      throw userRolesError;
+    }
+
+    if (!userRoles || userRoles.length === 0) {
+      return { data: [], error: null };
+    }
+
+    const userEmailMap = loadUserEmailMap();
+
+    const usersWithEmails = userRoles.map(userRole => ({
+      id: userRole.user_id,
+      email: userEmailMap[userRole.user_id] || 'Email não disponível',
+      role: userRole.role,
+      status: 'Ativo'
+    }));
+
+    return { data: usersWithEmails, error: null };
+  } catch (error) {
+    console.error('Erro ao buscar usuários com emails:', error);
+    return { data: [], error };
+  }
+};
+
+// Atualiza a senha do usuário via função RPC
+export const updateUserPassword = async (userId: string, newPassword: string) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('admin_update_user_password', {
+        user_id: userId,
+        new_password: newPassword
+      });
+
+    if (error) throw error;
+
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error };
+  }
+};

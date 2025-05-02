@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { connectionStatus, checkConnection } from '@/integrations/supabase/client';
+import { connectionStatus, checkConnection, supabase } from '@/integrations/supabase/client';
 
 export function useConnectionStatus() {
   const [isOnline, setIsOnline] = useState(true);
@@ -26,7 +26,7 @@ export function useConnectionStatus() {
     window.addEventListener('connectionStatusChanged', handleConnectionChange as EventListener);
     
     // Initial connection check
-    checkConnection();
+    checkConnection(supabase);
     
     return () => {
       window.removeEventListener('online', handleOnline);
