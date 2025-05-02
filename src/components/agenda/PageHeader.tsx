@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Refresh } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import SearchBar from './SearchBar';
 
 interface PageHeaderProps {
@@ -26,7 +26,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         )}
       </div>
       <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 items-center">
-        <SearchBar searchQuery="" onSearchChange={onSearch} />
+        <SearchBar searchText="" setSearchText={onSearch} />
         <Button
           variant="outline"
           size="icon"
@@ -34,7 +34,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           className="h-8 w-8"
           title="Atualizar"
         >
-          <Refresh className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
     </div>

@@ -51,22 +51,32 @@ export function useTestimonials(selectedProgramId = null) {
       
       console.log(`Received ${allData.length} testimonials from database`);
       
-      // Process testimonials
-      const { processedTestimonials, exactTimeItems } = await processTestimonials(allData);
+      // Process testimonials - updated to handle our return value format
+      const currentTime = new Date().toTimeString().slice(0, 5);
+      const currentDay = new Date().toLocaleDateString('pt-BR', { weekday: 'long' }).toLowerCase();
+      const processed = processTestimonials(allData, [], currentTime, currentDay) || [];
       
       // Update state with processed testimonials
-      setTestemunhais(processedTestimonials);
-      setExactTimeTestimonials(exactTimeItems);
+      setTestemunhais(processed);
+      setExactTimeTestimonials(processed.filter((item: any) => 
+        item.horario_agendado === currentTime
+      ));
       setLastFetchTime(new Date());
       setIsLoading(false);
       
-      console.log(`Final processed testimonials: ${processedTestimonials.length}`);
-      console.log(`Exact time testimonials: ${exactTimeItems.length}`);
+      console.log(`Final processed testimonials: ${processed.length}`);
+      console.log(`Exact time testimonials: ${processed.filter((item: any) => 
+        item.horario_agendado === currentTime
+      ).length}`);
       
       // Notify for exact time items
-      if (exactTimeItems.length > 0 && isMobileDevice()) {
+      const exactItems = processed.filter((item: any) => 
+        item.horario_agendado === currentTime
+      );
+      
+      if (exactItems.length > 0 && isMobileDevice()) {
         playNotificationSound('alert');
-        toast.info(`${exactTimeItems.length} testemunhais para o horário atual!`);
+        toast.info(`${exactItems.length} testemunhais para o horário atual!`);
       }
       
     } catch (error) {

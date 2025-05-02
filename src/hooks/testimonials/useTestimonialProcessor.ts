@@ -1,15 +1,23 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/components/ui/use-toast";
 
 interface Testimonial {
   id: string;
   texto: string;
   horario_agendado: string;
   programa_id: string;
-  status: 'pendente' | 'lido' | 'arquivado';
+  status: 'pendente' | 'lido' | 'arquivado' | string; // Added string to support any status from DB
   created_at: string;
   updated_at: string;
+  patrocinador?: string;
+  data_inicio?: string;
+  data_fim?: string;
+  leituras?: number;
+  lido_por?: string[];
+  recorrente?: boolean;
+  timestamp_leitura?: string;
 }
 
 interface Program {
@@ -17,8 +25,12 @@ interface Program {
   nome: string;
   horario_inicio: string;
   horario_fim: string;
-  dia_semana: string;
+  dia_semana?: string; // Make optional since we'll handle dias[]
+  dias?: string[];    // Add support for dias array
   created_at: string;
+  apresentador?: string;
+  status?: string;
+  updated_at?: string;
 }
 
 const getCurrentTime = (): string => {
@@ -38,7 +50,7 @@ export const useTestimonialProcessor = () => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast()
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -51,7 +63,8 @@ export const useTestimonialProcessor = () => {
         if (testimonialsError) {
           console.error('Erro ao buscar testemunhais:', testimonialsError);
         } else if (testimonialsData) {
-          setTestimonials(testimonialsData);
+          // Type assertion to treat the data as compatible with Testimonial[]
+          setTestimonials(testimonialsData as unknown as Testimonial[]);
         }
 
         const { data: programsData, error: programsError } = await supabase
@@ -61,7 +74,12 @@ export const useTestimonialProcessor = () => {
         if (programsError) {
           console.error('Erro ao buscar programas:', programsError);
         } else if (programsData) {
-          setPrograms(programsData);
+          // Type assertion for programs data
+          const transformedPrograms: Program[] = programsData.map(prog => ({
+            ...prog,
+            dia_semana: prog.dias?.[0] || ''  // Use the first day as dia_semana for compatibility
+          }));
+          setPrograms(transformedPrograms);
         }
       } finally {
         setIsLoading(false);
@@ -105,8 +123,9 @@ export const useTestimonialProcessor = () => {
 
     if (processedItems.length === 0) {
       console.log('Nenhum testemunhal encontrado para o horário atual:', currentTime);
-      toast.success('Verificação concluída', {
-        description: 'Não há testemunhais para o horário atual.'
+      toast({
+        title: "Verificação concluída",
+        description: "Não há testemunhais para o horário atual."
       });
       return [];
     }
@@ -128,7 +147,7 @@ export const useTestimonialProcessor = () => {
           variant: "destructive",
           title: "Erro!",
           description: "Erro ao atualizar o status do testemunhal."
-        })
+        });
       } else {
         setTestimonials(prevTestimonials =>
           prevTestimonials.map(testimonial =>
@@ -138,7 +157,7 @@ export const useTestimonialProcessor = () => {
         toast({
           title: "Sucesso!",
           description: "Status do testemunhal atualizado com sucesso."
-        })
+        });
       }
     } catch (error) {
       console.error('Erro ao atualizar o status do testemunhal:', error);
@@ -146,7 +165,7 @@ export const useTestimonialProcessor = () => {
         variant: "destructive",
         title: "Erro!",
         description: "Erro ao atualizar o status do testemunhal."
-      })
+      });
     }
   };
 
