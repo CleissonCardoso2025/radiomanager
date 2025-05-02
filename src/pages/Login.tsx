@@ -7,12 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useConnectionStatus } from '@/hooks/useConnectionStatus';
+import ConnectionStatus from '@/components/ConnectionStatus';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { isOnline, connectionError, retryCount } = useConnectionStatus();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -155,7 +158,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">
@@ -196,7 +199,7 @@ const Login = () => {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isLoading}
+              disabled={isLoading || !isOnline}
             >
               {isLoading 
                 ? 'Processando...' 
@@ -220,6 +223,17 @@ const Login = () => {
           </CardFooter>
         </form>
       </Card>
+      
+      {/* Display connection status component */}
+      {(!isOnline || connectionError) && (
+        <div className="mt-4">
+          <ConnectionStatus 
+            isOnline={isOnline} 
+            connectionError={connectionError} 
+            retryCount={retryCount}
+          />
+        </div>
+      )}
     </div>
   );
 };
