@@ -1,8 +1,10 @@
+
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
+// Use Vite's import.meta.env instead of process.env
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://elgvdvhlzjphfjufosmt.supabase.co";
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwNDk0MDQsImV4cCI6MjA2MTYyNTQwNH0.Fit5Ca-VPJbK3_xpVGDXlDlwjhzwWZ_xgyJl0uUR1qY";
 
 // Configurações de retry
 const MAX_RETRIES = 2; 
