@@ -2,7 +2,7 @@
 // Script para adicionar conteúdo de teste à agenda
 const { createClient } = require('@supabase/supabase-js');
 
-// Configurações do Supabase - use environment variables if available, otherwise fallback to hardcoded values
+// Hardcoded Supabase configuration values for stability
 const SUPABASE_URL = "https://elgvdvhlzjphfjufosmt.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwNDk0MDQsImV4cCI6MjA2MTYyNTQwNH0.Fit5Ca-VPJbK3_xpVGDXlDlwjhzwWZ_xgyJl0uUR1qY";
 

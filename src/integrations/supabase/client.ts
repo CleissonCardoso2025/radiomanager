@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY!;
+// Use hardcoded values instead of environment variables for stability
+const SUPABASE_URL = "https://elgvdvhlzjphfjufosmt.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwNDk0MDQsImV4cCI6MjA2MTYyNTQwNH0.Fit5Ca-VPJbK3_xpVGDXlDlwjhzwWZ_xgyJl0uUR1qY";
 
 // Configurações de retry
 const MAX_RETRIES = 2;
@@ -21,7 +22,7 @@ export const isConnectionError = (error: any): boolean => {
   );
 };
 
-// Inicializa o Supabase com suporte a retry e sessão local
+// Initialize the Supabase client with hardcoded values for stability
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,
