@@ -3,9 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types';
 import { isConnectionError } from '../utils/connection-utils';
 
-// Use hardcoded values for stability
-const SUPABASE_URL = "https://elgvdvhlzjphfjufosmt.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzk5NzQsImV4cCI6MjA1Njc1NTk3NH0.fa4NJw2dT42JiIVmCoc2mgg_LcdvXN1pOWLaLCYRBho";
+// Use environment variables for security
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://elgvdvhlzjphfjufosmt.supabase.co";
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzk5NzQsImV4cCI6MjA1Njc1NTk3NH0.fa4NJw2dT42JiIVmCoc2mgg_LcdvXN1pOWLaLCYRBho";
 
 // Configure retry settings
 const MAX_RETRIES = 2;

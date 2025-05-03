@@ -1,6 +1,6 @@
 # Configuração de Chaves de API para o RadioManager
 
-Este documento explica como configurar as chaves de API necessárias para o funcionamento completo do RadioManager.
+Este documento explica como configurar as chaves de API necessárias para o funcionamento completo do RadioManager, incluindo as chaves do Supabase e da OpenAI.
 
 ## Chave da OpenAI
 
@@ -52,3 +52,50 @@ Para verificar se a chave da OpenAI está configurada corretamente:
 1. Abra o console do navegador
 2. Execute o comando: `console.log(localStorage.getItem('api_key_openai'))`
 3. Você deve ver a chave da API impressa no console
+
+## Chaves do Supabase
+
+As chaves do Supabase são essenciais para o funcionamento do banco de dados e autenticação. O RadioManager agora usa variáveis de ambiente para gerenciar essas chaves de forma segura.
+
+### Opção 1: Configurar via arquivo .env (Desenvolvimento)
+
+1. Crie um arquivo `.env` na raiz do projeto (este arquivo já está no .gitignore)
+2. Adicione as seguintes variáveis:
+   ```
+   VITE_SUPABASE_URL=sua_url_do_supabase
+   VITE_SUPABASE_ANON_KEY=sua_chave_anonima_do_supabase
+   ```
+3. Reinicie o servidor de desenvolvimento
+
+### Opção 2: Configurar via Docker/VPS (Produção)
+
+Se estiver usando Docker ou uma VPS, configure as variáveis de ambiente no container:
+
+1. No arquivo `docker-compose.yml`:
+   ```yaml
+   environment:
+     - VITE_SUPABASE_URL=sua_url_do_supabase
+     - VITE_SUPABASE_ANON_KEY=sua_chave_anonima_do_supabase
+   ```
+
+2. Ou diretamente no comando docker run:
+   ```bash
+   docker run -e VITE_SUPABASE_URL=sua_url_do_supabase -e VITE_SUPABASE_ANON_KEY=sua_chave_anonima_do_supabase ...
+   ```
+
+### Opção 3: Configurar em serviços de hospedagem
+
+Se estiver usando Vercel, Netlify ou similar:
+
+1. Configure as variáveis de ambiente no painel de administração do serviço
+2. Certifique-se de usar os mesmos nomes: `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`
+
+## Hierarquia de busca de chaves
+
+O RadioManager busca as chaves na seguinte ordem:
+
+1. Variáveis de ambiente no Docker/VPS
+2. Variáveis de ambiente Vite (.env)
+3. localStorage (desenvolvimento local)
+
+Esta hierarquia garante flexibilidade em diferentes ambientes de execução.
