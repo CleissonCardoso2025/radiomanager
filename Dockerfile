@@ -17,9 +17,11 @@ COPY . .
 # Expose port 3000
 EXPOSE 3000
 
+# Create .env file for non-secret values if needed
+RUN echo "# This file is auto-generated" > .env
+
 # Update vite.config.ts port configuration during build
 RUN sed -i 's/port: 8080/port: 3000/' vite.config.ts
 
-# Start the application
+# Start the application - environment variables can be passed at runtime
 CMD ["npm", "run", "dev"]
-

@@ -3,9 +3,34 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types';
 import { isConnectionError } from '../utils/connection-utils';
 
-// Use environment variables for security
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://elgvdvhlzjphfjufosmt.supabase.co";
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzk5NzQsImV4cCI6MjA1Njc1NTk3NH0.fa4NJw2dT42JiIVmCoc2mgg_LcdvXN1pOWLaLCYRBho";
+// Try to get from environment variables first, then localStorage, then fallbacks
+const getSupabaseConfig = () => {
+  // Try environment variables first (for production/VPS environments)
+  let url = import.meta.env.VITE_SUPABASE_URL;
+  let key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  // If not available from environment, try localStorage (for development)
+  if (!url || !key) {
+    try {
+      const storedUrl = localStorage.getItem('supabase_url');
+      const storedKey = localStorage.getItem('supabase_anon_key');
+      
+      url = storedUrl || url;
+      key = storedKey || key;
+    } catch (error) {
+      console.warn('Não foi possível acessar localStorage para chaves do Supabase');
+    }
+  }
+  
+  // Use fallbacks as last resort (for preview environments)
+  return {
+    url: url || "https://elgvdvhlzjphfjufosmt.supabase.co",
+    key: key || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzk5NzQsImV4cCI6MjA1Njc1NTk3NH0.fa4NJw2dT42JiIVmCoc2mgg_LcdvXN1pOWLaLCYRBho"
+  };
+};
+
+// Obter configuração
+const { url: SUPABASE_URL, key: SUPABASE_ANON_KEY } = getSupabaseConfig();
 
 // Configure retry settings
 const MAX_RETRIES = 2;
