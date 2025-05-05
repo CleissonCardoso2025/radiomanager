@@ -175,16 +175,7 @@ const Configuracoes = () => {
       if (error) throw error;
 
       if (usersWithEmails) {
-        const formattedUsers = usersWithEmails.map(user => {
-          return {
-            id: user.id,
-            email: user.email,
-            role: user.role as 'admin' | 'locutor',
-            status: 'Ativo'
-          };
-        });
-        
-        setUsers(formattedUsers);
+        setUsers(usersWithEmails);
       }
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
@@ -280,6 +271,7 @@ const Configuracoes = () => {
     }, 1000);
   };
 
+  // Atualizar o handleAddUser para garantir que o email seja armazenado
   const handleAddUser = async (data: NewUserForm) => {
     setIsLoading(true);
     try {
@@ -292,17 +284,8 @@ const Configuracoes = () => {
       if (error) throw error;
       
       if (authData?.user) {
-        // Garantir que o email real seja armazenado no mapeamento local
-        updateUserEmailMap(authData.user.id, data.email);
-        
-        const newUserObj: User = {
-          id: authData.user.id,
-          email: data.email, // Usar o email real que foi fornecido no formulário
-          role: data.role,
-          status: 'Ativo'
-        };
-        
-        setUsers(prev => [...prev, newUserObj]);
+        // Recarregar a lista de usuários para mostrar o novo usuário com email
+        await fetchUsers();
         setIsUserDialogOpen(false);
         form.reset();
         

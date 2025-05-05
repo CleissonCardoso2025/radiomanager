@@ -15,6 +15,7 @@ export {
 export {
   loadUserEmailMap,
   updateUserEmailMap,
+  fetchUserEmails,
   createUserWithRole,
   getUsersWithEmails,
   updateUserPassword

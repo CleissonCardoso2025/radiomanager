@@ -1,10 +1,10 @@
-
 import React, { createContext, useContext, useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { supabase } from './integrations/supabase/client';
 import InstallPrompt from './components/InstallPrompt';
 import Login from './pages/Login'; // Import directly instead of lazy loading
+import { loadUserEmailMap, updateUserEmailMap } from './integrations/supabase/client';
 
 // Lazy load other pages
 const Index = lazy(() => import('./pages/Index'));
@@ -76,10 +76,25 @@ const App = () => {
       if (session?.user) {
         setUser(session.user);
         
-        // Verificar se o email do usuário é de administrador
-        // O email cleissoncardoso@gmail.com é administrador, os demais são locutores
-        const isAdmin = session.user.email === 'cleissoncardoso@gmail.com';
-        setUserRole(isAdmin ? 'admin' : 'locutor');
+        // Armazenar o email do usuário no mapeamento local
+        if (session.user.email) {
+          updateUserEmailMap(session.user.id, session.user.email);
+        }
+        
+        // Verificar papel do usuário
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (data && !error) {
+          setUserRole(data.role);
+        } else {
+          // Fallback para o email do administrador
+          const isAdmin = session.user.email === 'cleissoncardoso@gmail.com';
+          setUserRole(isAdmin ? 'admin' : 'locutor');
+        }
       } else {
         setUser(null);
         setUserRole(null);
@@ -90,14 +105,33 @@ const App = () => {
     
     getSession();
     
+    // Carregar mapeamento de emails
+    loadUserEmailMap();
+    
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user || null);
       
       if (session?.user) {
-        // Verificar se o email do usuário é de administrador
-        const isAdmin = session.user.email === 'cleissoncardoso@gmail.com';
-        setUserRole(isAdmin ? 'admin' : 'locutor');
+        // Armazenar o email do usuário no mapeamento local
+        if (session.user.email) {
+          updateUserEmailMap(session.user.id, session.user.email);
+        }
+        
+        // Verificar papel do usuário
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (data && !error) {
+          setUserRole(data.role);
+        } else {
+          // Fallback para o email do administrador
+          const isAdmin = session.user.email === 'cleissoncardoso@gmail.com';
+          setUserRole(isAdmin ? 'admin' : 'locutor');
+        }
       } else {
         setUserRole(null);
       }
