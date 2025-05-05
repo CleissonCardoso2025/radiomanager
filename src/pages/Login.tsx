@@ -15,6 +15,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState('');
   const { isOnline, connectionError, retryCount } = useConnectionStatus();
   const navigate = useNavigate();
 
@@ -32,6 +33,17 @@ const Login = () => {
     };
     
     checkSession();
+    
+    // Debug info - only for development
+    if (process.env.NODE_ENV !== 'production') {
+      const url = import.meta.env.VITE_SUPABASE_URL || localStorage.getItem('supabase_url') || '(usando fallback)';
+      const keyPart = import.meta.env.VITE_SUPABASE_ANON_KEY 
+        ? `${import.meta.env.VITE_SUPABASE_ANON_KEY.substring(0, 5)}...` 
+        : localStorage.getItem('supabase_anon_key') 
+          ? `${localStorage.getItem('supabase_anon_key')?.substring(0, 5)}...` 
+          : '(usando fallback)';
+      setDebugInfo(`URL: ${url}, Key: ${keyPart}`);
+    }
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -194,6 +206,13 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+            
+            {/* Debug info - only visible in development */}
+            {process.env.NODE_ENV !== 'production' && debugInfo && (
+              <div className="text-xs text-gray-500 text-center mt-2">
+                {debugInfo}
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button 

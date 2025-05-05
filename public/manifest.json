@@ -11,12 +11,14 @@
     {
       "src": "/lovable-uploads/3e40860d-a8dd-4cc1-84be-a58ec6e0d4b7.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/lovable-uploads/3e40860d-a8dd-4cc1-84be-a58ec6e0d4b7.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

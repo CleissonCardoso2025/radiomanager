@@ -22,6 +22,10 @@ const getSupabaseConfig = () => {
     }
   }
   
+  // If key is empty string, set to undefined so fallback works
+  if (key === '') key = undefined;
+  if (url === '') url = undefined;
+  
   // Use fallbacks as last resort (for preview environments)
   return {
     url: url || "https://elgvdvhlzjphfjufosmt.supabase.co",
