@@ -54,19 +54,18 @@ export const createUserWithRole = async (email: string, password: string, role: 
 
       if (roleError) throw roleError;
 
-      // Adicionar email à tabela user_emails via procedimento SQL
-      const { error: emailError } = await supabase.rpc(
-        'add_user_email',
-        { 
-          p_user_id: data.user.id,
-          p_email: email
-        }
-      );
+      // Adicionar email à tabela user_emails via inserção direta na tabela
+      const { error: emailError } = await supabase
+        .from('user_emails')
+        .insert({
+          user_id: data.user.id,
+          email: email
+        });
 
       if (emailError) {
-        // Tente inserção direta se a função RPC falhar
+        console.error('Erro ao salvar e-mail na tabela user_emails:', emailError);
+        // Uma abordagem alternativa para armazenar o email
         try {
-          // Uma abordagem alternativa para armazenar o email
           await supabase.auth.updateUser({
             data: { email_verified: true, real_email: email }
           });
@@ -167,3 +166,4 @@ export const updateUserPassword = async (userId: string, newPassword: string) =>
     return { data: null, error };
   }
 };
+
