@@ -1,10 +1,10 @@
+
 import React, { createContext, useContext, useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { supabase } from './integrations/supabase/client';
+import { supabase, loadUserEmailMap, updateUserEmailMap } from './integrations/supabase/client';
 import InstallPrompt from './components/InstallPrompt';
 import Login from './pages/Login'; // Import directly instead of lazy loading
-import { loadUserEmailMap, updateUserEmailMap } from './integrations/supabase/client';
 
 // Lazy load other pages
 const Index = lazy(() => import('./pages/Index'));

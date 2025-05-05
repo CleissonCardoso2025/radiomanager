@@ -54,13 +54,26 @@ export const createUserWithRole = async (email: string, password: string, role: 
 
       if (roleError) throw roleError;
 
-      // Adicionar email à tabela user_emails para armazenamento permanente
-      const { error: emailError } = await supabase
-        .from('user_emails')
-        .insert({ user_id: data.user.id, email });
+      // Adicionar email à tabela user_emails via procedimento SQL
+      const { error: emailError } = await supabase.rpc(
+        'add_user_email',
+        { 
+          p_user_id: data.user.id,
+          p_email: email
+        }
+      );
 
       if (emailError) {
-        console.error('Erro ao salvar email do usuário:', emailError);
+        // Tente inserção direta se a função RPC falhar
+        try {
+          // Uma abordagem alternativa para armazenar o email
+          await supabase.auth.updateUser({
+            data: { email_verified: true, real_email: email }
+          });
+          console.log('Email do usuário adicionado aos metadados');
+        } catch (metaError) {
+          console.error('Erro ao salvar email nos metadados:', metaError);
+        }
       }
 
       // Atualizar mapeamento local
@@ -73,13 +86,11 @@ export const createUserWithRole = async (email: string, password: string, role: 
   }
 };
 
-// Buscar emails reais dos usuários do banco de dados
+// Buscar emails reais dos usuários
 export const fetchUserEmails = async () => {
   try {
-    // Primeiro, tentar buscar da tabela user_emails
-    const { data: userEmails, error: userEmailsError } = await supabase
-      .from('user_emails')
-      .select('user_id, email');
+    // Tentar buscar emails via RPC
+    const { data: userEmailsData, error: userEmailsError } = await supabase.rpc('get_users_with_emails');
 
     if (userEmailsError) {
       console.error('Erro ao buscar emails de usuários:', userEmailsError);
@@ -87,33 +98,13 @@ export const fetchUserEmails = async () => {
     }
 
     // Se encontrou dados, atualizar o mapeamento local
-    if (userEmails && userEmails.length > 0) {
+    if (userEmailsData && Array.isArray(userEmailsData) && userEmailsData.length > 0) {
       const map: Record<string, string> = {};
-      userEmails.forEach(item => {
-        map[item.user_id] = item.email;
+      userEmailsData.forEach((item: { id: string, email: string }) => {
+        map[item.id] = item.email;
       });
       
       // Mesclar com o mapeamento existente, priorizando emails do banco de dados
-      const updatedMap = { ...userEmailMap, ...map };
-      userEmailMap = updatedMap;
-      localStorage.setItem('userEmailMap', JSON.stringify(updatedMap));
-      return true;
-    }
-
-    // Tentar função RPC como alternativa
-    const { data: rpcEmails, error: rpcError } = await supabase.rpc('get_user_emails');
-
-    if (rpcError) {
-      console.error('Erro ao buscar emails via RPC:', rpcError);
-      return false;
-    }
-
-    if (rpcEmails && rpcEmails.length > 0) {
-      const map: Record<string, string> = {};
-      rpcEmails.forEach((item: { user_id: string, email: string }) => {
-        map[item.user_id] = item.email;
-      });
-      
       const updatedMap = { ...userEmailMap, ...map };
       userEmailMap = updatedMap;
       localStorage.setItem('userEmailMap', JSON.stringify(updatedMap));
