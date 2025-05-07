@@ -1,9 +1,8 @@
 
 import React from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useConnectionStatus } from '@/hooks/useConnectionStatus';
 import ConnectionStatus from '@/components/ConnectionStatus';
 import LoginForm from '@/components/auth/LoginForm';
+import { useLoginForm } from '@/hooks/useLoginForm';
 
 const Login = () => {
   const { 
@@ -12,10 +11,11 @@ const Login = () => {
     isSignUp, setIsSignUp,
     isLoading,
     handleSubmit,
+    isOnline, 
+    connectionError,
+    retryCount,
     debugInfo
-  } = useAuth();
-  
-  const { isOnline, connectionError, retryCount } = useConnectionStatus();
+  } = useLoginForm();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">

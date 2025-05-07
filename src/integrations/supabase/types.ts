@@ -224,28 +224,26 @@ export type Database = {
     }
     Functions: {
       admin_update_user_password: {
-        Args: { user_id: string; new_password: string }
-        Returns: Json
+        Args:
+          | { user_id: number; new_password: string }
+          | { user_id: string; new_password: string }
+        Returns: undefined
       }
       check_is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
       count_content_by_program_status: {
-        Args: { start_date: string; end_date: string }
-        Returns: {
-          programa_id: string
-          programa_nome: string
-          status: string
-          count: number
-        }[]
+        Args:
+          | Record<PropertyKey, never>
+          | { start_date: string; end_date: string }
+        Returns: undefined
       }
       count_content_by_status: {
-        Args: { start_date: string; end_date: string }
-        Returns: {
-          status: string
-          count: number
-        }[]
+        Args:
+          | Record<PropertyKey, never>
+          | { start_date: string; end_date: string }
+        Returns: number
       }
       get_users_with_emails: {
         Args: Record<PropertyKey, never>
@@ -257,10 +255,9 @@ export type Database = {
         }[]
       }
       has_role: {
-        Args: {
-          _user_id: string
-          _role: Database["public"]["Enums"]["app_role"]
-        }
+        Args:
+          | { _user_id: string; _role: Database["public"]["Enums"]["app_role"] }
+          | { role_name: string }
         Returns: boolean
       }
       is_content_within_date_range: {

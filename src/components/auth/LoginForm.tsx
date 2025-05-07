@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import LoginDebugInfo from './LoginDebugInfo';
 
 interface LoginFormProps {
   email: string;
@@ -67,12 +68,8 @@ const LoginForm: React.FC<LoginFormProps> = ({
             />
           </div>
           
-          {/* Debug info - only visible in development */}
-          {process.env.NODE_ENV !== 'production' && debugInfo && (
-            <div className="text-xs text-gray-500 text-center mt-2">
-              {debugInfo}
-            </div>
-          )}
+          {/* Debug info component */}
+          <LoginDebugInfo debugInfo={debugInfo} isOnline={isOnline} />
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <Button 
