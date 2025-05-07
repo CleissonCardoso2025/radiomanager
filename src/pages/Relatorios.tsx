@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
 
 ChartJS.register(
   CategoryScale,
@@ -32,7 +33,7 @@ interface ChartData {
 }
 
 const Relatorios = () => {
-  const [dateRange, setDateRange] = useState<{ from: Date | null, to: Date | null }>({
+  const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(new Date().setDate(new Date().getDate() - 7)),
     to: new Date(),
   });
@@ -113,12 +114,16 @@ const Relatorios = () => {
     }
   };
 
+  const handleDateChange = (newDateRange: DateRange) => {
+    setDateRange(newDateRange);
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Relatórios de Programas</h1>
       
       <div className="flex items-center justify-between mb-4">
-        <DateRangePicker date={dateRange} onDateChange={setDateRange} />
+        <DateRangePicker date={dateRange} onDateChange={handleDateChange} />
         <Button onClick={handleRefresh} disabled={isLoading}>
           {isLoading ? 'Carregando...' : 'Atualizar Relatório'}
         </Button>
