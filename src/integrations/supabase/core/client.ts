@@ -38,21 +38,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
     autoRefreshToken: true,
     persistSession: true,
     storage: localStorage
-  },
-  global: {
-    fetch: async (url, options) => {
-      let retries = 0;
-      while (true) {
-        try {
-          return await fetch(url, options);
-        } catch (error: any) {
-          if (!isConnectionError(error) || retries >= MAX_RETRIES) {
-            throw error;
-          }
-          retries++;
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-        }
-      }
-    }
   }
+  // Removing the problematic global fetch configuration that was causing the header issue
 });
