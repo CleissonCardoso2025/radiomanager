@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Chart as ChartJS,
@@ -47,7 +48,8 @@ const Relatorios = () => {
   const fetchRelatorioData = async (startDate: Date, endDate: Date) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.rpc('relatorio_tempo_programas', {
+      // Using count_content_by_program_status instead of the non-existent relatorio_tempo_programas
+      const { data, error } = await supabase.rpc('count_content_by_program_status', {
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
       });
@@ -57,7 +59,7 @@ const Relatorios = () => {
         return;
       }
 
-      if (data) {
+      if (data && Array.isArray(data)) {
         const chartData = processChartData(data);
         setRelatorioData(chartData);
       }
@@ -66,14 +68,14 @@ const Relatorios = () => {
     }
   };
 
-  const processChartData = (data: any[]) => {
+  const processChartData = (data: any[]): ChartData[] => {
     const chartData: ChartData[] = [];
     
     if (Array.isArray(data)) {
       data.forEach((item) => {
         chartData.push({
-          programa: item.programa,
-          tempoTotal: item.tempo_total,
+          programa: item.program_name || 'Sem nome', // Adjust to match the correct field name from count_content_by_program_status
+          tempoTotal: parseInt(item.count) || 0, // Convert count to number
         });
       });
     }
@@ -89,7 +91,7 @@ const Relatorios = () => {
       },
       title: {
         display: true,
-        text: 'Tempo Total por Programa',
+        text: 'Relatório de Conteúdos por Programa',
       },
     },
   };
@@ -98,7 +100,7 @@ const Relatorios = () => {
     labels: relatorioData.map((item) => item.programa),
     datasets: [
       {
-        label: 'Tempo Total (segundos)',
+        label: 'Total de conteúdos',
         data: relatorioData.map((item) => item.tempoTotal),
         backgroundColor: 'rgba(53, 162, 235, 0.5)',
       },
