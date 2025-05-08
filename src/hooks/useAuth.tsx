@@ -41,12 +41,10 @@ export const useAuth = (): UseAuthReturn => {
     
     // Debug info - only for development
     if (process.env.NODE_ENV !== 'production') {
-      const url = import.meta.env.VITE_SUPABASE_URL || localStorage.getItem('supabase_url') || '(usando fallback)';
-      const keyPart = import.meta.env.VITE_SUPABASE_ANON_KEY 
-        ? `${import.meta.env.VITE_SUPABASE_ANON_KEY.substring(0, 5)}...` 
-        : localStorage.getItem('supabase_anon_key') 
-          ? `${localStorage.getItem('supabase_anon_key')?.substring(0, 5)}...` 
-          : '(usando fallback)';
+      const url = localStorage.getItem('supabase_url') || '(usando fallback)';
+      const keyPart = localStorage.getItem('supabase_anon_key') 
+        ? `${localStorage.getItem('supabase_anon_key')?.substring(0, 5)}...` 
+        : '(usando fallback)';
       setDebugInfo(`URL: ${url}, Key: ${keyPart}`);
     }
   }, [navigate]);
@@ -90,50 +88,27 @@ export const useAuth = (): UseAuthReturn => {
           if (roleError) {
             console.error('Error fetching user role:', roleError);
             // If the user exists but doesn't have a role, assign a default role
-            if (roleError.code === 'PGRST116') {
-              // Check if a role for this user already exists before inserting
-              const { data: existingRole, error: checkError } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', data.user.id);
-                
-              if (checkError) {
-                console.error('Error checking existing role:', checkError);
-              }
-              
-              // Only insert if no role exists
-              if (!existingRole || existingRole.length === 0) {
-                const { error: insertError } = await supabase
-                  .from('user_roles')
-                  .insert({
-                    user_id: data.user.id,
-                    role: 'locutor'
-                  });
-                  
-                if (insertError) {
-                  console.error('Error inserting role:', insertError);
-                  if (insertError.code === '23505') {
-                    // This is a duplicate key error, but we can proceed since the role already exists
-                    console.log('Role already exists for user, continuing...');
-                  } else {
-                    throw new Error('Erro ao atribuir permissões ao usuário: ' + insertError.message);
-                  }
-                }
-              } else {
-                console.log('User already has a role, no need to insert');
-              }
-              
-              // Set default role after checking/insertion
-              toast.success('Login realizado com sucesso! Atribuindo permissões de locutor.', {
-                position: 'bottom-right',
-                closeButton: true,
-                duration: 5000
+            const { error: insertError } = await supabase
+              .from('user_roles')
+              .insert({
+                user_id: data.user.id,
+                role: 'locutor'
               });
-              navigate('/agenda');
-              return;
-            } else {
-              throw new Error('Erro ao verificar permissões do usuário: ' + roleError.message);
+              
+            if (insertError) {
+              console.error('Error inserting role:', insertError);
+              if (insertError.code !== '23505') { // Not a duplicate key error
+                throw new Error('Erro ao atribuir permissões ao usuário: ' + insertError.message);
+              }
             }
+              
+            toast.success('Login realizado com sucesso! Atribuindo permissões de locutor.', {
+              position: 'bottom-right',
+              closeButton: true,
+              duration: 5000
+            });
+            navigate('/agenda');
+            return;
           }
           
           const userRole = roleData?.role;
@@ -145,11 +120,9 @@ export const useAuth = (): UseAuthReturn => {
               duration: 5000
             });
             navigate('/');
-          } else if (userRole === 'locutor') {
-            // Locutor: redirecionar diretamente para agenda sem avisos
-            navigate('/agenda');
           } else {
-            throw new Error('Tipo de usuário não reconhecido');
+            // Locutor ou qualquer outro papel: redirecionar para agenda
+            navigate('/agenda');
           }
         } catch (roleError: any) {
           console.error('Erro ao verificar papel do usuário:', roleError);

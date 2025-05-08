@@ -114,8 +114,8 @@ const Relatorios = () => {
     }
   };
 
-  const handleDateChange = (newDateRange: DateRange) => {
-    setDateRange(newDateRange);
+  const handleDateChange = (range: DateRange) => {
+    setDateRange(range);
   };
 
   return (

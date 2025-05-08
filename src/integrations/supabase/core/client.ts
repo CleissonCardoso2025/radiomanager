@@ -1,7 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types';
-import { isConnectionError } from '../utils/connection-utils';
 
 // Function to get Supabase config from localStorage with fallbacks
 const getSupabaseConfig = () => {
@@ -28,11 +27,5 @@ const getSupabaseConfig = () => {
 // Obter configuração
 const { url: SUPABASE_URL, key: SUPABASE_ANON_KEY } = getSupabaseConfig();
 
-// Initialize the Supabase client with original configuration (simplified)
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    storage: localStorage
-  }
-});
+// Initialize the Supabase client with most basic configuration possible
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
