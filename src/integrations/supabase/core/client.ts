@@ -28,16 +28,11 @@ const getSupabaseConfig = () => {
 // Obter configuração
 const { url: SUPABASE_URL, key: SUPABASE_ANON_KEY } = getSupabaseConfig();
 
-// Configure retry settings
-const MAX_RETRIES = 2;
-const RETRY_DELAY = 500;
-
-// Initialize the Supabase client
+// Initialize the Supabase client with original configuration (simplified)
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     storage: localStorage
   }
-  // Removing the problematic global fetch configuration that was causing the header issue
 });
