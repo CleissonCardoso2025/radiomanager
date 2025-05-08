@@ -86,20 +86,20 @@ export const useAuth = (): UseAuthReturn => {
     
     try {
       if (isSignUp) {
-        // Sign up with sanitized headers
-        const options = {
-          // Override the default headers with our sanitized version
-          headers: validateAndSanitizeHeaders({
-            'Content-Type': 'application/json',
-            'apikey': localStorage.getItem('supabase_anon_key') || undefined,
-          })
-        };
+        // Prepare options for the signup request
+        const apiKey = localStorage.getItem('supabase_anon_key') || undefined;
         
-        // Sign up with our custom options
+        // Log the API key being used (safely)
+        console.log('Using API key:', apiKey ? `${apiKey.substring(0, 5)}...` : 'undefined');
+        
+        // Sign up with current Supabase client which already has auth config
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-        }, options);
+          options: {
+            // Add any additional signup options here if needed
+          }
+        });
         
         if (error) throw error;
         
