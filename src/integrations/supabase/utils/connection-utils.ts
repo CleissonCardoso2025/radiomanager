@@ -30,7 +30,7 @@ export const connectionStatus = {
 };
 
 // Verifica se o Supabase está acessível
-export const checkConnection = async (supabaseClient: any) => {
+export const checkConnection = async (supabaseClient: any): Promise<boolean> => {
   try {
     const { error } = await supabaseClient
       .from('testemunhais')
@@ -40,12 +40,15 @@ export const checkConnection = async (supabaseClient: any) => {
       if (isConnectionError(error)) {
         connectionStatus.updateStatus(false, error);
       }
+      console.log('Connection check failed:', error.message);
       return false;
     }
 
     connectionStatus.updateStatus(true);
+    console.log('Connection check successful');
     return true;
   } catch (error) {
+    console.log('Connection check error:', error);
     if (isConnectionError(error)) {
       connectionStatus.updateStatus(false, error as Error);
     }
@@ -55,6 +58,13 @@ export const checkConnection = async (supabaseClient: any) => {
 
 // Configure event listeners
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => connectionStatus.updateStatus(true));
-  window.addEventListener('offline', () => connectionStatus.updateStatus(false));
+  window.addEventListener('online', () => {
+    console.log('Browser online event detected');
+    connectionStatus.updateStatus(true);
+  });
+  
+  window.addEventListener('offline', () => {
+    console.log('Browser offline event detected');
+    connectionStatus.updateStatus(false);
+  });
 }

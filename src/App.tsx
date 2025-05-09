@@ -20,7 +20,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 // Loading component
 const LoadingFallback = () => (
   <div className="h-screen flex items-center justify-center">
-    <div className="animate-spin-slow h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
     <span className="ml-3">Carregando...</span>
   </div>
 );
@@ -43,7 +43,7 @@ function ProtectedRoute({ children, allowedRoles = ['admin', 'locutor'] }: { chi
   const { user, isLoading, userRole } = useAuth();
   
   if (isLoading) {
-    return <div className="h-screen flex items-center justify-center">Carregando...</div>;
+    return <LoadingFallback />;
   }
   
   if (!user) {
@@ -69,47 +69,44 @@ const App = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   
   useEffect(() => {
-    // Check active session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    // Set up auth state listener FIRST to prevent missing auth events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      setUser(session?.user || null);
       
+      // Handle user role updates but avoid infinite loops by not making any Supabase calls directly here
       if (session?.user) {
-        setUser(session.user);
-        
-        // Armazenar o email do usuário no mapeamento local
         if (session.user.email) {
           updateUserEmailMap(session.user.id, session.user.email);
         }
         
-        // Verificar papel do usuário
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
-        
-        if (data && !error) {
-          setUserRole(data.role);
-        } else {
-          // Fallback para o email do administrador
-          const isAdmin = session.user.email === 'cleissoncardoso@gmail.com';
-          setUserRole(isAdmin ? 'admin' : 'locutor');
-        }
+        // Use setTimeout to defer Supabase calls and prevent deadlocks
+        setTimeout(() => {
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .single()
+            .then(({ data, error }) => {
+              if (data && !error) {
+                setUserRole(data.role);
+              } else {
+                // Fallback para o email do administrador
+                const isAdmin = session.user.email === 'cleissoncardoso@gmail.com';
+                setUserRole(isAdmin ? 'admin' : 'locutor');
+              }
+              setIsLoading(false);
+            });
+        }, 0);
       } else {
-        setUser(null);
         setUserRole(null);
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
-    };
+    });
     
-    getSession();
-    
-    // Carregar mapeamento de emails
-    loadUserEmailMap();
-    
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email);
       setUser(session?.user || null);
       
       if (session?.user) {
@@ -118,29 +115,48 @@ const App = () => {
           updateUserEmailMap(session.user.id, session.user.email);
         }
         
-        // Verificar papel do usuário
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
-        
-        if (data && !error) {
-          setUserRole(data.role);
-        } else {
-          // Fallback para o email do administrador
-          const isAdmin = session.user.email === 'cleissoncardoso@gmail.com';
-          setUserRole(isAdmin ? 'admin' : 'locutor');
-        }
+        // Verificar papel do usuário com timeout para evitar deadlocks
+        setTimeout(() => {
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .single()
+            .then(({ data, error }) => {
+              if (data && !error) {
+                setUserRole(data.role);
+              } else {
+                // Fallback para o email do administrador
+                const isAdmin = session.user.email === 'cleissoncardoso@gmail.com';
+                setUserRole(isAdmin ? 'admin' : 'locutor');
+              }
+              setIsLoading(false);
+            });
+        }, 0);
       } else {
-        setUserRole(null);
+        setIsLoading(false);
       }
     });
+    
+    // Try to load email mapping on init
+    loadUserEmailMap();
     
     return () => {
       subscription.unsubscribe();
     };
   }, []);
+  
+  // Add a safeguard - if still loading after 5 seconds, force stop loading
+  useEffect(() => {
+    if (isLoading) {
+      const timeout = setTimeout(() => {
+        console.log('Force stopping loading state after timeout');
+        setIsLoading(false);
+      }, 5000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoading]);
   
   return (
     <AuthContext.Provider value={{ user, isLoading, userRole }}>
@@ -149,7 +165,9 @@ const App = () => {
       <Router>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
-            <Route path="/login" element={<Login />} />
+            <Route path="/login" element={
+              isLoading ? <LoadingFallback /> : (user ? <Navigate to="/" replace /> : <Login />)
+            } />
             <Route path="/" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <Index />
@@ -186,7 +204,6 @@ const App = () => {
               </ProtectedRoute>
             } />
             <Route path="/acesso-negado" element={<AcessoNegado />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

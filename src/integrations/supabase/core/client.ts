@@ -19,7 +19,7 @@ const getSupabaseConfig = () => {
 // Get configuration
 const { url: SUPABASE_URL_CONFIG, key: SUPABASE_ANON_KEY_CONFIG } = getSupabaseConfig();
 
-// Initialize the Supabase client with explicit configuration
+// Initialize the Supabase client with explicit configuration for authentication
 export const supabase = createClient<Database>(
   SUPABASE_URL_CONFIG, 
   SUPABASE_ANON_KEY_CONFIG,
@@ -27,8 +27,9 @@ export const supabase = createClient<Database>(
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      storage: localStorage
+      storage: localStorage,
+      detectSessionInUrl: true,
+      flowType: 'implicit'
     }
   }
 );
-
