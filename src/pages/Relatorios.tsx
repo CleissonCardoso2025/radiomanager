@@ -1,31 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Bar } from 'react-chartjs-2';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Button } from '@/components/ui/button';
-import { Calendar } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
 
 interface ChartData {
   programa: string;
@@ -49,7 +30,6 @@ const Relatorios = () => {
   const fetchRelatorioData = async (startDate: Date, endDate: Date) => {
     setIsLoading(true);
     try {
-      // Using count_content_by_program_status instead of the non-existent relatorio_tempo_programas
       const { data, error } = await supabase.rpc('count_content_by_program_status', {
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
@@ -75,37 +55,13 @@ const Relatorios = () => {
     if (Array.isArray(data)) {
       data.forEach((item) => {
         chartData.push({
-          programa: item.program_name || 'Sem nome', // Adjust to match the correct field name from count_content_by_program_status
-          tempoTotal: parseInt(item.count) || 0, // Convert count to number
+          programa: item.program_name || 'Sem nome',
+          tempoTotal: parseInt(item.count) || 0,
         });
       });
     }
     
     return chartData;
-  };
-
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: 'Relatório de Conteúdos por Programa',
-      },
-    },
-  };
-
-  const chartData = {
-    labels: relatorioData.map((item) => item.programa),
-    datasets: [
-      {
-        label: 'Total de conteúdos',
-        data: relatorioData.map((item) => item.tempoTotal),
-        backgroundColor: 'rgba(53, 162, 235, 0.5)',
-      },
-    ],
   };
 
   const handleRefresh = () => {
@@ -130,7 +86,24 @@ const Relatorios = () => {
       </div>
 
       {relatorioData.length > 0 ? (
-        <Bar options={chartOptions} data={chartData} />
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart
+            data={relatorioData}
+            margin={{
+              top: 20,
+              right: 30,
+              left: 20,
+              bottom: 5,
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="programa" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="tempoTotal" name="Total de conteúdos" fill="rgba(53, 162, 235, 0.5)" />
+          </BarChart>
+        </ResponsiveContainer>
       ) : (
         <p>Nenhum dado disponível para o período selecionado.</p>
       )}
