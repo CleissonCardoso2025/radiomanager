@@ -5,6 +5,9 @@ export * from './core/client';
 // Export connection utilities
 export { isConnectionError, connectionStatus, checkConnection } from './utils/connection-utils';
 
+// Import supabase client directly from core client
+import { supabase } from './core/client';
+
 // Function to load user email map from localStorage
 export const loadUserEmailMap = () => {
   try {
