@@ -59,7 +59,7 @@ export const getEmailByUserId = (userId: string): string | null => {
 };
 
 // Add the missing functions needed by Configuracoes.tsx
-export const createUserWithRole = async (email: string, password: string, role: string) => {
+export const createUserWithRole = async (email: string, password: string, role: 'admin' | 'locutor') => {
   try {
     // Create the user with Supabase auth
     const { data, error } = await supabase.auth.signUp({
