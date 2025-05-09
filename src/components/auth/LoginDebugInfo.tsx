@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/integrations/supabase/core/client';
 
 interface LoginDebugInfoProps {
   debugInfo: string;
@@ -15,7 +15,9 @@ const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) 
   
   const handleSetApiKeys = () => {
     try {
-      alert("API keys are now hardcoded in the repository as requested. To change them, update the values in src/integrations/supabase/core/client.ts");
+      // Show configuration info
+      const keyPreview = SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.substring(0, 10)}...` : '(não definido)';
+      alert(`Current configuration:\nURL: ${SUPABASE_URL}\nKey: ${keyPreview}\n\nAPI keys are hardcoded in the repository as requested. To change them, update the values in src/integrations/supabase/core/client.ts`);
     } catch (error) {
       console.error("Erro ao exibir mensagem:", error);
     }
