@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/integrations/supabase/client';
 import { validateAndSanitizeHeaders } from '@/utils/authUtils';
 import { useRoleManagement } from './useRoleManagement';
 
@@ -35,13 +35,11 @@ export const useAuthentication = () => {
     
     checkSession();
     
-    // Debug info - only for development
+    // Debug info - showing hardcoded values
     if (process.env.NODE_ENV !== 'production') {
-      const url = localStorage.getItem('supabase_url') || '(usando fallback)';
-      const keyPart = localStorage.getItem('supabase_anon_key') 
-        ? `${localStorage.getItem('supabase_anon_key')?.substring(0, 5)}...` 
-        : '(usando fallback)';
-      setDebugInfo(`URL: ${url}, Key: ${keyPart}`);
+      // Display partial key for security while still being visible in repo
+      const keyPart = SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.substring(0, 10)}...` : '(não definido)';
+      setDebugInfo(`URL: ${SUPABASE_URL}, Key: ${keyPart}`);
     }
   }, [navigate]);
 
@@ -77,6 +75,10 @@ export const useAuthentication = () => {
    * Handle user signup process
    */
   const handleSignUp = async () => {
+    // Using hardcoded configuration - not retrieving from localStorage
+    console.log('Signing up with Supabase URL:', SUPABASE_URL);
+    console.log('Using API key (first 5 chars):', SUPABASE_ANON_KEY.substring(0, 5));
+    
     // Sign up with current Supabase client which already has auth config
     const { data, error } = await supabase.auth.signUp({
       email,

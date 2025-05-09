@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/integrations/supabase/client';
 
 interface LoginDebugInfoProps {
   debugInfo: string;
@@ -14,17 +15,9 @@ const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) 
   
   const handleSetApiKeys = () => {
     try {
-      const newUrl = prompt("Informe a URL do Supabase:", localStorage.getItem('supabase_url') || "");
-      const newKey = prompt("Informe a chave anônima do Supabase:", localStorage.getItem('supabase_anon_key') || "");
-      
-      if (newUrl) localStorage.setItem('supabase_url', newUrl);
-      if (newKey) localStorage.setItem('supabase_anon_key', newKey);
-      
-      alert("Configurações salvas! Recarregue a página para aplicar as alterações.");
-      window.location.reload();
+      alert("API keys are now hardcoded in the repository as requested. To change them, update the values in src/integrations/supabase/core/client.ts");
     } catch (error) {
-      console.error("Erro ao salvar configurações:", error);
-      alert("Erro ao salvar configurações. Verifique o console para mais detalhes.");
+      console.error("Erro ao exibir mensagem:", error);
     }
   }
   
@@ -36,11 +29,16 @@ const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) 
       <div className="mt-1 font-mono">
         {debugInfo}
       </div>
+      <div className="mt-1">
+        <span className="font-semibold">Valores hardcoded:</span>
+        <div>URL: {SUPABASE_URL}</div>
+        <div>Key: {SUPABASE_ANON_KEY.substring(0, 10)}...</div>
+      </div>
       <button 
         onClick={handleSetApiKeys}
         className="mt-2 text-blue-500 underline text-xs"
       >
-        Configurar chaves do Supabase
+        Informações sobre as chaves do Supabase
       </button>
     </div>
   );
