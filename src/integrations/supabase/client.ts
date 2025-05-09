@@ -54,3 +54,75 @@ export const getEmailByUserId = (userId: string): string | null => {
     return null;
   }
 };
+
+// Add the missing functions needed by Configuracoes.tsx
+export const createUserWithRole = async (email: string, password: string, role: string) => {
+  try {
+    // Create the user with Supabase auth
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+
+    if (data.user) {
+      // Assign the role to the new user
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: data.user.id,
+          role: role
+        });
+
+      if (roleError) throw roleError;
+
+      // Store the email mapping
+      updateUserEmailMap(data.user.id, email);
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error creating user with role:', error);
+    return { data: null, error };
+  }
+};
+
+export const getUsersWithEmails = async () => {
+  try {
+    // Call the RPC function to get users with emails (this function should exist in your Supabase project)
+    const { data, error } = await supabase
+      .rpc('get_users_with_emails');
+
+    if (error) throw error;
+
+    // Add status field to each user
+    const usersWithStatus = data.map((user: any) => ({
+      ...user,
+      status: 'Ativo' // Default status, you can modify this logic as needed
+    }));
+
+    return { data: usersWithStatus, error: null };
+  } catch (error) {
+    console.error('Error fetching users with emails:', error);
+    return { data: null, error };
+  }
+};
+
+export const updateUserPassword = async (userId: string, newPassword: string) => {
+  try {
+    // Call the RPC function to update user password by admin
+    const { data, error } = await supabase
+      .rpc('admin_update_user_password', {
+        user_id: userId,
+        new_password: newPassword
+      });
+
+    if (error) throw error;
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error updating user password:', error);
+    return { data: null, error };
+  }
+};

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
@@ -31,7 +30,8 @@ interface AuthContextType {
   userRole: string | null;
 }
 
-const AuthContext = createContext<AuthContextType>({
+// Export AuthContext so it can be imported in useAuth.tsx
+export const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   userRole: null,

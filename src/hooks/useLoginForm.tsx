@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { useAuth } from '@/App'; // Import directly from App where AuthContext is defined
+import { useAuth } from './useAuth'; // Updated import to use our fixed useAuth
 import { useConnectionStatus } from './useConnectionStatus';
 
 export const useLoginForm = () => {
