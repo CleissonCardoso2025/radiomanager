@@ -1,26 +1,27 @@
 
-import { useAuthentication } from './useAuthentication';
+import { useContext } from 'react';
+import { AuthContext } from '../App'; // Import directly from App where AuthContext is defined
 
 /**
  * Main authentication hook that powers the app's auth functionality
  * Interface remains the same to avoid breaking changes
  */
 export interface UseAuthReturn {
-  email: string;
-  setEmail: (email: string) => void;
-  password: string;
-  setPassword: (password: string) => void;
-  isSignUp: boolean;
-  setIsSignUp: (isSignUp: boolean) => void;
+  user: any;
   isLoading: boolean;
-  handleSubmit: (e: React.FormEvent) => Promise<void>;
-  debugInfo: string;
+  userRole: string | null;
 }
 
 /**
  * Hook that provides authentication functionality
  */
 export const useAuth = (): UseAuthReturn => {
-  // Use the main authentication hook with all functionality
-  return useAuthentication();
+  // Use the AuthContext from App.tsx
+  const authContext = useContext(AuthContext);
+  
+  if (!authContext) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  
+  return authContext;
 };

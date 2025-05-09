@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LoginDebugInfoProps {
   debugInfo: string;
@@ -28,11 +28,6 @@ const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) 
       </div>
       <div className="mt-1 font-mono">
         {debugInfo}
-      </div>
-      <div className="mt-1">
-        <span className="font-semibold">Valores hardcoded:</span>
-        <div>URL: {SUPABASE_URL}</div>
-        <div>Key: {SUPABASE_ANON_KEY.substring(0, 10)}...</div>
       </div>
       <button 
         onClick={handleSetApiKeys}
