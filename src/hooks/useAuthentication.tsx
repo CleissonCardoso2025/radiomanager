@@ -1,158 +1,127 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/integrations/supabase/client';
-import { validateAndSanitizeHeaders } from '@/utils/authUtils';
+import { useConnectionStatus } from './useConnectionStatus';
 import { useRoleManagement } from './useRoleManagement';
 
-/**
- * Core authentication hook for handling login, signup, and session management
- */
 export const useAuthentication = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState('');
-  const navigate = useNavigate();
   
-  // Get role management functions
-  const { fetchUserRole, assignDefaultRole, handleRoleBasedNavigation } = useRoleManagement();
+  const { isOnline, connectionError, retryCount } = useConnectionStatus();
+  const { fetchUserRole, handleRoleBasedNavigation } = useRoleManagement();
 
+  // Verificar se as credenciais do Supabase existem e mostrar apenas se não existirem
   useEffect(() => {
-    // Check if user is already logged in
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          navigate('/');
-        }
-      } catch (error) {
-        console.error('Erro ao verificar sessão:', error);
-      }
-    };
+    const supabaseUrl = localStorage.getItem('supabase_url');
+    const supabaseKey = localStorage.getItem('supabase_anon_key');
     
-    checkSession();
-    
-    // Debug info - showing hardcoded values
-    if (process.env.NODE_ENV !== 'production') {
-      // Display partial key for security while still being visible in repo
-      const keyPart = SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.substring(0, 10)}...` : '(não definido)';
-      setDebugInfo(`URL: ${SUPABASE_URL}, Key: ${keyPart}`);
+    if (!supabaseUrl || !supabaseKey) {
+      setDebugInfo('Configuração necessária: Configure credenciais do Supabase.');
+    } else if (process.env.NODE_ENV !== 'production') {
+      // Em desenvolvimento, mostrar a URL mas não a chave
+      setDebugInfo(`Conectando a: ${supabaseUrl}`);
+    } else {
+      // Em produção, não mostrar nenhum debug info se as credenciais existirem
+      setDebugInfo('');
     }
-  }, [navigate]);
+  }, []);
 
-  /**
-   * Handle form submission for login or signup
-   */
+  // For handling form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Verificar se as credenciais do Supabase existem
+    const supabaseUrl = localStorage.getItem('supabase_url');
+    const supabaseKey = localStorage.getItem('supabase_anon_key');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      toast.error('Configuração necessária', {
+        description: 'Configure as credenciais do Supabase antes de fazer login.',
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
+      console.log('Iniciando autenticação com Supabase');
+      
       if (isSignUp) {
         // Handle signup
-        await handleSignUp();
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password
+        });
+        
+        if (error) throw error;
+        
+        if (data.user) {
+          // Criar papel padrão para o usuário (locutor)
+          const userId = data.user.id;
+          try {
+            await supabase
+              .from('user_roles')
+              .insert({ user_id: userId, role: 'locutor' });
+          } catch (roleError) {
+            console.error('Erro ao criar papel para o usuário:', roleError);
+            // Não bloquear o fluxo por este erro
+          }
+        }
+        
+        toast.success('Conta criada com sucesso! Verifique seu email para confirmar.');
       } else {
         // Handle login
-        await handleLogin();
+        console.log('Tentando login com:', email);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (error) throw error;
+        
+        if (data.user) {
+          const userId = data.user.id;
+          // Verificar papel do usuário
+          const userRole = await fetchUserRole(userId);
+          
+          // Redirecionar baseado no papel
+          handleRoleBasedNavigation(userRole, navigate);
+        }
       }
     } catch (error: any) {
       console.error('Erro de autenticação:', error);
       toast.error(isSignUp ? 'Erro ao criar conta' : 'Erro ao fazer login', {
-        description: error.message || 'Verifique suas credenciais e tente novamente.',
-        position: 'bottom-right',
-        closeButton: true,
-        duration: 5000
+        description: error.message || 'Verifique suas credenciais e tente novamente.'
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  /**
-   * Handle user signup process
-   */
-  const handleSignUp = async () => {
-    // Using hardcoded configuration - not retrieving from localStorage
-    console.log('Signing up with Supabase URL:', SUPABASE_URL);
-    console.log('Using API key (first 5 chars):', SUPABASE_ANON_KEY.substring(0, 5));
-    
-    // Sign up with current Supabase client which already has auth config
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        // Add any additional signup options here if needed
-      }
-    });
-    
-    if (error) throw error;
-    
-    toast.success('Conta criada com sucesso! Verifique seu email para confirmar.', {
-      position: 'bottom-right',
-      closeButton: true,
-      duration: 5000
-    });
-  };
-
-  /**
-   * Handle user login process
-   */
-  const handleLogin = async () => {
-    // Sign in with default options
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    if (error) throw error;
-    
-    try {
-      // Fetch user role from user_roles table
-      const userRole = await fetchUserRole(data.user.id);
-      
-      if (!userRole) {
-        // If the user exists but doesn't have a role, assign a default role
-        const success = await assignDefaultRole(data.user.id);
-        
-        if (success) {
-          toast.success('Login realizado com sucesso! Atribuindo permissões de locutor.', {
-            position: 'bottom-right',
-            closeButton: true,
-            duration: 5000
-          });
-          navigate('/agenda');
-          return;
-        } else {
-          throw new Error('Erro ao atribuir permissões ao usuário');
-        }
-      }
-      
-      // Handle navigation based on user role
-      handleRoleBasedNavigation(userRole, navigate);
-      
-    } catch (roleError: any) {
-      console.error('Erro ao verificar papel do usuário:', roleError);
-      toast.error('Erro de Permissão', {
-        description: roleError.message || 'Erro ao verificar permissões do usuário',
-        position: 'bottom-right',
-        closeButton: true,
-        duration: 5000
-      });
-    }
-  };
-
   return {
-    email,
+    // Form state
+    email, 
     setEmail,
-    password,
+    password, 
     setPassword,
-    isSignUp,
+    isSignUp, 
     setIsSignUp,
     isLoading,
     handleSubmit,
+    
+    // Connection state
+    isOnline,
+    connectionError,
+    retryCount,
+    
+    // Debug info
     debugInfo
   };
 };

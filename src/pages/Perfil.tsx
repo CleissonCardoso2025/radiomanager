@@ -41,7 +41,7 @@ const Perfil = () => {
                     </div>
                     <div>
                       <p className="text-gray-500">Último acesso</p>
-                      <p>{new Date(user?.last_sign_in_at).toLocaleDateString()}</p>
+                      <p>{user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'N/A'}</p>
                     </div>
                   </div>
                 </div>

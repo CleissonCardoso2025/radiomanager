@@ -14,8 +14,12 @@ const AuthButton = () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       toast.success('Logout realizado com sucesso');
-      navigate('/login');
+      // Redirecionar para login após logout bem-sucedido
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 100);
     } catch (error: any) {
+      console.error('Erro ao fazer logout:', error);
       toast.error('Erro ao fazer logout', {
         description: error.message,
       });
