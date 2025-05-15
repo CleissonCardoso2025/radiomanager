@@ -15,11 +15,31 @@ const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) 
   
   const handleSetApiKeys = () => {
     try {
-      // Show configuration info
-      const keyPreview = SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.substring(0, 10)}...` : '(não definido)';
-      alert(`Current configuration:\nURL: ${SUPABASE_URL}\nKey: ${keyPreview}\n\nAPI keys are hardcoded in the repository as requested. To change them, update the values in src/integrations/supabase/core/client.ts`);
+      // Show current configuration
+      const currentUrl = localStorage.getItem('supabase_url') || SUPABASE_URL;
+      const currentKey = localStorage.getItem('supabase_anon_key') || SUPABASE_ANON_KEY;
+      const keyPreview = currentKey ? `${currentKey.substring(0, 10)}...` : '(não definido)';
+      
+      // Ask for new values
+      const newUrl = prompt('Digite a URL do Supabase:', currentUrl);
+      if (newUrl && newUrl !== currentUrl) {
+        localStorage.setItem('supabase_url', newUrl);
+      }
+      
+      const newKey = prompt('Digite a chave anônima do Supabase:', currentKey);
+      if (newKey && newKey !== currentKey) {
+        localStorage.setItem('supabase_anon_key', newKey);
+      }
+      
+      if ((newUrl && newUrl !== currentUrl) || (newKey && newKey !== currentKey)) {
+        alert('Configuração atualizada! A página será recarregada.');
+        window.location.reload();
+      } else {
+        alert('Nenhuma alteração feita.');
+      }
     } catch (error) {
-      console.error("Erro ao exibir mensagem:", error);
+      console.error("Erro ao configurar chaves:", error);
+      alert("Erro ao configurar chaves: " + String(error));
     }
   }
   
@@ -35,7 +55,7 @@ const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) 
         onClick={handleSetApiKeys}
         className="mt-2 text-blue-500 underline text-xs"
       >
-        Informações sobre as chaves do Supabase
+        Configurar chaves do Supabase
       </button>
     </div>
   );
