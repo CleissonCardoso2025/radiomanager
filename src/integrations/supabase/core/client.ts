@@ -2,39 +2,27 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types';
 
-// Função para obter configuração do Supabase do localStorage
+// Hardcoded Supabase configuration values - visible in repository as requested
+export const SUPABASE_URL = "https://elgvdvhlzjphfjufosmt.supabase.co";
+export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzk5NzQsImV4cCI6MjA1Njc1NTk3NH0.fa4NJw2dT42JiIVmCoc2mgg_LcdvXN1pOWLaLCYRBho";
+
+// Function to get Supabase config - now using hardcoded values directly
 const getSupabaseConfig = () => {
-  if (typeof window !== 'undefined') {
-    const url = localStorage.getItem('supabase_url');
-    const key = localStorage.getItem('supabase_anon_key');
-    
-    // Verificar se as chaves existem no localStorage
-    if (url && key) {
-      console.log('Usando configuração do Supabase do localStorage');
-      return { url, key };
-    }
-  }
-  
-  // Fallback para valores padrão (não recomendado para produção)
-  console.log('Usando fallback de configuração do Supabase - configure através da tela de login');
+  console.log('Using hardcoded Supabase configuration');
   
   return { 
-    url: 'https://elgvdvhlzjphfjufosmt.supabase.co', 
-    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzk5NzQsImV4cCI6MjA1Njc1NTk3NH0.fa4NJw2dT42JiIVmCoc2mgg_LcdvXN1pOWLaLCYRBho' 
+    url: SUPABASE_URL, 
+    key: SUPABASE_ANON_KEY 
   };
 };
 
-// Obter configuração
-const { url: SUPABASE_URL, key: SUPABASE_ANON_KEY } = getSupabaseConfig();
+// Get configuration
+const { url: SUPABASE_URL_CONFIG, key: SUPABASE_ANON_KEY_CONFIG } = getSupabaseConfig();
 
-// Exportar valores para debug
-export const SUPABASE_URL = url;
-export const SUPABASE_ANON_KEY = key;
-
-// Inicializar o cliente Supabase com configuração explícita para autenticação
+// Initialize the Supabase client with explicit configuration for authentication
 export const supabase = createClient<Database>(
-  SUPABASE_URL, 
-  SUPABASE_ANON_KEY,
+  SUPABASE_URL_CONFIG, 
+  SUPABASE_ANON_KEY_CONFIG,
   {
     auth: {
       autoRefreshToken: true,
@@ -45,14 +33,3 @@ export const supabase = createClient<Database>(
     }
   }
 );
-
-// Função para testar conexão
-export const testConnection = async () => {
-  try {
-    const { error } = await supabase.from('user_roles').select('count').limit(1);
-    return !error;
-  } catch (e) {
-    console.error('Erro ao testar conexão com o Supabase:', e);
-    return false;
-  }
-};
