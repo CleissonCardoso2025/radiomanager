@@ -1,7 +1,7 @@
 
 # Configuração de Chaves de API para o RadioManager
 
-Este documento explica como configurar as chaves de API necessárias para o funcionamento completo do RadioManager, incluindo as chaves do Supabase e da OpenAI.
+Este documento explica como configurar as chaves de API necessárias para o funcionamento completo do RadioManager, incluindo as chaves do Supabase.
 
 ## Chaves do Supabase
 
@@ -26,32 +26,6 @@ console.log('Chaves do Supabase configuradas com sucesso!');
 location.reload();
 ```
 
-## Chave da OpenAI
-
-A chave da OpenAI é necessária para o assistente de criação de conteúdo na página de Produção. Sem esta chave, o assistente de conteúdo não funcionará.
-
-### Opção 1: Configurar pela interface do usuário (Recomendado)
-
-1. Faça login no RadioManager como administrador
-2. Acesse a página de Configurações
-3. Vá para a aba "APIs"
-4. Clique em "Adicionar Chave"
-5. Preencha os campos:
-   - **Nome da Chave**: `openai` (exatamente como escrito)
-   - **Valor da Chave**: `[INSIRA SUA CHAVE DA OPENAI AQUI]`
-6. Clique em "Salvar Chave"
-
-### Opção 2: Configurar via console do navegador
-
-1. Abra o RadioManager no navegador
-2. Abra o console do navegador (F12 ou Ctrl+Shift+I)
-3. Cole o seguinte código no console e pressione Enter:
-
-```javascript
-localStorage.setItem('api_key_openai', '[INSIRA SUA CHAVE DA OPENAI AQUI]');
-console.log('Chave da OpenAI configurada com sucesso!');
-```
-
 ## Segurança
 
 As chaves de API são armazenadas localmente no navegador usando localStorage. Isso significa que:
@@ -71,5 +45,4 @@ Para verificar se as chaves estão configuradas corretamente:
    ```javascript
    console.log('Supabase URL:', localStorage.getItem('supabase_url'));
    console.log('Supabase Anon Key:', localStorage.getItem('supabase_anon_key'));
-   console.log('OpenAI API Key:', localStorage.getItem('api_key_openai'));
    ```

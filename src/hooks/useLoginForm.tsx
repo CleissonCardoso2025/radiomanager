@@ -15,14 +15,30 @@ export const useLoginForm = () => {
   
   const { isOnline, connectionError, retryCount } = useConnectionStatus();
 
-  // For handling form submission
+  // Atualizar informações de debug
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const supabaseUrl = localStorage.getItem('supabase_url') || '(não configurado)';
+        const keyPart = localStorage.getItem('supabase_anon_key') 
+          ? `${localStorage.getItem('supabase_anon_key')?.substring(0, 5)}...` 
+          : '(não configurado)';
+        setDebugInfo(`URL: ${supabaseUrl}, Key: ${keyPart}`);
+      } catch (error) {
+        console.error('Erro ao obter dados de debug:', error);
+        setDebugInfo('Erro ao obter configuração');
+      }
+    }
+  }, []);
+
+  // Para tratar o envio do formulário
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
     try {
       if (isSignUp) {
-        // Handle signup
+        // Tratar cadastro
         const { error } = await supabase.auth.signUp({
           email,
           password
@@ -32,7 +48,7 @@ export const useLoginForm = () => {
         
         toast.success('Conta criada com sucesso! Verifique seu email para confirmar.');
       } else {
-        // Handle login
+        // Tratar login
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password
@@ -52,15 +68,8 @@ export const useLoginForm = () => {
     }
   };
 
-  // Set debug info in dev environment
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') {
-      setDebugInfo('Login form initialized');
-    }
-  }, []);
-
   return {
-    // Form state
+    // Estado do formulário
     email, 
     setEmail,
     password, 
@@ -70,12 +79,12 @@ export const useLoginForm = () => {
     isLoading: isLoading || authLoading,
     handleSubmit,
     
-    // Connection state
+    // Estado da conexão
     isOnline,
     connectionError,
     retryCount,
     
-    // Debug info
+    // Informações de debug
     debugInfo
   };
 };
