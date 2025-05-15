@@ -15,12 +15,38 @@ export const useLoginForm = () => {
   
   const { isOnline, connectionError, retryCount } = useConnectionStatus();
 
+  // Verificar se as credenciais do Supabase existem
+  useEffect(() => {
+    const supabaseUrl = localStorage.getItem('supabase_url');
+    const supabaseKey = localStorage.getItem('supabase_anon_key');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      setDebugInfo('Credenciais do Supabase não configuradas. Configure-as antes de fazer login.');
+    } else {
+      setDebugInfo(`Conectando a: ${supabaseUrl}`);
+    }
+  }, []);
+
   // For handling form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Verificar se as credenciais do Supabase existem
+    const supabaseUrl = localStorage.getItem('supabase_url');
+    const supabaseKey = localStorage.getItem('supabase_anon_key');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      toast.error('Configuração necessária', {
+        description: 'Configure as credenciais do Supabase antes de fazer login.',
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
+      console.log('Iniciando autenticação com Supabase');
+      
       if (isSignUp) {
         // Handle signup
         const { error } = await supabase.auth.signUp({
@@ -33,6 +59,7 @@ export const useLoginForm = () => {
         toast.success('Conta criada com sucesso! Verifique seu email para confirmar.');
       } else {
         // Handle login
+        console.log('Tentando login com:', email);
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password
@@ -51,13 +78,6 @@ export const useLoginForm = () => {
       setIsLoading(false);
     }
   };
-
-  // Set debug info in dev environment
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') {
-      setDebugInfo('Login form initialized');
-    }
-  }, []);
 
   return {
     // Form state
