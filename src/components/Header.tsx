@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/sheet';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/App';
+import { useAuth } from '@/hooks/useAuth';
 
 interface HeaderProps {
   notificationCount?: number;

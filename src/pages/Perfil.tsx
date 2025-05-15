@@ -1,6 +1,7 @@
+
 import React from 'react';
 import Header from '@/components/Header';
-import { useAuth } from '@/App';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
