@@ -5,13 +5,14 @@ Este documento explica como configurar as chaves de API necessárias para o func
 
 ## Chaves do Supabase
 
-As chaves do Supabase são essenciais para o funcionamento do banco de dados e autenticação.
+As chaves do Supabase são essenciais para o funcionamento do banco de dados e autenticação. 
+**IMPORTANTE: A chave anônima foi removida do código-fonte por segurança.**
 
-### Configurar via interface do RadioManager
+### Configurar via interface do RadioManager (RECOMENDADO)
 
 1. Na tela de login, clique em "Configurar chaves do Supabase" (visível apenas no modo de desenvolvimento)
 2. Insira sua URL do Supabase e Chave Anônima quando solicitado
-3. Recarregue a página para aplicar as alterações
+3. As chaves serão armazenadas apenas localmente no seu navegador
 
 ### Configurar manualmente via console do navegador
 
@@ -59,6 +60,7 @@ As chaves de API são armazenadas localmente no navegador usando localStorage. I
 1. As chaves não são enviadas para o servidor
 2. As chaves não são compartilhadas entre navegadores ou dispositivos
 3. As chaves persistem mesmo após fechar o navegador, mas podem ser perdidas se você limpar os dados do navegador
+4. **As chaves não são mais armazenadas no código-fonte**
 
 **IMPORTANTE**: Nunca compartilhe suas chaves de API.
 
@@ -70,6 +72,6 @@ Para verificar se as chaves estão configuradas corretamente:
 2. Execute os comandos:
    ```javascript
    console.log('Supabase URL:', localStorage.getItem('supabase_url'));
-   console.log('Supabase Anon Key:', localStorage.getItem('supabase_anon_key'));
-   console.log('OpenAI API Key:', localStorage.getItem('api_key_openai'));
+   console.log('Supabase Anon Key:', localStorage.getItem('supabase_anon_key') ? 'Configurada' : 'Não configurada');
+   console.log('OpenAI API Key:', localStorage.getItem('api_key_openai') ? 'Configurada' : 'Não configurada');
    ```

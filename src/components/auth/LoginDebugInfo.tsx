@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/integrations/supabase/core/client';
+import { SUPABASE_URL } from '@/integrations/supabase/core/client';
 
 interface LoginDebugInfoProps {
   debugInfo: string;
@@ -8,26 +8,26 @@ interface LoginDebugInfoProps {
 }
 
 const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) => {
-  // Only show debug info in development mode
+  // Exibir informações de debug apenas no modo de desenvolvimento
   if (process.env.NODE_ENV === 'production' || !debugInfo) {
     return null;
   }
   
   const handleSetApiKeys = () => {
     try {
-      // Show current configuration
+      // Mostrar configuração atual
       const currentUrl = localStorage.getItem('supabase_url') || SUPABASE_URL;
-      const currentKey = localStorage.getItem('supabase_anon_key') || SUPABASE_ANON_KEY;
+      const currentKey = localStorage.getItem('supabase_anon_key') || '';
       const keyPreview = currentKey ? `${currentKey.substring(0, 10)}...` : '(não definido)';
       
-      // Ask for new values
+      // Solicitar novos valores
       const newUrl = prompt('Digite a URL do Supabase:', currentUrl);
-      if (newUrl && newUrl !== currentUrl) {
+      if (newUrl) {
         localStorage.setItem('supabase_url', newUrl);
       }
       
       const newKey = prompt('Digite a chave anônima do Supabase:', currentKey);
-      if (newKey && newKey !== currentKey) {
+      if (newKey) {
         localStorage.setItem('supabase_anon_key', newKey);
       }
       
@@ -43,6 +43,9 @@ const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) 
     }
   }
   
+  // Verificar se a chave já está configurada
+  const keyExists = !!localStorage.getItem('supabase_anon_key');
+  
   return (
     <div className="text-xs text-gray-500 text-center mt-2 p-2 bg-gray-100 rounded-md">
       <div>
@@ -51,6 +54,11 @@ const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) 
       <div className="mt-1 font-mono">
         {debugInfo}
       </div>
+      {!keyExists && (
+        <div className="mt-1 text-red-500 font-semibold">
+          A chave do Supabase não está configurada!
+        </div>
+      )}
       <button 
         onClick={handleSetApiKeys}
         className="mt-2 text-blue-500 underline text-xs"

@@ -2,36 +2,42 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types';
 
-// Hardcoded Supabase configuration values - visible in repository as requested
-export const SUPABASE_URL = "https://elgvdvhlzjphfjufosmt.supabase.co";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDczMTU5NDIsImV4cCI6MjA2Mjg5MTk0Mn0.HLgxXN5sArx86sW33zGVVojMmuGERYRCzgydyxp_SpY";
+// Fallback URLs - serão substituídas por configurações do localStorage quando definidas
+// Importante: Estas são apenas URLs de fallback e não incluem a chave real
+const FALLBACK_URL = "https://elgvdvhlzjphfjufosmt.supabase.co";
+const FALLBACK_KEY = ""; // Chave removida do repositório para segurança
 
-// Function to get Supabase config - now combining localStorage and hardcoded values
+// Função para obter configuração do Supabase - prioriza localStorage sobre valores padrão
 const getSupabaseConfig = () => {
   if (typeof window !== 'undefined') {
     const url = localStorage.getItem('supabase_url');
     const key = localStorage.getItem('supabase_anon_key');
     
-    // Use localStorage values if they exist
+    // Use valores do localStorage se existirem
     if (url && key) {
-      console.log('Using Supabase configuration from localStorage');
+      console.log('Usando configuração do Supabase do localStorage');
       return { url, key };
     }
   }
   
-  // Fallback to hardcoded values
-  console.log('Using hardcoded Supabase configuration');
+  // Verificar se há chave no localStorage
+  const key = typeof window !== 'undefined' ? localStorage.getItem('supabase_anon_key') : null;
   
+  if (!key) {
+    console.warn('ATENÇÃO: Nenhuma chave anônima do Supabase encontrada. Configure-a na tela de login.');
+  }
+  
+  // Fallback para valores padrão
   return { 
-    url: SUPABASE_URL, 
-    key: SUPABASE_ANON_KEY 
+    url: FALLBACK_URL, 
+    key: key || FALLBACK_KEY 
   };
 };
 
-// Get configuration
+// Obter configuração
 const config = getSupabaseConfig();
 
-// Initialize the Supabase client with explicit configuration for authentication
+// Inicializar o cliente Supabase com configuração explícita para autenticação
 export const supabase = createClient<Database>(
   config.url, 
   config.key,
@@ -45,3 +51,6 @@ export const supabase = createClient<Database>(
     }
   }
 );
+
+// Exportar URL para referência, mas não a chave
+export const SUPABASE_URL = config.url;
