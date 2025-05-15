@@ -19,6 +19,7 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 interface HeaderProps {
   notificationCount?: number;
@@ -129,10 +130,18 @@ const Header: React.FC<HeaderProps> = ({ notificationCount: propNotificationCoun
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Erro ao sair:', error);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      toast.success('Logout realizado com sucesso');
+      // Redirecionar para login após logout bem-sucedido
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 100);
+    } catch (error: any) {
+      console.error('Erro ao fazer logout:', error);
+      toast.error('Erro ao fazer logout', {
+        description: error.message,
+      });
     }
   };
 

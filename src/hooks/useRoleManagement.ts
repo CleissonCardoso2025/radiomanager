@@ -65,28 +65,8 @@ export const useRoleManagement = () => {
     }
   };
 
-  /**
-   * Handles user navigation based on role
-   * @param userRole Role of the user
-   * @param navigate Navigation function
-   */
-  const handleRoleBasedNavigation = (userRole: string | null, navigate: (path: string) => void) => {
-    if (userRole === 'admin') {
-      toast.success('Login realizado com sucesso!', {
-        position: 'bottom-right',
-        closeButton: true,
-        duration: 5000
-      });
-      navigate('/');
-    } else {
-      // Locutor ou qualquer outro papel: redirecionar para agenda
-      navigate('/agenda');
-    }
-  };
-
   return {
     fetchUserRole,
-    assignDefaultRole,
-    handleRoleBasedNavigation
+    assignDefaultRole
   };
 };

@@ -1,127 +1,175 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useConnectionStatus } from './useConnectionStatus';
+import { supabase } from '@/integrations/supabase/client';
+import { validateAndSanitizeHeaders } from '@/utils/authUtils';
 import { useRoleManagement } from './useRoleManagement';
 
+/**
+ * Core authentication hook for handling login, signup, and session management
+ */
 export const useAuthentication = () => {
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState('');
+  const navigate = useNavigate();
   
-  const { isOnline, connectionError, retryCount } = useConnectionStatus();
-  const { fetchUserRole, handleRoleBasedNavigation } = useRoleManagement();
+  // Get role management functions
+  const { fetchUserRole, assignDefaultRole, handleRoleBasedNavigation } = useRoleManagement();
 
-  // Verificar se as credenciais do Supabase existem e mostrar apenas se não existirem
   useEffect(() => {
-    const supabaseUrl = localStorage.getItem('supabase_url');
-    const supabaseKey = localStorage.getItem('supabase_anon_key');
+    // Check if user is already logged in
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          navigate('/');
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
+      }
+    };
     
-    if (!supabaseUrl || !supabaseKey) {
-      setDebugInfo('Configuração necessária: Configure credenciais do Supabase.');
-    } else if (process.env.NODE_ENV !== 'production') {
-      // Em desenvolvimento, mostrar a URL mas não a chave
-      setDebugInfo(`Conectando a: ${supabaseUrl}`);
-    } else {
-      // Em produção, não mostrar nenhum debug info se as credenciais existirem
-      setDebugInfo('');
+    checkSession();
+    
+    // Debug info - only for development
+    if (process.env.NODE_ENV !== 'production') {
+      const url = localStorage.getItem('supabase_url') || '(usando fallback)';
+      const keyPart = localStorage.getItem('supabase_anon_key') 
+        ? `${localStorage.getItem('supabase_anon_key')?.substring(0, 5)}...` 
+        : '(usando fallback)';
+      setDebugInfo(`URL: ${url}, Key: ${keyPart}`);
     }
-  }, []);
+  }, [navigate]);
 
-  // For handling form submission
+  /**
+   * Handle form submission for login or signup
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Verificar se as credenciais do Supabase existem
-    const supabaseUrl = localStorage.getItem('supabase_url');
-    const supabaseKey = localStorage.getItem('supabase_anon_key');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      toast.error('Configuração necessária', {
-        description: 'Configure as credenciais do Supabase antes de fazer login.',
-      });
-      return;
-    }
-    
     setIsLoading(true);
     
     try {
-      console.log('Iniciando autenticação com Supabase');
-      
       if (isSignUp) {
         // Handle signup
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password
-        });
-        
-        if (error) throw error;
-        
-        if (data.user) {
-          // Criar papel padrão para o usuário (locutor)
-          const userId = data.user.id;
-          try {
-            await supabase
-              .from('user_roles')
-              .insert({ user_id: userId, role: 'locutor' });
-          } catch (roleError) {
-            console.error('Erro ao criar papel para o usuário:', roleError);
-            // Não bloquear o fluxo por este erro
-          }
-        }
-        
-        toast.success('Conta criada com sucesso! Verifique seu email para confirmar.');
+        await handleSignUp();
       } else {
         // Handle login
-        console.log('Tentando login com:', email);
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-        
-        if (error) throw error;
-        
-        if (data.user) {
-          const userId = data.user.id;
-          // Verificar papel do usuário
-          const userRole = await fetchUserRole(userId);
-          
-          // Redirecionar baseado no papel
-          handleRoleBasedNavigation(userRole, navigate);
-        }
+        await handleLogin();
       }
     } catch (error: any) {
       console.error('Erro de autenticação:', error);
       toast.error(isSignUp ? 'Erro ao criar conta' : 'Erro ao fazer login', {
-        description: error.message || 'Verifique suas credenciais e tente novamente.'
+        description: error.message || 'Verifique suas credenciais e tente novamente.',
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
       });
     } finally {
       setIsLoading(false);
     }
   };
 
+  /**
+   * Handle user signup process
+   */
+  const handleSignUp = async () => {
+    // Prepare options for the signup request
+    const apiKey = localStorage.getItem('supabase_anon_key') || undefined;
+    
+    // Log the API key being used (safely)
+    console.log('Using API key:', apiKey ? `${apiKey.substring(0, 5)}...` : 'undefined');
+    
+    // Sign up with current Supabase client which already has auth config
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        // Add any additional signup options here if needed
+      }
+    });
+    
+    if (error) throw error;
+    
+    toast.success('Conta criada com sucesso! Verifique seu email para confirmar.', {
+      position: 'bottom-right',
+      closeButton: true,
+      duration: 5000
+    });
+  };
+
+  /**
+   * Handle user login process
+   */
+  const handleLogin = async () => {
+    // Sign in with default options
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (error) throw error;
+    
+    try {
+      // Fetch user role from user_roles table
+      const userRole = await fetchUserRole(data.user.id);
+      
+      if (!userRole) {
+        // If the user exists but doesn't have a role, assign a default role
+        const success = await assignDefaultRole(data.user.id);
+        
+        if (success) {
+          toast.success('Login realizado com sucesso! Atribuindo permissões de locutor.', {
+            position: 'bottom-right',
+            closeButton: true,
+            duration: 5000
+          });
+          navigate('/agenda');
+          return;
+        } else {
+          throw new Error('Erro ao atribuir permissões ao usuário');
+        }
+      }
+      
+      // Navegar com base no papel do usuário
+      if (userRole === 'admin') {
+        toast.success('Login bem-sucedido! Bem-vindo, administrador.', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+        navigate('/');
+      } else {
+        toast.success('Login bem-sucedido!', {
+          position: 'bottom-right',
+          closeButton: true,
+          duration: 5000
+        });
+        navigate('/agenda');
+      }
+      
+    } catch (roleError: any) {
+      console.error('Erro ao verificar papel do usuário:', roleError);
+      toast.error('Erro de Permissão', {
+        description: roleError.message || 'Erro ao verificar permissões do usuário',
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+    }
+  };
+
   return {
-    // Form state
-    email, 
+    email,
     setEmail,
-    password, 
+    password,
     setPassword,
-    isSignUp, 
+    isSignUp,
     setIsSignUp,
     isLoading,
     handleSubmit,
-    
-    // Connection state
-    isOnline,
-    connectionError,
-    retryCount,
-    
-    // Debug info
     debugInfo
   };
 };

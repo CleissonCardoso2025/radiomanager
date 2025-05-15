@@ -14,7 +14,6 @@ const Agenda = lazy(() => import('./pages/Agenda'));
 const Relatorios = lazy(() => import('./pages/Relatorios'));
 const Perfil = lazy(() => import('./pages/Perfil'));
 const Configuracoes = lazy(() => import('./pages/Configuracoes'));
-const AcessoNegado = lazy(() => import('./pages/AcessoNegado'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Loading component
@@ -54,9 +53,10 @@ function ProtectedRoute({ children, allowedRoles = ['admin', 'locutor'] }: { chi
     return children;
   }
   
-  // Para outros papéis, verificar se têm permissão
+  // Para locutor ou outros usuários não admin, verificar se a rota é permitida
+  // Se não for permitida, redirecionar para a página de agenda ao invés de acesso negado
   if (!allowedRoles.includes(userRole || '')) {
-    return <Navigate to="/acesso-negado" replace />;
+    return <Navigate to="/agenda" replace />;
   }
   
   return children;
@@ -234,7 +234,7 @@ const App = () => {
                 <Configuracoes />
               </ProtectedRoute>
             } />
-            <Route path="/acesso-negado" element={<AcessoNegado />} />
+            {/* Removido a rota para a página de acesso negado */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
