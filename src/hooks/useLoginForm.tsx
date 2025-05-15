@@ -15,15 +15,19 @@ export const useLoginForm = () => {
   
   const { isOnline, connectionError, retryCount } = useConnectionStatus();
 
-  // Verificar se as credenciais do Supabase existem
+  // Verificar se as credenciais do Supabase existem e mostrar apenas se não existirem
   useEffect(() => {
     const supabaseUrl = localStorage.getItem('supabase_url');
     const supabaseKey = localStorage.getItem('supabase_anon_key');
     
     if (!supabaseUrl || !supabaseKey) {
-      setDebugInfo('Credenciais do Supabase não configuradas. Configure-as antes de fazer login.');
-    } else {
+      setDebugInfo('Configuração necessária: Configure credenciais do Supabase.');
+    } else if (process.env.NODE_ENV !== 'production') {
+      // Em desenvolvimento, mostrar a URL mas não a chave
       setDebugInfo(`Conectando a: ${supabaseUrl}`);
+    } else {
+      // Em produção, não mostrar nenhum debug info se as credenciais existirem
+      setDebugInfo('');
     }
   }, []);
 

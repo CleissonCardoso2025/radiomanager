@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { SUPABASE_URL } from '@/integrations/supabase/core/client';
 
 interface LoginDebugInfoProps {
@@ -8,8 +8,21 @@ interface LoginDebugInfoProps {
 }
 
 const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) => {
+  // Estado para controlar a exibição do botão de configuração
+  const [showConfigButton, setShowConfigButton] = useState(false);
+  
+  // Verificar se as credenciais estão configuradas ao carregar o componente
+  useEffect(() => {
+    const keyExists = !!localStorage.getItem('supabase_anon_key');
+    const urlExists = !!localStorage.getItem('supabase_url');
+    const configComplete = keyExists && urlExists;
+    
+    // Mostrar o botão apenas se a configuração estiver incompleta
+    setShowConfigButton(!configComplete);
+  }, []);
+  
   // Exibir informações de debug apenas no modo de desenvolvimento
-  if (process.env.NODE_ENV === 'production' && !debugInfo) {
+  if (process.env.NODE_ENV === 'production' && !debugInfo && !showConfigButton) {
     return null;
   }
   
@@ -41,6 +54,8 @@ const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) 
       }
       
       if ((newUrl && newUrl !== currentUrl) || (newKey && newKey !== currentKey)) {
+        // Se a configuração foi alterada, ocultar o botão e recarregar a página
+        setShowConfigButton(false);
         alert('Configuração atualizada! A página será recarregada.');
         window.location.reload();
       } else {
@@ -62,20 +77,24 @@ const LoginDebugInfo: React.FC<LoginDebugInfoProps> = ({ debugInfo, isOnline }) 
       <div>
         <span className="font-semibold">Status da Conexão:</span> {isOnline ? 'Online' : 'Offline'}
       </div>
-      <div className="mt-1 font-mono">
-        {debugInfo}
-      </div>
-      {!configComplete && (
+      {debugInfo && (
+        <div className="mt-1 font-mono">
+          {debugInfo}
+        </div>
+      )}
+      {(!configComplete && showConfigButton) && (
         <div className="mt-1 text-red-500 font-semibold">
           Configuração do Supabase incompleta!
         </div>
       )}
-      <button 
-        onClick={handleSetApiKeys}
-        className="mt-2 text-blue-500 underline text-xs"
-      >
-        Configurar Supabase
-      </button>
+      {showConfigButton && (
+        <button 
+          onClick={handleSetApiKeys}
+          className="mt-2 text-blue-500 underline text-xs"
+        >
+          Configurar Supabase
+        </button>
+      )}
     </div>
   );
 };

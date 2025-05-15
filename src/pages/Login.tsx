@@ -32,7 +32,7 @@ const Login = () => {
         debugInfo={debugInfo}
       />
       
-      {/* Display connection status component */}
+      {/* Display connection status component only when there's an issue */}
       {(!isOnline || connectionError) && (
         <div className="mt-4">
           <ConnectionStatus 
@@ -46,5 +46,4 @@ const Login = () => {
   );
 };
 
-// Export using default export
 export default Login;
