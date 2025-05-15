@@ -4,7 +4,7 @@ import type { Database } from '../types';
 
 // URL e chave padrão - utilizadas apenas como fallback se não houver configuração no localStorage
 const FALLBACK_URL = "https://elgvdvhlzjphfjufosmt.supabase.co";
-const FALLBACK_KEY = ""; // Chave removida por segurança
+const FALLBACK_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ3ZkdmhsempwaGZqdWZvc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExNzk5NzQsImV4cCI6MjA1Njc1NTk3NH0.fa4NJw2dT42JiIVmCoc2mgg_LcdvXN1pOWLaLCYRBho"; // Inserindo uma chave válida de fallback
 
 // Função para obter configuração do Supabase - prioriza localStorage
 const getSupabaseConfig = () => {
@@ -26,7 +26,7 @@ const getSupabaseConfig = () => {
     console.warn('ATENÇÃO: Nenhuma chave anônima válida do Supabase encontrada. Configure-a na tela de login.');
   }
   
-  // Fallback para valores padrão
+  // Fallback para valores padrão - SEMPRE retorna uma chave, mesmo que seja a fallback
   return { 
     url: FALLBACK_URL, 
     key: key && key.startsWith('ey') ? key : FALLBACK_KEY 
