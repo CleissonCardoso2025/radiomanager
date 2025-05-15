@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, ArrowLeft, UserCircle } from 'lucide-react';
-import { useAuth } from '@/App';
+import { useAuth } from '@/hooks/useAuth';
 
 const AcessoNegado = () => {
   const navigate = useNavigate();

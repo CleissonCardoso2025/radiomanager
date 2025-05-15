@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
@@ -37,10 +38,8 @@ export const AuthContext = createContext<AuthContextType>({
   userRole: null,
 });
 
-export const useAuth = () => useContext(AuthContext);
-
 function ProtectedRoute({ children, allowedRoles = ['admin', 'locutor'] }: { children: JSX.Element, allowedRoles?: string[] }) {
-  const { user, isLoading, userRole } = useAuth();
+  const { user, isLoading, userRole } = useContext(AuthContext);
   
   if (isLoading) {
     return <LoadingFallback />;
@@ -74,7 +73,7 @@ const App = () => {
       console.log('Auth state changed:', event, session?.user?.email);
       setUser(session?.user || null);
       
-      // Handle user role updates but avoid infinite loops by not making any Supabase calls directly here
+      // Handle user role updates but avoid infinite loops
       if (session?.user) {
         if (session.user.email) {
           updateUserEmailMap(session.user.id, session.user.email);
@@ -86,14 +85,30 @@ const App = () => {
             .from('user_roles')
             .select('role')
             .eq('user_id', session.user.id)
-            .single()
+            .maybeSingle() // Use maybeSingle instead of single to prevent errors
             .then(({ data, error }) => {
               if (data && !error) {
+                console.log('User role found:', data.role);
                 setUserRole(data.role);
               } else {
+                console.log('No role found, checking admin email');
                 // Fallback para o email do administrador
                 const isAdmin = session.user.email === 'cleissoncardoso@gmail.com';
-                setUserRole(isAdmin ? 'admin' : 'locutor');
+                const defaultRole = isAdmin ? 'admin' : 'locutor';
+                console.log('Setting default role:', defaultRole);
+                setUserRole(defaultRole);
+                
+                // Create role record if missing
+                if (!error || error.code === 'PGRST116') { // No rows returned
+                  supabase
+                    .from('user_roles')
+                    .insert({ user_id: session.user.id, role: defaultRole })
+                    .then(({ error: insertError }) => {
+                      if (insertError) {
+                        console.error('Error creating user role:', insertError);
+                      }
+                    });
+                }
               }
               setIsLoading(false);
             });
@@ -121,14 +136,30 @@ const App = () => {
             .from('user_roles')
             .select('role')
             .eq('user_id', session.user.id)
-            .single()
+            .maybeSingle() // Use maybeSingle instead of single
             .then(({ data, error }) => {
               if (data && !error) {
+                console.log('User role found on init:', data.role);
                 setUserRole(data.role);
               } else {
+                console.log('No role found on init, checking admin email');
                 // Fallback para o email do administrador
                 const isAdmin = session.user.email === 'cleissoncardoso@gmail.com';
-                setUserRole(isAdmin ? 'admin' : 'locutor');
+                const defaultRole = isAdmin ? 'admin' : 'locutor';
+                console.log('Setting default role on init:', defaultRole);
+                setUserRole(defaultRole);
+                
+                // Create role record if missing
+                if (!error || error.code === 'PGRST116') { // No rows returned
+                  supabase
+                    .from('user_roles')
+                    .insert({ user_id: session.user.id, role: defaultRole })
+                    .then(({ error: insertError }) => {
+                      if (insertError) {
+                        console.error('Error creating user role on init:', insertError);
+                      }
+                    });
+                }
               }
               setIsLoading(false);
             });
@@ -146,13 +177,13 @@ const App = () => {
     };
   }, []);
   
-  // Add a safeguard - if still loading after 5 seconds, force stop loading
+  // Add a safeguard - if still loading after 3 seconds, force stop loading
   useEffect(() => {
     if (isLoading) {
       const timeout = setTimeout(() => {
         console.log('Force stopping loading state after timeout');
         setIsLoading(false);
-      }, 5000);
+      }, 3000);
       
       return () => clearTimeout(timeout);
     }

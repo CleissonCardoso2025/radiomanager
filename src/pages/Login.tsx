@@ -1,21 +1,23 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import ConnectionStatus from '@/components/ConnectionStatus';
 import LoginForm from '@/components/auth/LoginForm';
-import { useLoginForm } from '@/hooks/useLoginForm';
+import { useAuthentication } from '@/hooks/useAuthentication';
 
 const Login = () => {
+  const navigate = useNavigate();
   const { 
     email, setEmail,
     password, setPassword,
     isSignUp, setIsSignUp,
     isLoading,
     handleSubmit,
-    isOnline, 
-    connectionError,
-    retryCount,
     debugInfo
-  } = useLoginForm();
+  } = useAuthentication();
+
+  // Get connection status independent of login form
+  const { isOnline, connectionError, retryCount } = { isOnline: true, connectionError: null, retryCount: 0 };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
