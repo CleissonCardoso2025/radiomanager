@@ -62,6 +62,19 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Adicionando cores personalizadas baseadas no vermelho
+				"brand-red": {
+					50: "#ffebee",
+					100: "#ffcdd2",
+					200: "#ef9a9a",
+					300: "#e57373",
+					400: "#ef5350",
+					500: "#910000", // O vermelho escuro do upload
+					600: "#800000",
+					700: "#700000",
+					800: "#600000",
+					900: "#500000",
 				}
 			},
 			borderRadius: {
