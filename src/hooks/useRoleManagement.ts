@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { NavigateFunction } from 'react-router-dom';
 
 /**
  * Hook for managing user roles and permissions
@@ -65,8 +66,32 @@ export const useRoleManagement = () => {
     }
   };
 
+  /**
+   * Handles navigation based on user role
+   * @param role User role
+   * @param navigate Navigation function from react-router-dom
+   */
+  const handleRoleBasedNavigation = (role: string, navigate: NavigateFunction) => {
+    if (role === 'admin') {
+      toast.success('Login bem-sucedido! Bem-vindo, administrador.', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+      navigate('/');
+    } else {
+      toast.success('Login bem-sucedido!', {
+        position: 'bottom-right',
+        closeButton: true,
+        duration: 5000
+      });
+      navigate('/agenda');
+    }
+  };
+
   return {
     fetchUserRole,
-    assignDefaultRole
+    assignDefaultRole,
+    handleRoleBasedNavigation
   };
 };

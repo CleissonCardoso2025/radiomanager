@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -133,22 +134,8 @@ export const useAuthentication = () => {
         }
       }
       
-      // Navegar com base no papel do usuário
-      if (userRole === 'admin') {
-        toast.success('Login bem-sucedido! Bem-vindo, administrador.', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        navigate('/');
-      } else {
-        toast.success('Login bem-sucedido!', {
-          position: 'bottom-right',
-          closeButton: true,
-          duration: 5000
-        });
-        navigate('/agenda');
-      }
+      // Use the role-based navigation helper
+      handleRoleBasedNavigation(userRole, navigate);
       
     } catch (roleError: any) {
       console.error('Erro ao verificar papel do usuário:', roleError);
