@@ -24,12 +24,10 @@ const getSupabaseConfig = () => {
   };
 };
 
-// Obter configuração
-const { url: SUPABASE_URL, key: SUPABASE_ANON_KEY } = getSupabaseConfig();
-
-// Exportar valores para debug
-export const SUPABASE_URL = url;
-export const SUPABASE_ANON_KEY = key;
+// Obter configuração e exportar valores para debug
+const config = getSupabaseConfig();
+export const SUPABASE_URL = config.url;
+export const SUPABASE_ANON_KEY = config.key;
 
 // Inicializar o cliente Supabase com configuração explícita para autenticação
 export const supabase = createClient<Database>(
